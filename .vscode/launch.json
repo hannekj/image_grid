@@ -9,14 +9,14 @@
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
-            "deviceId": "iPhone 17 Pro"
+            "deviceId": "iPhone 16e"
         },
         {
             "name": "image_grid (profile mode)",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
-            "deviceId": "iPhone 17 Pro",
+            "deviceId": "iPhone 16e",
             "flutterMode": "profile"
         },
         {
@@ -24,7 +24,7 @@
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
-            "deviceId": "iPhone 17 Pro",
+            "deviceId": "iPhone 16e",
             "flutterMode": "release"
         }
     ]
