@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'app_theme.dart';
 import 'canvas_format.dart';
 import 'canvas_share.dart';
 import 'dump_layout.dart';
@@ -66,7 +67,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   Color get _canvasColor {
     if (_layout.isDump) {
-      return _kind == FrameKind.stroke ? _color.color : const Color(0xFFE8E0D4);
+      return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
     }
     return _kind == FrameKind.stroke ? _color.color : Colors.white;
   }
@@ -316,6 +317,64 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildReaction() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final shortest = math.min(constraints.maxWidth, constraints.maxHeight);
+        final insetSize = shortest * 0.30;
+        final margin = shortest * 0.045;
+        final radius = insetSize * 0.18;
+
+        Widget slot(int index) {
+          return _SwappableSlot(
+            index: index,
+            imageBytes: _slots[index],
+            showChrome: !_exporting,
+            onPick: _slots[index] == null
+                ? () => _pickImages(index)
+                : () => _pickImage(index),
+            onSwap: _swapSlots,
+          );
+        }
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            slot(0),
+            Positioned(
+              right: margin,
+              bottom: margin,
+              width: insetSize,
+              height: insetSize,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(radius),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.28),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(2.5),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                      math.max(0, radius - 2),
+                    ),
+                    child: slot(1),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final strokeWidth = _strokeWidth;
@@ -331,9 +390,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFE8E8E4),
+        backgroundColor: AppTheme.mist,
         appBar: AppBar(
-          backgroundColor: const Color(0xFFE8E8E4),
+          backgroundColor: AppTheme.mist,
           title: Text(_layout.label),
           centerTitle: true,
           actions: [
@@ -390,7 +449,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                   ),
                                   child: _layout.isDump
                                       ? _buildDump()
-                                      : _buildGrid(strokeWidth),
+                                      : _layout.isReaction
+                                          ? _buildReaction()
+                                          : _buildGrid(strokeWidth),
                                 ),
                                 if (_overlayText != null)
                                   OverlayTextLayer(
@@ -417,9 +478,21 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                   ),
                 ),
               ),
+              if (!_hasAnyImage)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    'Trykk for å legge inn bilder',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.muted,
+                    ),
+                  ),
+                ),
               if (_tool != null)
                 ColoredBox(
-                  color: Colors.white,
+                  color: AppTheme.cream,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                     child: _buildToolPanel(),

@@ -4,6 +4,7 @@ import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'app_theme.dart';
 import 'canvas_export.dart';
 import 'canvas_format.dart';
 import 'canvas_share.dart';
@@ -94,9 +95,9 @@ class _CropPageState extends State<CropPage> {
         if (shouldPop && mounted) Navigator.of(context).pop();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFE8E8E4),
+        backgroundColor: AppTheme.mist,
         appBar: AppBar(
-          backgroundColor: const Color(0xFFE8E8E4),
+          backgroundColor: AppTheme.mist,
           title: const Text('Beskjær'),
           centerTitle: true,
         ),
@@ -139,6 +140,17 @@ class _CropPageState extends State<CropPage> {
                     ),
                   ),
                 ),
+                if (!_hasImage) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Trykk for å legge inn et bilde',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.muted,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 ExportBar(
                   enabled: _hasImage,

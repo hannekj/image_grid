@@ -1,109 +1,121 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
 import 'canvas_format.dart';
 import 'carousel_page.dart';
 import 'crop_page.dart';
 import 'grid_layout.dart';
 import 'layout_editor_page.dart';
+import 'layout_outline_painter.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 20,
-              alignment: WrapAlignment.center,
-              children: [
-                _ToolTile(
-                  label: 'Grid',
-                  mark: const _GridMark(),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => LayoutEditorPage(
-                          layout: defaultGridLayout,
-                          format: canvasFormats.first,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                _ToolTile(
-                  label: 'Karusell',
-                  mark: const _CarouselMark(),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const CarouselPage(),
-                      ),
-                    );
-                  },
-                ),
-                _ToolTile(
-                  label: 'Beskjær',
-                  mark: const _CropMark(),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const CropPage(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
+  void _openGrid(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LayoutEditorPage(
+          layout: defaultGridLayout,
+          format: canvasFormats.first,
         ),
       ),
     );
   }
-}
 
-class _ToolTile extends StatelessWidget {
-  const _ToolTile({
-    required this.label,
-    required this.mark,
-    required this.onPressed,
-  });
+  void _openCarousel(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const CarouselPage(),
+      ),
+    );
+  }
 
-  final String label;
-  final Widget mark;
-  final VoidCallback onPressed;
+  void _openCrop(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const CropPage(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black,
-      borderRadius: BorderRadius.circular(4),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(4),
-        splashColor: Colors.white24,
-        highlightColor: Colors.white10,
-        child: SizedBox(
-          width: 156,
-          height: 156,
+    return Scaffold(
+      backgroundColor: AppTheme.cream,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(32, 36, 32, 28),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              mark,
-              const SizedBox(height: 22),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
+              const Spacer(flex: 2),
+              const Text(
+                'Bildekarusell',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Georgia',
+                  fontFamilyFallback: ['Times New Roman', 'serif'],
+                  fontSize: 36,
                   fontWeight: FontWeight.w500,
-                  letterSpacing: 1.4,
+                  height: 1.15,
+                  color: AppTheme.ink,
                 ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Innlegg, dumps og karuseller',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: AppTheme.muted,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 40),
+              GestureDetector(
+                onTap: () => _openGrid(context),
+                child: _HomePreview(),
+              ),
+              const Spacer(flex: 3),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: () => _openGrid(context),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.ink,
+                    foregroundColor: AppTheme.cream,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Lag innlegg',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () => _openCarousel(context),
+                    style: TextButton.styleFrom(foregroundColor: AppTheme.muted),
+                    child: const Text('Karusell'),
+                  ),
+                  const Text(
+                    '·',
+                    style: TextStyle(color: AppTheme.muted, fontSize: 16),
+                  ),
+                  TextButton(
+                    onPressed: () => _openCrop(context),
+                    style: TextButton.styleFrom(foregroundColor: AppTheme.muted),
+                    child: const Text('Beskjær'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -113,100 +125,40 @@ class _ToolTile extends StatelessWidget {
   }
 }
 
-class _GridMark extends StatelessWidget {
-  const _GridMark();
+class _HomePreview extends StatelessWidget {
+  const _HomePreview();
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 40,
-      child: Column(
-        children: [
-          _MarkBar(width: 40),
-          SizedBox(height: 5),
-          _MarkBar(width: 40),
-          SizedBox(height: 5),
-          _MarkBar(width: 40),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _CarouselMark extends StatelessWidget {
-  const _CarouselMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _MarkBar(width: 10, height: 28),
-        SizedBox(width: 5),
-        _MarkBar(width: 10, height: 28),
-        SizedBox(width: 5),
-        _MarkBar(width: 10, height: 28),
-      ],
-    );
-  }
-}
-
-class _CropMark extends StatelessWidget {
-  const _CropMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 28,
-      height: 28,
-      child: CustomPaint(painter: _CropMarkPainter()),
-    );
-  }
-}
-
-class _CropMarkPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.square;
-
-    const arm = 8.0;
-    canvas.drawLine(Offset.zero, const Offset(arm, 0), paint);
-    canvas.drawLine(Offset.zero, const Offset(0, arm), paint);
-    canvas.drawLine(Offset(size.width, 0), Offset(size.width - arm, 0), paint);
-    canvas.drawLine(Offset(size.width, 0), Offset(size.width, arm), paint);
-    canvas.drawLine(Offset(0, size.height), Offset(arm, size.height), paint);
-    canvas.drawLine(Offset(0, size.height), Offset(0, size.height - arm), paint);
-    canvas.drawLine(
-      Offset(size.width, size.height),
-      Offset(size.width - arm, size.height),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width, size.height),
-      Offset(size.width, size.height - arm),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _MarkBar extends StatelessWidget {
-  const _MarkBar({required this.width, this.height = 8});
-
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Colors.white,
-      child: SizedBox(width: width, height: height),
+      child: SizedBox(
+        width: 176,
+        child: AspectRatio(
+          aspectRatio: 4 / 5,
+          child: ColoredBox(
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: CustomPaint(
+                painter: LayoutOutlinePainter(
+                  layout: defaultGridLayout,
+                  gapColor: Colors.white,
+                  gap: 6,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

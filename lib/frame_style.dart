@@ -21,7 +21,7 @@ const strokeColors = [
   StrokeColor(label: 'Hvit', color: Colors.white),
   StrokeColor(label: 'Beige', color: Color(0xFFE8E0D4)),
   StrokeColor(label: 'Terracotta', color: Color(0xFFB85C38)),
-  StrokeColor(label: 'Sage', color: Color(0xFF7D8B74)),
+  StrokeColor(label: 'Sage', color: Color(0xFF7E8F72)),
 ];
 
 const strokeThicknesses = [

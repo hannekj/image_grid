@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
 import 'canvas_format.dart';
 import 'grid_layout.dart';
 import 'layout_outline_painter.dart';
@@ -68,7 +69,7 @@ class _LayoutThumb extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
-              color: selected ? Colors.black : const Color(0xFFD5D5D0),
+              color: selected ? AppTheme.matcha : AppTheme.line,
               width: selected ? 2 : 1,
             ),
           ),

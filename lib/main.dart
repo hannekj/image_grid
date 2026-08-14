@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
 import 'home_page.dart';
 
 void main() {
@@ -14,15 +15,7 @@ class ImageGridApp extends StatelessWidget {
     return MaterialApp(
       title: 'Bildekarusell',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: const ColorScheme.light(
-          primary: Colors.black,
-          onPrimary: Colors.white,
-          surface: Colors.white,
-          onSurface: Colors.black,
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.data(),
       home: const HomePage(),
     );
   }

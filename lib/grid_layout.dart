@@ -33,16 +33,11 @@ class GridLayout {
   }
 
   bool get isDump => id == 'dump';
+
+  bool get isReaction => id == 'reaction';
 }
 
 const gridLayouts = [
-  GridLayout(
-    id: 'dump',
-    label: 'Dump',
-    rows: [
-      LayoutRow(flex: 1, cells: [1]),
-    ],
-  ),
   GridLayout(
     id: '2-rows',
     label: '2 rader',
@@ -121,6 +116,29 @@ const gridLayouts = [
     rows: [
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: '3x3',
+    label: '3 × 3',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'dump',
+    label: 'Dump',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
+  GridLayout(
+    id: 'reaction',
+    label: 'Reaksjon',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
     ],
   ),
 ];

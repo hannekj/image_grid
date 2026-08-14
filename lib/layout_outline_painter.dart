@@ -24,6 +24,11 @@ class LayoutOutlinePainter extends CustomPainter {
       return;
     }
 
+    if (layout.isReaction) {
+      _paintReaction(canvas, size);
+      return;
+    }
+
     final cellPaint = Paint()..color = cellColor;
     final rowFlexTotal = layout.rowFlexTotal;
     final rowCount = layout.rows.length;
@@ -78,6 +83,38 @@ class LayoutOutlinePainter extends CustomPainter {
         polaroid.bottom - height * 0.22,
       ),
       Paint()..color = cellColor,
+    );
+  }
+
+  void _paintReaction(Canvas canvas, Size size) {
+    final cellPaint = Paint()..color = cellColor;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Offset.zero & size,
+        const Radius.circular(1.5),
+      ),
+      cellPaint,
+    );
+
+    final inset = size.shortestSide * 0.30;
+    final margin = size.shortestSide * 0.06;
+    final radius = inset * 0.18;
+    final rect = Rect.fromLTWH(
+      size.width - margin - inset,
+      size.height - margin - inset,
+      inset,
+      inset,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      Paint()..color = gapColor,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        rect.deflate(1.2),
+        Radius.circular(radius * 0.85),
+      ),
+      cellPaint,
     );
   }
 

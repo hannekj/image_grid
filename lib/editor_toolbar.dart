@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
+
 enum EditorTool { layout, format, look, text }
 
 class EditorToolBar extends StatelessWidget {
@@ -16,8 +18,8 @@ class EditorToolBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: Color(0xFFE8E8E4),
-        border: Border(top: BorderSide(color: Color(0xFFD5D5D0))),
+        color: AppTheme.mist,
+        border: Border(top: BorderSide(color: AppTheme.line)),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
@@ -73,7 +75,7 @@ class _ToolButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? Colors.black : const Color(0xFF6B6B6B);
+    final color = selected ? AppTheme.matcha : AppTheme.muted;
     return Expanded(
       child: InkWell(
         onTap: onTap,

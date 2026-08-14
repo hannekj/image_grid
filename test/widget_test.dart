@@ -5,16 +5,18 @@ import 'package:image_grid/film_look.dart';
 import 'package:image_grid/main.dart';
 
 void main() {
-  testWidgets('home Grid button opens editor with layout tools', (
+  testWidgets('home opens editor with layout tools', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ImageGridApp());
 
-    expect(find.text('Grid'), findsOneWidget);
+    expect(find.text('Bildekarusell'), findsOneWidget);
+    expect(find.text('Lag innlegg'), findsOneWidget);
     expect(find.text('Karusell'), findsOneWidget);
     expect(find.text('Beskjær'), findsOneWidget);
+    expect(find.text('Grid'), findsNothing);
 
-    await tester.tap(find.text('Grid'));
+    await tester.tap(find.text('Lag innlegg'));
     await tester.pumpAndSettle();
 
     expect(find.text('2 × 2'), findsOneWidget);
@@ -27,6 +29,7 @@ void main() {
     expect(find.byTooltip('2 rader'), findsOneWidget);
     expect(find.byTooltip('2 kolonner'), findsOneWidget);
     expect(find.text('4:5'), findsNothing);
+    expect(find.text('Trykk for å legge inn bilder'), findsOneWidget);
     expect(find.text('Velg bilder'), findsNothing);
   });
 
@@ -35,7 +38,7 @@ void main() {
   ) async {
     await tester.pumpWidget(const ImageGridApp());
 
-    await tester.tap(find.text('Grid'));
+    await tester.tap(find.text('Lag innlegg'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Look'));
@@ -85,14 +88,14 @@ void main() {
   ) async {
     await tester.pumpWidget(const ImageGridApp());
 
-    await tester.tap(find.text('Grid'));
+    await tester.tap(find.text('Lag innlegg'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
 
     expect(find.text('Forkast bildene?'), findsNothing);
-    expect(find.text('Grid'), findsOneWidget);
+    expect(find.text('Bildekarusell'), findsOneWidget);
   });
 
   testWidgets('home Karusell and Beskjær open their tools', (
@@ -114,18 +117,19 @@ void main() {
     expect(find.text('Beskjær'), findsWidgets);
     expect(find.text('Del'), findsOneWidget);
     expect(find.text('Last ned'), findsOneWidget);
-    expect(find.text('Velg bilde'), findsOneWidget);
+    expect(find.text('Trykk for å legge inn et bilde'), findsOneWidget);
   });
 
   testWidgets('dump layout opens polaroid editor', (WidgetTester tester) async {
     await tester.pumpWidget(const ImageGridApp());
 
-    await tester.tap(find.text('Grid'));
+    await tester.tap(find.text('Lag innlegg'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Dump'));
     await tester.pumpAndSettle();
 
     expect(find.text('Dump'), findsOneWidget);
+    expect(find.text('Trykk for å legge inn bilder'), findsOneWidget);
 
     await tester.tap(find.text('Look'));
     await tester.pump();
@@ -134,10 +138,22 @@ void main() {
     expect(find.text(filmDateLabel()), findsOneWidget);
   });
 
+  testWidgets('reaction layout opens overlay editor', (WidgetTester tester) async {
+    await tester.pumpWidget(const ImageGridApp());
+
+    await tester.tap(find.text('Lag innlegg'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Reaksjon'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reaksjon'), findsOneWidget);
+    expect(find.text('Trykk for å legge inn bilder'), findsOneWidget);
+  });
+
   testWidgets('format tab shows size chips', (WidgetTester tester) async {
     await tester.pumpWidget(const ImageGridApp());
 
-    await tester.tap(find.text('Grid'));
+    await tester.tap(find.text('Lag innlegg'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Format'));
     await tester.pump();
