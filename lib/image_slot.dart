@@ -20,10 +20,18 @@ class ImageSlot extends StatefulWidget {
   State<ImageSlot> createState() => _ImageSlotState();
 }
 
-class _ImageSlotState extends State<ImageSlot> {
-  double _panX = 0;
-  double _panY = 0;
+class _ImageSlotState extends State<ImageSlot>
+    with AutomaticKeepAliveClientMixin {
+  static const _minZoom = 1.0;
+  static const _maxZoom = 4.0;
+
+  double _zoom = 1.0;
+  Offset _pan = Offset.zero;
+  double _gestureStartZoom = 1.0;
   Size? _imageSize;
+
+  @override
+  bool get wantKeepAlive => widget.imageBytes != null;
 
   @override
   void initState() {
@@ -35,10 +43,11 @@ class _ImageSlotState extends State<ImageSlot> {
   void didUpdateWidget(covariant ImageSlot oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageBytes != widget.imageBytes) {
-      _panX = 0;
-      _panY = 0;
+      _zoom = 1.0;
+      _pan = Offset.zero;
       _imageSize = null;
       _decodeSize(widget.imageBytes);
+      updateKeepAlive();
     }
   }
 
@@ -61,40 +70,42 @@ class _ImageSlotState extends State<ImageSlot> {
     return math.max(slot.width / image.width, slot.height / image.height);
   }
 
-  double _verticalOverflow(Size slot) {
+  Offset _clampPan(Offset pan, Size slot) {
     final image = _imageSize;
-    if (image == null) return slot.height;
-    return math.max(0, image.height * _coverScale(slot) - slot.height);
+    if (image == null) return Offset.zero;
+
+    final scale = _coverScale(slot) * _zoom;
+    final maxX = math.max(0.0, (image.width * scale - slot.width) / 2);
+    final maxY = math.max(0.0, (image.height * scale - slot.height) / 2);
+    return Offset(
+      pan.dx.clamp(-maxX, maxX),
+      pan.dy.clamp(-maxY, maxY),
+    );
   }
 
-  double _horizontalOverflow(Size slot) {
-    final image = _imageSize;
-    if (image == null) return slot.width;
-    return math.max(0, image.width * _coverScale(slot) - slot.width);
+  void _onScaleStart(ScaleStartDetails details) {
+    _gestureStartZoom = _zoom;
   }
 
-  void _onPanUpdate(DragUpdateDetails details, Size slot) {
-    final verticalOverflow = _verticalOverflow(slot);
-    final horizontalOverflow = _horizontalOverflow(slot);
-
+  void _onScaleUpdate(ScaleUpdateDetails details, Size slot) {
     setState(() {
-      if (horizontalOverflow > 0) {
-        _panX = (_panX - details.delta.dx * 2 / horizontalOverflow).clamp(
-          -1.0,
-          1.0,
-        );
-      }
-      if (verticalOverflow > 0) {
-        _panY = (_panY - details.delta.dy * 2 / verticalOverflow).clamp(
-          -1.0,
-          1.0,
-        );
-      }
+      _zoom = (_gestureStartZoom * details.scale)
+          .clamp(_minZoom, _maxZoom)
+          .toDouble();
+      _pan = _clampPan(_pan + details.focalPointDelta, slot);
+    });
+  }
+
+  void _resetView() {
+    setState(() {
+      _zoom = 1.0;
+      _pan = Offset.zero;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final bytes = widget.imageBytes;
 
     return Material(
@@ -112,33 +123,84 @@ class _ImageSlotState extends State<ImageSlot> {
                   ? Center(
                       child: compact
                           ? const Icon(Icons.add_photo_alternate_outlined)
-                          : const Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add_photo_alternate_outlined, size: 36),
-                                SizedBox(height: 8),
-                                Text('Velg bilde'),
-                              ],
+                          : const FittedBox(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.add_photo_alternate_outlined,
+                                    size: 36,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text('Velg bilde'),
+                                ],
+                              ),
                             ),
                     )
                   : const SizedBox.expand(),
             );
           }
 
+          final image = _imageSize;
+          if (image == null) {
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onScaleStart: _onScaleStart,
+                  onScaleUpdate: (details) => _onScaleUpdate(details, slot),
+                  onDoubleTap: _resetView,
+                  child: ClipRect(
+                    child: Image.memory(
+                      bytes,
+                      fit: BoxFit.cover,
+                      width: slot.width,
+                      height: slot.height,
+                      gaplessPlayback: true,
+                    ),
+                  ),
+                ),
+                if (widget.showChrome)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: _ReplaceButton(onTap: widget.onPick),
+                  ),
+              ],
+            );
+          }
+
+          final pan = _clampPan(_pan, slot);
+          final scale = _coverScale(slot) * _zoom;
+          final displayWidth = image.width * scale;
+          final displayHeight = image.height * scale;
+
           return Stack(
             fit: StackFit.expand,
             children: [
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onPanUpdate: (details) => _onPanUpdate(details, slot),
+                onScaleStart: _onScaleStart,
+                onScaleUpdate: (details) => _onScaleUpdate(details, slot),
+                onDoubleTap: _resetView,
                 child: ClipRect(
-                  child: Image.memory(
-                    bytes,
-                    fit: BoxFit.cover,
-                    alignment: Alignment(_panX, _panY),
-                    width: slot.width,
-                    height: slot.height,
-                    gaplessPlayback: true,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: (slot.width - displayWidth) / 2 + pan.dx,
+                        top: (slot.height - displayHeight) / 2 + pan.dy,
+                        width: displayWidth,
+                        height: displayHeight,
+                        child: Image.memory(
+                          bytes,
+                          fit: BoxFit.fill,
+                          width: displayWidth,
+                          height: displayHeight,
+                          gaplessPlayback: true,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class LayoutRow {
   const LayoutRow({required this.flex, required this.cells});
 
@@ -33,9 +31,18 @@ class GridLayout {
     }
     return total;
   }
+
+  bool get isDump => id == 'dump';
 }
 
 const gridLayouts = [
+  GridLayout(
+    id: 'dump',
+    label: 'Dump',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
   GridLayout(
     id: '2-rows',
     label: '2 rader',
@@ -48,6 +55,27 @@ const gridLayouts = [
     id: '3-rows',
     label: '3 rader',
     rows: [
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
+  GridLayout(
+    id: '4-rows',
+    label: '4 rader',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
+  GridLayout(
+    id: '5-rows',
+    label: '5 rader',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
       LayoutRow(flex: 1, cells: [1]),
       LayoutRow(flex: 1, cells: [1]),
       LayoutRow(flex: 1, cells: [1]),
@@ -74,4 +102,28 @@ const gridLayouts = [
       LayoutRow(flex: 1, cells: [1, 1]),
     ],
   ),
+  GridLayout(
+    id: '3-cols',
+    label: '3 kolonner',
+    rows: [LayoutRow(flex: 1, cells: [1, 1, 1])],
+  ),
+  GridLayout(
+    id: 'two-hero',
+    label: 'To + stort',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 2, cells: [1]),
+    ],
+  ),
+  GridLayout(
+    id: '3x2',
+    label: '3 × 2',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
 ];
+
+GridLayout get defaultGridLayout =>
+    gridLayouts.firstWhere((layout) => layout.id == '2x2');
