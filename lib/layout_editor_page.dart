@@ -6,26 +6,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'frame_controls.dart';
+import 'frame_style.dart';
+import 'grid_layout.dart';
 import 'image_slot.dart';
 import 'instagram_canvas.dart';
 
-class StackedThreePage extends StatefulWidget {
-  const StackedThreePage({super.key});
+class LayoutEditorPage extends StatefulWidget {
+  const LayoutEditorPage({super.key, required this.layout});
+
+  final GridLayout layout;
 
   @override
-  State<StackedThreePage> createState() => _StackedThreePageState();
+  State<LayoutEditorPage> createState() => _LayoutEditorPageState();
 }
 
-class _StackedThreePageState extends State<StackedThreePage> {
-  static const _slotCount = 3;
-
+class _LayoutEditorPageState extends State<LayoutEditorPage> {
   final _frameKey = GlobalKey();
   final _picker = ImagePicker();
-  final List<Uint8List?> _slots = List<Uint8List?>.filled(_slotCount, null);
+  late final List<Uint8List?> _slots = List<Uint8List?>.filled(
+    widget.layout.slotCount,
+    null,
+  );
 
   bool _exporting = false;
+  FrameKind _kind = FrameKind.none;
+  StrokeColor _color = strokeColors.first;
+  StrokeThickness _thickness = strokeThicknesses[1];
 
   bool get _hasAnyImage => _slots.any((bytes) => bytes != null);
+
+  double get _strokeWidth =>
+      _kind == FrameKind.stroke ? _thickness.width : 0;
 
   Future<void> _pickImage(int index) async {
     final file = await _picker.pickImage(
@@ -84,12 +96,52 @@ class _StackedThreePageState extends State<StackedThreePage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Widget _buildGrid(double strokeWidth) {
+    var index = 0;
+    final rows = <Widget>[];
+
+    for (var r = 0; r < widget.layout.rows.length; r++) {
+      final row = widget.layout.rows[r];
+      if (r > 0) rows.add(SizedBox(height: strokeWidth));
+
+      final cells = <Widget>[];
+      for (var c = 0; c < row.cells.length; c++) {
+        if (c > 0) cells.add(SizedBox(width: strokeWidth));
+        final slotIndex = index;
+        index += 1;
+        cells.add(
+          Expanded(
+            flex: row.cells[c],
+            child: ImageSlot(
+              imageBytes: _slots[slotIndex],
+              onPick: () => _pickImage(slotIndex),
+              showChrome: !_exporting,
+            ),
+          ),
+        );
+      }
+
+      rows.add(
+        Expanded(
+          flex: row.flex,
+          child: Row(children: cells),
+        ),
+      );
+    }
+
+    return Column(children: rows);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final strokeWidth = _strokeWidth;
+    final canvasColor = _kind == FrameKind.stroke ? _color.color : Colors.white;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F5),
+      backgroundColor: const Color(0xFFE8E8E4),
       appBar: AppBar(
-        title: const Text('Bildekarusell'),
+        backgroundColor: const Color(0xFFE8E8E4),
+        title: Text(widget.layout.label),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -97,15 +149,6 @@ class _StackedThreePageState extends State<StackedThreePage> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
           child: Column(
             children: [
-              Text(
-                'Instagram-format 1080 × 1350. Tre like bilder over hverandre. '
-                'Bildene lagres ikke — last ned rammen når du er ferdig.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 20),
               Expanded(
                 child: Center(
                   child: AspectRatio(
@@ -123,20 +166,10 @@ class _StackedThreePageState extends State<StackedThreePage> {
                       child: RepaintBoundary(
                         key: _frameKey,
                         child: ColoredBox(
-                          color: Colors.white,
-                          child: Column(
-                            children: [
-                              for (var i = 0; i < _slotCount; i++) ...[
-                                if (i > 0) const SizedBox(height: 2),
-                                Expanded(
-                                  child: ImageSlot(
-                                    imageBytes: _slots[i],
-                                    onTap: () => _pickImage(i),
-                                    showPlaceholder: !_exporting,
-                                  ),
-                                ),
-                              ],
-                            ],
+                          color: canvasColor,
+                          child: Padding(
+                            padding: EdgeInsets.all(strokeWidth),
+                            child: _buildGrid(strokeWidth),
                           ),
                         ),
                       ),
@@ -144,7 +177,17 @@ class _StackedThreePageState extends State<StackedThreePage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              FrameControls(
+                kind: _kind,
+                color: _color,
+                thickness: _thickness,
+                onKindChanged: (kind) => setState(() => _kind = kind),
+                onColorChanged: (color) => setState(() => _color = color),
+                onThicknessChanged: (thickness) =>
+                    setState(() => _thickness = thickness),
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(

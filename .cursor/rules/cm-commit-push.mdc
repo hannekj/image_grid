@@ -1,0 +1,37 @@
+---
+description: When the user writes "cm", commit current changes and push to the current branch.
+alwaysApply: true
+---
+
+# Commit and push (`cm`)
+
+When the user writes `cm`, commit and push immediately. Do not ask for a message or extra confirmation unless the diff looks unsafe (secrets, credentials, or unrelated files).
+
+## What to commit
+
+1. If anything is staged, commit only the staged files.
+2. If nothing is staged, stage all current unstaged and untracked changes (skip secrets such as `.env` and credential files) and commit those.
+
+Then push to the **current branch**. Set upstream (`-u`) if the branch has no remote tracking branch. Do not force-push.
+
+## Commit message (always English)
+
+Write the message from the diff. Describe the most important changes, not a file list.
+
+- **One line** when the change is a single concern and fits clearly in ~72 characters.
+- **One line + bullets** when several distinct changes need to be separated to stay clear.
+
+Examples:
+
+```
+Add optional stroke frames with color and thickness
+```
+
+```
+Add grid layouts, image panning, and frame controls
+
+- Offer 2-row, 3-row, 2-column, mosaic, and 2×2 Instagram layouts
+- Let users pan images in each slot and replace them from a button
+```
+
+Follow the repo git safety rules: HEREDOC for the message, no `--no-verify`, no config changes, no interactive git.

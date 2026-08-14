@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'stacked_three_page.dart';
+import 'home_page.dart';
 
 void main() {
   runApp(const ImageGridApp());
@@ -15,10 +15,15 @@ class ImageGridApp extends StatelessWidget {
       title: 'Bildekarusell',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1C1C1C)),
+        colorScheme: const ColorScheme.light(
+          primary: Colors.black,
+          onPrimary: Colors.white,
+          surface: Colors.white,
+          onSurface: Colors.black,
+        ),
         useMaterial3: true,
       ),
-      home: const StackedThreePage(),
+      home: const HomePage(),
     );
   }
 }
