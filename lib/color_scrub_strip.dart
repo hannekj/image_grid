@@ -9,6 +9,7 @@ class ColorScrubStrip extends StatefulWidget {
     required this.onChanged,
     this.labels,
     this.height = 32,
+    this.swatchWidth = 30,
   });
 
   final List<Color> colors;
@@ -16,62 +17,72 @@ class ColorScrubStrip extends StatefulWidget {
   final Color selected;
   final ValueChanged<Color> onChanged;
   final double height;
+  final double swatchWidth;
 
   @override
   State<ColorScrubStrip> createState() => _ColorScrubStripState();
 }
 
 class _ColorScrubStripState extends State<ColorScrubStrip> {
-  static const _gap = 3.0;
+  static const _gap = 4.0;
 
+  final _controller = ScrollController();
   int? _scrubIndex;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double get _stride => widget.swatchWidth + _gap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: widget.height,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (details) => _selectAt(details.localPosition.dx, constraints.maxWidth),
-            onHorizontalDragStart: (details) {
-              _selectAt(details.localPosition.dx, constraints.maxWidth);
-            },
-            onHorizontalDragUpdate: (details) {
-              _selectAt(details.localPosition.dx, constraints.maxWidth);
-            },
-            onHorizontalDragEnd: (_) => setState(() => _scrubIndex = null),
-            onHorizontalDragCancel: () => setState(() => _scrubIndex = null),
-            child: Row(
-              children: [
-                for (var i = 0; i < widget.colors.length; i++) ...[
-                  if (i > 0) const SizedBox(width: _gap),
-                  Expanded(
-                    child: _Swatch(
-                      color: widget.colors[i],
-                      label: widget.labels != null && i < widget.labels!.length
-                          ? widget.labels![i]
-                          : null,
-                      selected: widget.colors[i].toARGB32() ==
-                              widget.selected.toARGB32() ||
-                          _scrubIndex == i,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          );
+      width: double.infinity,
+      child: Listener(
+        onPointerDown: (event) => _selectAtGlobal(event.position),
+        onPointerMove: (event) {
+          if (event.down) _selectAtGlobal(event.position);
         },
+        onPointerUp: (_) => setState(() => _scrubIndex = null),
+        onPointerCancel: (_) => setState(() => _scrubIndex = null),
+        child: ListView.separated(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(right: 8),
+          itemCount: widget.colors.length,
+          separatorBuilder: (context, index) => const SizedBox(width: _gap),
+          itemBuilder: (context, index) {
+            final color = widget.colors[index];
+            final selected = color.toARGB32() == widget.selected.toARGB32() ||
+                _scrubIndex == index;
+            return SizedBox(
+              width: widget.swatchWidth,
+              child: _Swatch(
+                color: color,
+                label: widget.labels != null && index < widget.labels!.length
+                    ? widget.labels![index]
+                    : null,
+                selected: selected,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
-  void _selectAt(double dx, double width) {
-    if (widget.colors.isEmpty || width <= 0) return;
-    final index = (dx / width * widget.colors.length)
-        .floor()
-        .clamp(0, widget.colors.length - 1);
+  void _selectAtGlobal(Offset global) {
+    if (widget.colors.isEmpty || !_controller.hasClients) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+
+    final local = box.globalToLocal(global);
+    final dx = local.dx + _controller.offset;
+    final index = (dx / _stride).floor().clamp(0, widget.colors.length - 1);
     final color = widget.colors[index];
     final changed = color.toARGB32() != widget.selected.toARGB32();
 

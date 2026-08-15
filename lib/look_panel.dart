@@ -38,6 +38,10 @@ class LookPanel extends StatefulWidget {
 }
 
 class _LookPanelState extends State<LookPanel> {
+  static const _tabsHeight = 34.0;
+  static const _contentHeight = 40.0;
+
+  final _tabsController = ScrollController();
   _LookSection _section = _LookSection.type;
 
   bool get _hasFrame => widget.kind == FrameKind.stroke;
@@ -49,6 +53,12 @@ class _LookPanelState extends State<LookPanel> {
         _LookSection.grain,
         _LookSection.date,
       ];
+
+  @override
+  void dispose() {
+    _tabsController.dispose();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(covariant LookPanel oldWidget) {
@@ -77,9 +87,11 @@ class _LookPanelState extends State<LookPanel> {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 34,
+          height: _tabsHeight,
           width: double.infinity,
           child: ListView.separated(
+            key: const PageStorageKey<String>('look-panel-tabs'),
+            controller: _tabsController,
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(right: 12),
             itemCount: sections.length,
@@ -101,30 +113,37 @@ class _LookPanelState extends State<LookPanel> {
           ),
         ),
         const SizedBox(height: 10),
-        switch (_section) {
-          _LookSection.type => FrameKindControls(
-              kind: widget.kind,
-              onKindChanged: _onKindChanged,
-            ),
-          _LookSection.color => FrameColorControls(
-              color: widget.color,
-              onColorChanged: widget.onColorChanged,
-            ),
-          _LookSection.thickness => FrameThicknessControls(
-              thickness: widget.thickness,
-              onThicknessChanged: widget.onThicknessChanged,
-            ),
-          _LookSection.grain => LookToggleChip(
-              label: 'Korn',
-              selected: widget.grain,
-              onTap: () => widget.onGrainChanged(!widget.grain),
-            ),
-          _LookSection.date => LookToggleChip(
-              label: 'Dato',
-              selected: widget.dateStamp,
-              onTap: () => widget.onDateStampChanged(!widget.dateStamp),
-            ),
-        },
+        SizedBox(
+          height: _contentHeight,
+          width: double.infinity,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: switch (_section) {
+              _LookSection.type => FrameKindControls(
+                  kind: widget.kind,
+                  onKindChanged: _onKindChanged,
+                ),
+              _LookSection.color => FrameColorControls(
+                  color: widget.color,
+                  onColorChanged: widget.onColorChanged,
+                ),
+              _LookSection.thickness => FrameThicknessControls(
+                  thickness: widget.thickness,
+                  onThicknessChanged: widget.onThicknessChanged,
+                ),
+              _LookSection.grain => LookToggleChip(
+                  label: 'Korn',
+                  selected: widget.grain,
+                  onTap: () => widget.onGrainChanged(!widget.grain),
+                ),
+              _LookSection.date => LookToggleChip(
+                  label: 'Dato',
+                  selected: widget.dateStamp,
+                  onTap: () => widget.onDateStampChanged(!widget.dateStamp),
+                ),
+            },
+          ),
+        ),
       ],
     );
   }

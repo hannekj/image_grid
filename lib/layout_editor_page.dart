@@ -49,6 +49,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   );
 
   bool _exporting = false;
+  bool _previewing = false;
   FrameKind _kind = FrameKind.none;
   StrokeColor _color = strokeColors.first;
   StrokeThickness _thickness = strokeThicknesses[1];
@@ -61,6 +62,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   bool _swapHintShown = false;
 
   bool get _hasAnyImage => _slots.any((bytes) => bytes != null);
+
+  bool get _cleanView => _exporting || _previewing;
 
   int get _imageCount => _slots.where((bytes) => bytes != null).length;
 
@@ -349,7 +352,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             child: _SwappableSlot(
               index: slotIndex,
               imageBytes: _slots[slotIndex],
-              showChrome: !_exporting,
+              showChrome: !_cleanView,
               onPick: _slots[slotIndex] == null
                   ? () => _pickImages(slotIndex)
                   : () => _pickImage(slotIndex),
@@ -374,12 +377,27 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     return _SwappableSlot(
       index: index,
       imageBytes: _slots[index],
-      showChrome: !_exporting,
+      showChrome: !_cleanView,
       onPick: _slots[index] == null
           ? () => _pickImages(index)
           : () => _pickImage(index),
       onSwap: _swapSlots,
     );
+  }
+
+  void _togglePreview() {
+    if (!_hasAnyImage || _exporting) return;
+    setState(() {
+      _previewing = !_previewing;
+      if (_previewing) {
+        _selectedOverlayIndex = null;
+      }
+    });
+  }
+
+  void _exitPreview() {
+    if (!_previewing) return;
+    setState(() => _previewing = false);
   }
 
   Widget _buildDump() {
@@ -480,13 +498,22 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           title: Text(_layout.label),
           centerTitle: true,
           actions: [
+            IconButton(
+              tooltip: _previewing ? 'Avslutt forhåndsvisning' : 'Forhåndsvis',
+              onPressed: _hasAnyImage && !_exporting ? _togglePreview : null,
+              icon: Icon(
+                _previewing ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              ),
+            ),
             TextButton(
-              onPressed: _hasAnyImage && !_exporting ? _shareFrame : null,
+              onPressed: _hasAnyImage && !_exporting && !_previewing
+                  ? _shareFrame
+                  : null,
               child: Text(_exporting ? 'Vent…' : 'Del'),
             ),
             PopupMenuButton<String>(
               tooltip: 'Mer',
-              enabled: _hasAnyImage && !_exporting,
+              enabled: _hasAnyImage && !_exporting && !_previewing,
               onSelected: (value) {
                 if (value == 'download') _downloadFrame();
               },
@@ -513,7 +540,13 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                       Positioned.fill(
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: _deselectOverlayText,
+                          onTap: () {
+                            if (_previewing) {
+                              _exitPreview();
+                            } else {
+                              _deselectOverlayText();
+                            }
+                          },
                           child: const ColoredBox(color: Colors.transparent),
                         ),
                       ),
@@ -522,13 +555,16 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                           aspectRatio: _format.aspectRatio,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.12),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
+                              boxShadow: _previewing
+                                  ? const []
+                                  : [
+                                      BoxShadow(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.12),
+                                        blurRadius: 24,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
                             ),
                             child: RepaintBoundary(
                               key: _frameKey,
@@ -537,7 +573,13 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                 children: [
                                   GestureDetector(
                                     behavior: HitTestBehavior.opaque,
-                                    onTap: _deselectOverlayText,
+                                    onTap: () {
+                                      if (_previewing) {
+                                        _exitPreview();
+                                      } else {
+                                        _deselectOverlayText();
+                                      }
+                                    },
                                     child: ColoredBox(color: canvasColor),
                                   ),
                                   Padding(
@@ -551,7 +593,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                   OverlayTextsLayer(
                                     overlays: _overlayTexts,
                                     selectedIndex: _selectedOverlayIndex,
-                                    exporting: _exporting,
+                                    exporting: _cleanView,
                                     onSelect: _selectOverlayText,
                                     onEdit: _editOverlayText,
                                     onAlignmentChanged: (index, alignment) {
@@ -587,7 +629,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                   ),
                 ),
               ),
-              if (!_hasAnyImage)
+              if (!_hasAnyImage && !_previewing)
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Text(
@@ -600,23 +642,35 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                   ),
                 ),
               if (_tool != null)
-                ColoredBox(
-                  color: AppTheme.cream,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                    child: _buildToolPanel(),
+                Visibility(
+                  visible: !_previewing,
+                  maintainState: true,
+                  maintainAnimation: true,
+                  maintainSize: true,
+                  child: ColoredBox(
+                    color: AppTheme.cream,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: _buildToolPanel(),
+                    ),
                   ),
                 ),
-              EditorToolBar(
-                selected: _tool,
-                onChanged: (tool) => setState(() {
-                  _tool = tool;
-                  if (tool == EditorTool.text &&
-                      _overlayTexts.isNotEmpty &&
-                      _selectedOverlayIndex == null) {
-                    _selectedOverlayIndex = _overlayTexts.length - 1;
-                  }
-                }),
+              Visibility(
+                visible: !_previewing,
+                maintainState: true,
+                maintainAnimation: true,
+                maintainSize: true,
+                child: EditorToolBar(
+                  selected: _tool,
+                  onChanged: (tool) => setState(() {
+                    _tool = tool;
+                    if (tool == EditorTool.text &&
+                        _overlayTexts.isNotEmpty &&
+                        _selectedOverlayIndex == null) {
+                      _selectedOverlayIndex = _overlayTexts.length - 1;
+                    }
+                  }),
+                ),
               ),
             ],
           ),
