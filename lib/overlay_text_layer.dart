@@ -2,6 +2,56 @@ import 'package:flutter/material.dart';
 
 import 'overlay_text.dart';
 
+class OverlayTextsLayer extends StatelessWidget {
+  const OverlayTextsLayer({
+    super.key,
+    required this.overlays,
+    required this.selectedIndex,
+    required this.exporting,
+    required this.onSelect,
+    required this.onEdit,
+    required this.onAlignmentChanged,
+    required this.onFontSizeChanged,
+  });
+
+  final List<OverlayText> overlays;
+  final int? selectedIndex;
+  final bool exporting;
+  final ValueChanged<int> onSelect;
+  final ValueChanged<int> onEdit;
+  final void Function(int index, Alignment alignment) onAlignmentChanged;
+  final void Function(int index, double fontSize) onFontSizeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    if (overlays.isEmpty) return const SizedBox.shrink();
+
+    final selected = selectedIndex;
+    final order = <int>[
+      for (var i = 0; i < overlays.length; i++)
+        if (i != selected) i,
+      if (selected != null) selected,
+    ];
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        for (final i in order)
+          OverlayTextLayer(
+            key: ValueKey('overlay-text-$i'),
+            overlay: overlays[i],
+            interactive: !exporting && selected == i,
+            onSelect: () => onSelect(i),
+            onEdit: () => onEdit(i),
+            onAlignmentChanged: (alignment) =>
+                onAlignmentChanged(i, alignment),
+            onFontSizeChanged: (fontSize) => onFontSizeChanged(i, fontSize),
+          ),
+      ],
+    );
+  }
+}
+
 class OverlayTextLayer extends StatefulWidget {
   const OverlayTextLayer({
     super.key,
@@ -56,24 +106,31 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final textBox = ConstrainedBox(
+        final content = ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: constraints.maxWidth * 0.86,
           ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: overlay.plateStyle.fill,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: overlay.plateStyle.hasPlate ? 12 : 4,
-                vertical: overlay.plateStyle.hasPlate ? 8 : 2,
-              ),
-              child: _OverlayLabel(overlay: overlay),
-            ),
-          ),
+          child: overlay.isLocation
+              ? _LocationPill(overlay: overlay)
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: overlay.plateStyle.fill,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: overlay.plateStyle.hasPlate ? 12 : 4,
+                      vertical: overlay.plateStyle.hasPlate ? 8 : 2,
+                    ),
+                    child: _OverlayLabel(overlay: overlay),
+                  ),
+                ),
         );
+
+        final selectionRadius =
+            overlay.isLocation ? 999.0 : 4.0;
+        final showSelectionRing = interactive &&
+            (overlay.isLocation || overlay.plateStyle.hasPlate);
 
         return Stack(
           fit: StackFit.expand,
@@ -96,7 +153,7 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                 children: [
                   GestureDetector(
                     onTap: interactive ? null : widget.onSelect,
-                    onDoubleTap: interactive ? widget.onEdit : null,
+                    onDoubleTap: widget.onEdit,
                     onPanStart: interactive
                         ? (_) => setState(() => _dragging = true)
                         : null,
@@ -120,14 +177,15 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                         : null,
                     onPanEnd: interactive ? (_) => _endDrag() : null,
                     onPanCancel: interactive ? _endDrag : null,
-                    child: textBox,
+                    child: content,
                   ),
-                  if (interactive && overlay.plateStyle.hasPlate)
+                  if (showSelectionRing)
                     Positioned.fill(
                       child: IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius:
+                                BorderRadius.circular(selectionRadius),
                             border: Border.all(
                               color: const Color(0x66FFFFFF),
                               width: 1,
@@ -213,6 +271,63 @@ class _OverlayLabel extends StatelessWidget {
         ),
         fill,
       ],
+    );
+  }
+}
+
+class _LocationPill extends StatelessWidget {
+  const _LocationPill({required this.overlay});
+
+  final OverlayText overlay;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconSize = (overlay.fontSize * 1.05).clamp(12.0, 28.0);
+    final fill = overlay.plateStyle.hasPlate
+        ? overlay.plateStyle.fill
+        : Colors.white.withValues(alpha: 0.92);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: overlay.fontSize * 0.7,
+          vertical: overlay.fontSize * 0.38,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.location_on,
+              size: iconSize,
+              color: overlay.color,
+            ),
+            SizedBox(width: overlay.fontSize * 0.22),
+            Flexible(
+              child: Text(
+                overlay.value,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: overlayFontById('sans').style(
+                  color: overlay.color,
+                  fontSize: overlay.fontSize,
+                  height: 1.15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

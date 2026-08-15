@@ -55,24 +55,39 @@ void main() {
     await tester.tap(find.text('Look'));
     await tester.pump();
 
-    expect(find.text('Ingen ramme'), findsOneWidget);
+    expect(find.text('Type'), findsOneWidget);
+    expect(find.text('Farge'), findsNothing);
+    expect(find.text('Tykkelse'), findsNothing);
     expect(find.text('Korn'), findsOneWidget);
     expect(find.text('Dato'), findsOneWidget);
+    expect(find.text('Ingen ramme'), findsOneWidget);
     expect(find.text('Ramme'), findsOneWidget);
     expect(find.text('Tynn'), findsNothing);
 
     await tester.tap(find.text('Ramme'));
     await tester.pump();
+    expect(find.text('Farge'), findsOneWidget);
+    expect(find.text('Tykkelse'), findsOneWidget);
+    expect(find.text('Tynn'), findsNothing);
 
+    await tester.tap(find.text('Tykkelse'));
+    await tester.pump();
     expect(find.text('Tynn'), findsOneWidget);
     expect(find.text('Medium'), findsOneWidget);
     expect(find.text('Tykk'), findsOneWidget);
 
+    await tester.tap(find.text('Korn'));
+    await tester.pump();
+    expect(find.text('Ingen ramme'), findsNothing);
+    expect(find.text('Korn'), findsWidgets);
+
     await tester.tap(find.text('Tekst'));
     await tester.pump();
 
-    expect(find.text('Legg til tekst'), findsOneWidget);
-    await tester.tap(find.text('Legg til tekst'));
+    expect(find.text('Legg til tekst'), findsNothing);
+    expect(find.text('Tekst'), findsWidgets);
+    expect(find.text('Sted'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Tekst'));
     await tester.pumpAndSettle();
 
     expect(find.text('Skriv teksten her'), findsOneWidget);
@@ -84,8 +99,12 @@ void main() {
     expect(find.text('Farge'), findsOneWidget);
     expect(find.text('Plate'), findsOneWidget);
     expect(find.text('Font'), findsOneWidget);
-    expect(find.byIcon(Icons.format_align_center), findsOneWidget);
-    expect(find.byIcon(Icons.blur_on), findsOneWidget);
+    expect(find.text('Annet'), findsOneWidget);
+    expect(find.byTooltip('Legg til tekst'), findsOneWidget);
+    expect(find.byTooltip('Legg til sted'), findsOneWidget);
+    expect(find.byTooltip('Rediger tekst'), findsOneWidget);
+    expect(find.byIcon(Icons.format_align_center), findsNothing);
+    expect(find.byIcon(Icons.blur_on), findsNothing);
     expect(find.text('Aa'), findsNothing);
     expect(find.text('Serif'), findsNothing);
 
@@ -100,6 +119,20 @@ void main() {
     expect(find.text('Hånd'), findsOneWidget);
     expect(find.text('Nunito'), findsOneWidget);
     expect(find.text('Beanie'), findsOneWidget);
+
+    await tester.tap(find.text('Annet'));
+    await tester.pump();
+    expect(find.byIcon(Icons.format_align_center), findsOneWidget);
+    expect(find.byIcon(Icons.blur_on), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Legg til sted'));
+    await tester.pumpAndSettle();
+    expect(find.text('F.eks. Lofoten'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Svolvær');
+    await tester.tap(find.text('Ferdig'));
+    await tester.pumpAndSettle();
+    expect(find.text('Svolvær'), findsWidgets);
+    expect(find.byIcon(Icons.location_on), findsWidgets);
 
     await tester.tap(find.text('Oppsett'));
     await tester.pump();
@@ -153,6 +186,8 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Dato'));
     await tester.pump();
+    await tester.tap(find.text('Dato').last);
+    await tester.pump();
     expect(find.text(filmDateLabel()), findsOneWidget);
   });
 
@@ -193,6 +228,8 @@ void main() {
     expect(find.text('4:5'), findsOneWidget);
     expect(find.text('1:1'), findsOneWidget);
     expect(find.text('9:16'), findsOneWidget);
-    expect(find.text('Innlegg'), findsNothing);
+    expect(find.text('Innlegg'), findsOneWidget);
+    expect(find.text('Kvadrat'), findsOneWidget);
+    expect(find.text('Story'), findsOneWidget);
   });
 }

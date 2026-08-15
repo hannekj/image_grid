@@ -14,11 +14,11 @@ import 'canvas_share.dart';
 import 'dump_layout.dart';
 import 'editor_toolbar.dart';
 import 'film_look.dart';
-import 'frame_controls.dart';
 import 'frame_style.dart';
 import 'grid_layout.dart';
 import 'image_slot.dart';
 import 'layout_strip.dart';
+import 'look_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_controls.dart';
 import 'overlay_text_layer.dart';
@@ -52,8 +52,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   FrameKind _kind = FrameKind.none;
   StrokeColor _color = strokeColors.first;
   StrokeThickness _thickness = strokeThicknesses[1];
-  OverlayText? _overlayText;
-  bool _overlayTextSelected = false;
+  final List<OverlayText> _overlayTexts = [];
+  int? _selectedOverlayIndex;
   bool _grain = false;
   bool _dateStamp = false;
   EditorTool? _tool = EditorTool.layout;
@@ -174,23 +174,83 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   void _deselectOverlayText() {
-    if (!_overlayTextSelected) return;
-    setState(() => _overlayTextSelected = false);
+    if (_selectedOverlayIndex == null) return;
+    setState(() => _selectedOverlayIndex = null);
   }
 
-  void _selectOverlayText() {
-    if (_overlayText == null || _overlayTextSelected) return;
-    setState(() => _overlayTextSelected = true);
+  void _selectOverlayText(int index) {
+    if (index < 0 || index >= _overlayTexts.length) return;
+    setState(() => _selectedOverlayIndex = index);
   }
 
-  Future<void> _editOverlayText() async {
-    final existing = _overlayText;
+  void _updateSelectedOverlay(OverlayText overlay) {
+    final index = _selectedOverlayIndex;
+    if (index == null || index >= _overlayTexts.length) return;
+    setState(() {
+      _overlayTexts[index] = overlay;
+      _selectedOverlayIndex = index;
+    });
+  }
+
+  void _removeSelectedOverlay() {
+    final index = _selectedOverlayIndex;
+    if (index == null || index >= _overlayTexts.length) return;
+    setState(() {
+      _overlayTexts.removeAt(index);
+      if (_overlayTexts.isEmpty) {
+        _selectedOverlayIndex = null;
+      } else {
+        _selectedOverlayIndex = index.clamp(0, _overlayTexts.length - 1);
+      }
+    });
+  }
+
+  Future<void> _addOverlayText() => _addOverlay(OverlayKind.text);
+
+  Future<void> _addOverlayLocation() => _addOverlay(OverlayKind.location);
+
+  Future<void> _addOverlay(OverlayKind kind) async {
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
         return _OverlayTextDialog(
-          initialValue: existing?.value ?? '',
-          isNew: existing == null,
+          initialValue: '',
+          isNew: true,
+          kind: kind,
+        );
+      },
+    );
+    if (!mounted || result == null || result.isEmpty) return;
+
+    setState(() {
+      final styleFrom = _selectedOverlayIndex != null
+          ? _overlayTexts[_selectedOverlayIndex!]
+          : (_overlayTexts.isNotEmpty ? _overlayTexts.last : null);
+      _overlayTexts.add(
+        OverlayText.create(
+          value: result,
+          index: _overlayTexts.length,
+          kind: kind,
+          styleFrom: styleFrom,
+        ),
+      );
+      _selectedOverlayIndex = _overlayTexts.length - 1;
+    });
+  }
+
+  Future<void> _editOverlayText(int index) async {
+    if (index < 0 || index >= _overlayTexts.length) return;
+    final existing = _overlayTexts[index];
+    if (_selectedOverlayIndex != index) {
+      setState(() => _selectedOverlayIndex = index);
+    }
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return _OverlayTextDialog(
+          initialValue: existing.value,
+          isNew: false,
+          kind: existing.kind,
         );
       },
     );
@@ -198,14 +258,15 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
     setState(() {
       if (result.isEmpty) {
-        _overlayText = null;
-        _overlayTextSelected = false;
-      } else if (existing == null) {
-        _overlayText = OverlayText(value: result);
-        _overlayTextSelected = true;
+        _overlayTexts.removeAt(index);
+        if (_overlayTexts.isEmpty) {
+          _selectedOverlayIndex = null;
+        } else {
+          _selectedOverlayIndex = index.clamp(0, _overlayTexts.length - 1);
+        }
       } else {
-        _overlayText = existing.copyWith(value: result);
-        _overlayTextSelected = true;
+        _overlayTexts[index] = existing.copyWith(value: result);
+        _selectedOverlayIndex = index;
       }
     });
   }
@@ -444,31 +505,41 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           child: Column(
             children: [
               Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _deselectOverlayText,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                    child: Center(
-                      child: AspectRatio(
-                        aspectRatio: _format.aspectRatio,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.12),
-                                blurRadius: 24,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: RepaintBoundary(
-                            key: _frameKey,
-                            child: ColoredBox(
-                              color: canvasColor,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _deselectOverlayText,
+                          child: const ColoredBox(color: Colors.transparent),
+                        ),
+                      ),
+                      Center(
+                        child: AspectRatio(
+                          aspectRatio: _format.aspectRatio,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.12),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: RepaintBoundary(
+                              key: _frameKey,
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: _deselectOverlayText,
+                                    child: ColoredBox(color: canvasColor),
+                                  ),
                                   Padding(
                                     padding: EdgeInsets.all(
                                       _layout.usesCreamCanvas
@@ -477,26 +548,31 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                     ),
                                     child: _buildBody(strokeWidth),
                                   ),
-                                  if (_overlayText != null)
-                                    OverlayTextLayer(
-                                      overlay: _overlayText!,
-                                      interactive: !_exporting &&
-                                          _overlayTextSelected,
-                                      onEdit: _editOverlayText,
-                                      onSelect: _selectOverlayText,
-                                      onAlignmentChanged: (alignment) {
-                                        setState(() {
-                                          _overlayText = _overlayText!
-                                              .copyWith(alignment: alignment);
-                                        });
-                                      },
-                                      onFontSizeChanged: (fontSize) {
-                                        setState(() {
-                                          _overlayText = _overlayText!
-                                              .copyWith(fontSize: fontSize);
-                                        });
-                                      },
-                                    ),
+                                  OverlayTextsLayer(
+                                    overlays: _overlayTexts,
+                                    selectedIndex: _selectedOverlayIndex,
+                                    exporting: _exporting,
+                                    onSelect: _selectOverlayText,
+                                    onEdit: _editOverlayText,
+                                    onAlignmentChanged: (index, alignment) {
+                                      setState(() {
+                                        _overlayTexts[index] =
+                                            _overlayTexts[index].copyWith(
+                                          alignment: alignment,
+                                        );
+                                        _selectedOverlayIndex = index;
+                                      });
+                                    },
+                                    onFontSizeChanged: (index, fontSize) {
+                                      setState(() {
+                                        _overlayTexts[index] =
+                                            _overlayTexts[index].copyWith(
+                                          fontSize: fontSize,
+                                        );
+                                        _selectedOverlayIndex = index;
+                                      });
+                                    },
+                                  ),
                                   FilmLookLayer(
                                     grain: _grain,
                                     dateStamp: _dateStamp,
@@ -507,7 +583,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -535,8 +611,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                 selected: _tool,
                 onChanged: (tool) => setState(() {
                   _tool = tool;
-                  if (tool == EditorTool.text && _overlayText != null) {
-                    _overlayTextSelected = true;
+                  if (tool == EditorTool.text &&
+                      _overlayTexts.isNotEmpty &&
+                      _selectedOverlayIndex == null) {
+                    _selectedOverlayIndex = _overlayTexts.length - 1;
                   }
                 }),
               ),
@@ -562,39 +640,29 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           onChanged: (format) => setState(() => _format = format),
         );
       case EditorTool.look:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FrameControls(
-              kind: _kind,
-              color: _color,
-              thickness: _thickness,
-              onKindChanged: (kind) => setState(() => _kind = kind),
-              onColorChanged: (color) => setState(() => _color = color),
-              onThicknessChanged: (thickness) =>
-                  setState(() => _thickness = thickness),
-            ),
-            const SizedBox(height: 8),
-            LookControls(
-              grain: _grain,
-              dateStamp: _dateStamp,
-              onGrainChanged: (value) => setState(() => _grain = value),
-              onDateStampChanged: (value) => setState(() => _dateStamp = value),
-            ),
-          ],
+        return LookPanel(
+          kind: _kind,
+          color: _color,
+          thickness: _thickness,
+          grain: _grain,
+          dateStamp: _dateStamp,
+          onKindChanged: (kind) => setState(() => _kind = kind),
+          onColorChanged: (color) => setState(() => _color = color),
+          onThicknessChanged: (thickness) =>
+              setState(() => _thickness = thickness),
+          onGrainChanged: (value) => setState(() => _grain = value),
+          onDateStampChanged: (value) => setState(() => _dateStamp = value),
         );
       case EditorTool.text:
         return OverlayTextControls(
-          overlay: _overlayText,
-          onAdd: _editOverlayText,
-          onChanged: (overlay) => setState(() {
-            _overlayText = overlay;
-            _overlayTextSelected = true;
-          }),
-          onRemove: () => setState(() {
-            _overlayText = null;
-            _overlayTextSelected = false;
-          }),
+          overlays: _overlayTexts,
+          selectedIndex: _selectedOverlayIndex,
+          onSelect: _selectOverlayText,
+          onAddText: _addOverlayText,
+          onAddLocation: _addOverlayLocation,
+          onChanged: _updateSelectedOverlay,
+          onRemove: _removeSelectedOverlay,
+          onEdit: _editOverlayText,
         );
       case null:
         return const SizedBox.shrink();
@@ -606,10 +674,12 @@ class _OverlayTextDialog extends StatefulWidget {
   const _OverlayTextDialog({
     required this.initialValue,
     required this.isNew,
+    this.kind = OverlayKind.text,
   });
 
   final String initialValue;
   final bool isNew;
+  final OverlayKind kind;
 
   @override
   State<_OverlayTextDialog> createState() => _OverlayTextDialogState();
@@ -620,6 +690,8 @@ class _OverlayTextDialogState extends State<_OverlayTextDialog> {
     text: widget.initialValue,
   );
 
+  bool get _isLocation => widget.kind == OverlayKind.location;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -629,14 +701,20 @@ class _OverlayTextDialogState extends State<_OverlayTextDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.isNew ? 'Legg til tekst' : 'Rediger tekst'),
+      title: Text(
+        _isLocation
+            ? (widget.isNew ? 'Legg til sted' : 'Rediger sted')
+            : (widget.isNew ? 'Legg til tekst' : 'Rediger tekst'),
+      ),
       content: TextField(
         controller: _controller,
         autofocus: true,
-        maxLines: 3,
-        maxLength: 80,
-        decoration: const InputDecoration(
-          hintText: 'Skriv teksten her',
+        maxLines: _isLocation ? 1 : 3,
+        maxLength: _isLocation ? 40 : 80,
+        textCapitalization: TextCapitalization.words,
+        decoration: InputDecoration(
+          hintText: _isLocation ? 'F.eks. Lofoten' : 'Skriv teksten her',
+          prefixIcon: _isLocation ? const Icon(Icons.location_on) : null,
         ),
       ),
       actions: [

@@ -108,7 +108,7 @@ class LookControls extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _LookChip(
+          child: LookToggleChip(
             label: 'Korn',
             selected: grain,
             onTap: () => onGrainChanged(!grain),
@@ -116,7 +116,7 @@ class LookControls extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _LookChip(
+          child: LookToggleChip(
             label: 'Dato',
             selected: dateStamp,
             onTap: () => onDateStampChanged(!dateStamp),
@@ -127,8 +127,9 @@ class LookControls extends StatelessWidget {
   }
 }
 
-class _LookChip extends StatelessWidget {
-  const _LookChip({
+class LookToggleChip extends StatelessWidget {
+  const LookToggleChip({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -151,15 +152,18 @@ class _LookChip extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: selected ? Colors.white : Colors.black,
+        child: SizedBox(
+          width: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: selected ? Colors.white : Colors.black,
+              ),
             ),
           ),
         ),

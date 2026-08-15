@@ -148,15 +148,29 @@ const overlayPlatePresets = [
   OverlayPlateStyle(tone: OverlayPlateTone.dark, opacity: 0.75),
 ];
 
+enum OverlayKind { text, location }
+
 enum OverlayTextEffect { none, shadow, outline }
 
 Color overlayContrastColor(Color color) {
   return color.computeLuminance() > 0.55 ? const Color(0xFF111111) : Colors.white;
 }
 
+Alignment overlayTextDefaultAlignment(int index) {
+  const presets = [
+    Alignment(0, 0.72),
+    Alignment(0, -0.55),
+    Alignment(0, 0.12),
+    Alignment(-0.55, 0.35),
+    Alignment(0.55, 0.35),
+  ];
+  return presets[index % presets.length];
+}
+
 class OverlayText {
   OverlayText({
     required this.value,
+    this.kind = OverlayKind.text,
     this.color = Colors.white,
     this.fontSize = 24,
     this.fontId = 'sans',
@@ -169,7 +183,52 @@ class OverlayText {
     ),
   });
 
+  factory OverlayText.create({
+    required String value,
+    required int index,
+    OverlayKind kind = OverlayKind.text,
+    OverlayText? styleFrom,
+  }) {
+    if (kind == OverlayKind.location) {
+      return OverlayText(
+        value: value,
+        kind: OverlayKind.location,
+        color: const Color(0xFF111111),
+        fontSize: 15,
+        fontId: 'sans',
+        alignment: const Alignment(0, -0.78),
+        textAlign: TextAlign.center,
+        effect: OverlayTextEffect.none,
+        plateStyle: const OverlayPlateStyle(
+          tone: OverlayPlateTone.light,
+          opacity: 0.92,
+        ),
+      );
+    }
+
+    final base =
+        styleFrom != null && styleFrom.kind == OverlayKind.text
+            ? styleFrom
+            : null;
+    return OverlayText(
+      value: value,
+      kind: OverlayKind.text,
+      color: base?.color ?? Colors.white,
+      fontSize: base?.fontSize ?? 24,
+      fontId: base?.fontId ?? 'sans',
+      alignment: overlayTextDefaultAlignment(index),
+      textAlign: base?.textAlign ?? TextAlign.center,
+      effect: base?.effect ?? OverlayTextEffect.none,
+      plateStyle: base?.plateStyle ??
+          const OverlayPlateStyle(
+            tone: OverlayPlateTone.dark,
+            opacity: 0.55,
+          ),
+    );
+  }
+
   String value;
+  OverlayKind kind;
   Color color;
   double fontSize;
   String fontId;
@@ -177,6 +236,8 @@ class OverlayText {
   TextAlign textAlign;
   OverlayTextEffect effect;
   OverlayPlateStyle plateStyle;
+
+  bool get isLocation => kind == OverlayKind.location;
 
   TextStyle textStyle() {
     final base = overlayFontById(fontId).style(
@@ -220,6 +281,7 @@ class OverlayText {
 
   OverlayText copyWith({
     String? value,
+    OverlayKind? kind,
     Color? color,
     double? fontSize,
     String? fontId,
@@ -230,6 +292,7 @@ class OverlayText {
   }) {
     return OverlayText(
       value: value ?? this.value,
+      kind: kind ?? this.kind,
       color: color ?? this.color,
       fontSize: fontSize ?? this.fontSize,
       fontId: fontId ?? this.fontId,

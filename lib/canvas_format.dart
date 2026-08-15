@@ -101,39 +101,30 @@ class _FormatChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(4),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: compact
-              ? Text(
-                  format.label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : Colors.black,
-                  ),
-                )
-              : Column(
-                  children: [
-                    Text(
-                      format.label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: selected ? Colors.white : Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      format.caption,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: selected
-                            ? Colors.white70
-                            : const Color(0xFF6B6B6B),
-                      ),
-                    ),
-                  ],
+          padding: EdgeInsets.symmetric(vertical: compact ? 8 : 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                format.label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: compact ? 13 : 14,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : Colors.black,
                 ),
+              ),
+              SizedBox(height: compact ? 1 : 2),
+              Text(
+                format.caption,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: selected ? Colors.white70 : const Color(0xFF6B6B6B),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
