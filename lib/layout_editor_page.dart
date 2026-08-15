@@ -2,13 +2,13 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'app_theme.dart';
 import 'canvas_format.dart';
+import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'dump_layout.dart';
 import 'editor_toolbar.dart';
@@ -193,8 +193,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Future<void> _exportPng(
-    Future<void> Function(Uint8List bytes) save,
-  ) async {
+    Future<void> Function(Uint8List bytes) save, {
+    String? successMessage,
+  }) async {
     if (!_hasAnyImage || _exporting) return;
 
     setState(() => _exporting = true);
@@ -207,8 +208,13 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         return;
       }
       await save(pngBytes);
+      if (successMessage != null) _showMessage(successMessage);
     } catch (error) {
-      _showMessage('Nedlasting ble avbrutt eller feilet.');
+      _showMessage(
+        isGallerySaveError(error)
+            ? gallerySaveErrorMessage(error)
+            : 'Deling ble avbrutt eller feilet.',
+      );
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -221,14 +227,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Future<void> _downloadFrame() {
-    return _exportPng((bytes) {
-      return FileSaver.instance.saveAs(
-        name: 'grid',
-        bytes: bytes,
-        fileExtension: 'png',
-        mimeType: MimeType.png,
-      );
-    });
+    return _exportPng(
+      (bytes) => savePngToGallery(bytes, name: 'bildekarusell'),
+      successMessage: 'Lagret i Bilder.',
+    );
   }
 
   Future<Uint8List?> _captureFrame() async {
@@ -410,7 +412,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                 return const [
                   PopupMenuItem<String>(
                     value: 'download',
-                    child: Text('Last ned'),
+                    child: Text('Lagre i Bilder'),
                   ),
                 ];
               },
@@ -462,6 +464,12 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                       setState(() {
                                         _overlayText = _overlayText!
                                             .copyWith(alignment: alignment);
+                                      });
+                                    },
+                                    onFontSizeChanged: (fontSize) {
+                                      setState(() {
+                                        _overlayText = _overlayText!
+                                            .copyWith(fontSize: fontSize);
                                       });
                                     },
                                   ),

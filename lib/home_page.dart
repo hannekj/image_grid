@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app_theme.dart';
 import 'canvas_format.dart';
@@ -48,12 +49,10 @@ class HomePage extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(flex: 2),
-              const Text(
+              Text(
                 'Bildekarusell',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Georgia',
-                  fontFamilyFallback: ['Times New Roman', 'serif'],
+                style: GoogleFonts.libreBaskerville(
                   fontSize: 36,
                   fontWeight: FontWeight.w500,
                   height: 1.15,

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 String filmDateLabel([DateTime? date]) {
   final value = date ?? DateTime.now();
@@ -38,14 +39,12 @@ class FilmLookLayer extends StatelessWidget {
               alignment: const Alignment(-0.78, 0.86),
               child: Text(
                 filmDateLabel(date),
-                style: const TextStyle(
-                  fontFamily: 'American Typewriter',
-                  fontFamilyFallback: ['Courier New', 'monospace'],
+                style: GoogleFonts.specialElite(
                   fontSize: 14,
                   letterSpacing: 1.4,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
-                  shadows: [
+                  shadows: const [
                     Shadow(color: Color(0xCC000000), blurRadius: 8),
                     Shadow(
                       color: Color(0x99000000),

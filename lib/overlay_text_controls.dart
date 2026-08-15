@@ -33,17 +33,13 @@ class OverlayTextControls extends StatelessWidget {
     return Column(
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            for (final color in overlayTextColors) ...[
-              if (color != overlayTextColors.first) const SizedBox(width: 12),
-              _ColorDot(
-                color: color,
-                selected: current.color == color,
-                onTap: () => onChanged(current.copyWith(color: color)),
+            const Expanded(
+              child: Text(
+                'Farge',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6F7668)),
               ),
-            ],
-            const SizedBox(width: 16),
+            ),
             FilterChip(
               label: const Text('Plate'),
               selected: current.plate,
@@ -51,7 +47,7 @@ class OverlayTextControls extends StatelessWidget {
                 onChanged(current.copyWith(plate: selected));
               },
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             IconButton(
               tooltip: 'Fjern tekst',
               onPressed: onRemove,
@@ -59,7 +55,31 @@ class OverlayTextControls extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 28,
+          child: Row(
+            children: [
+              for (var i = 0; i < overlayTextColors.length; i++) ...[
+                if (i > 0) const SizedBox(width: 3),
+                Expanded(
+                  child: _ColorSwatch(
+                    color: overlayTextColors[i],
+                    label: overlayTextColorLabels[i],
+                    selected: current.color.toARGB32() ==
+                        overlayTextColors[i].toARGB32(),
+                    onTap: () {
+                      onChanged(
+                        current.copyWith(color: overlayTextColors[i]),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
         SizedBox(
           height: 36,
           child: ListView.separated(
@@ -77,24 +97,50 @@ class OverlayTextControls extends StatelessWidget {
             },
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            for (final size in overlayTextSizes) ...[
-              if (size != overlayTextSizes.first) const SizedBox(width: 8),
-              Expanded(
-                child: _SizeChip(
-                  label: size.label,
-                  selected: current.fontSize == size.fontSize,
-                  onTap: () {
-                    onChanged(current.copyWith(fontSize: size.fontSize));
-                  },
-                ),
-              ),
-            ],
-          ],
-        ),
       ],
+    );
+  }
+}
+
+class _ColorSwatch extends StatelessWidget {
+  const _ColorSwatch({
+    required this.color,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Color color;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLight = color.computeLuminance() > 0.82;
+
+    return Semantics(
+      button: true,
+      label: label,
+      selected: selected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFF2C3028)
+                  : isLight
+                  ? const Color(0xFFCCCCCC)
+                  : color,
+              width: selected ? 2 : 1,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -131,84 +177,6 @@ class _FontChip extends StatelessWidget {
               fontSize: 13,
               color: selected ? Colors.white : Colors.black,
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SizeChip extends StatelessWidget {
-  const _SizeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? Colors.black : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-        side: BorderSide(
-          color: selected ? Colors.black : const Color(0xFFCCCCCC),
-        ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: selected ? Colors.white : Colors.black,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ColorDot extends StatelessWidget {
-  const _ColorDot({
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isLight = color.computeLuminance() > 0.85;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected
-                ? Colors.black
-                : isLight
-                ? const Color(0xFFCCCCCC)
-                : color,
-            width: selected ? 2.5 : 1,
           ),
         ),
       ),

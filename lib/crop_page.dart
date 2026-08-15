@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'app_theme.dart';
 import 'canvas_export.dart';
 import 'canvas_format.dart';
+import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'discard_dialog.dart';
 import 'export_bar.dart';
@@ -41,7 +41,10 @@ class _CropPageState extends State<CropPage> {
     setState(() => _image = bytes);
   }
 
-  Future<void> _export(Future<void> Function(Uint8List bytes) save) async {
+  Future<void> _export(
+    Future<void> Function(Uint8List bytes) save, {
+    String? successMessage,
+  }) async {
     if (!_hasImage || _exporting) return;
 
     setState(() => _exporting = true);
@@ -54,8 +57,13 @@ class _CropPageState extends State<CropPage> {
         return;
       }
       await save(pngBytes);
+      if (successMessage != null) _showMessage(successMessage);
     } catch (error) {
-      _showMessage('Nedlasting ble avbrutt eller feilet.');
+      _showMessage(
+        isGallerySaveError(error)
+            ? gallerySaveErrorMessage(error)
+            : 'Deling ble avbrutt eller feilet.',
+      );
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -68,14 +76,10 @@ class _CropPageState extends State<CropPage> {
   }
 
   Future<void> _download() {
-    return _export((bytes) {
-      return FileSaver.instance.saveAs(
-        name: 'beskjaer',
-        bytes: bytes,
-        fileExtension: 'png',
-        mimeType: MimeType.png,
-      );
-    });
+    return _export(
+      (bytes) => savePngToGallery(bytes, name: 'beskjaer'),
+      successMessage: 'Lagret i Bilder.',
+    );
   }
 
   void _showMessage(String message) {

@@ -54,7 +54,8 @@ class FrameControls extends StatelessWidget {
                   Expanded(
                     child: _ColorSwatch(
                       option: strokeColors[i],
-                      selected: strokeColors[i].color == color.color,
+                      selected: strokeColors[i].color.toARGB32() ==
+                          color.color.toARGB32(),
                       onTap: () => onColorChanged(strokeColors[i]),
                     ),
                   ),

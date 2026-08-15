@@ -6,6 +6,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Velg bilder som skal settes inn i rammen.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Lagre ferdige innlegg i Kamerarullen.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

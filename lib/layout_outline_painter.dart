@@ -90,10 +90,7 @@ class LayoutOutlinePainter extends CustomPainter {
   void _paintReaction(Canvas canvas, Size size) {
     final cellPaint = Paint()..color = cellColor;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Offset.zero & size,
-        const Radius.circular(1.5),
-      ),
+      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(1.5)),
       cellPaint,
     );
 

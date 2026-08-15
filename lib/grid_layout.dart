@@ -6,11 +6,7 @@ class LayoutRow {
 }
 
 class GridLayout {
-  const GridLayout({
-    required this.id,
-    required this.label,
-    required this.rows,
-  });
+  const GridLayout({required this.id, required this.label, required this.rows});
 
   final String id;
   final String label;
@@ -79,7 +75,9 @@ const gridLayouts = [
   GridLayout(
     id: '2-cols',
     label: '2 kolonner',
-    rows: [LayoutRow(flex: 1, cells: [1, 1])],
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+    ],
   ),
   GridLayout(
     id: 'hero-two',
@@ -100,7 +98,9 @@ const gridLayouts = [
   GridLayout(
     id: '3-cols',
     label: '3 kolonner',
-    rows: [LayoutRow(flex: 1, cells: [1, 1, 1])],
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
   ),
   GridLayout(
     id: 'two-hero',
@@ -125,6 +125,55 @@ const gridLayouts = [
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'mosaic-13',
+    label: '1 + 3',
+    rows: [
+      LayoutRow(flex: 2, cells: [1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'mosaic-31',
+    label: '3 + 1',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 2, cells: [1]),
+    ],
+  ),
+  GridLayout(
+    id: 'l-left',
+    label: 'L-stor',
+    rows: [
+      LayoutRow(flex: 1, cells: [2, 1]),
+      LayoutRow(flex: 1, cells: [2, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'l-right',
+    label: 'L-speil',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 2]),
+      LayoutRow(flex: 1, cells: [1, 2]),
+    ],
+  ),
+  GridLayout(
+    id: 'hero-uneven',
+    label: '1 + 2',
+    rows: [
+      LayoutRow(flex: 2, cells: [1]),
+      LayoutRow(flex: 1, cells: [2, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'mosaic-122',
+    label: '1 + 2 + 2',
+    rows: [
+      LayoutRow(flex: 2, cells: [1]),
+      LayoutRow(flex: 1, cells: [2, 1]),
+      LayoutRow(flex: 1, cells: [1, 2]),
     ],
   ),
   GridLayout(

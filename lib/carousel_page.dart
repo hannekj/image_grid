@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'app_theme.dart';
 import 'canvas_export.dart';
 import 'canvas_format.dart';
+import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'discard_dialog.dart';
 import 'export_bar.dart';
@@ -137,8 +137,9 @@ class _CarouselPageState extends State<CarouselPage> {
 
   Future<void> _withExport(
     Future<void> Function(List<({String name, Uint8List bytes})> images)
-        action,
-  ) async {
+        action, {
+    String? successMessage,
+  }) async {
     if (!_hasAnyImage || _exporting) return;
 
     setState(() => _exporting = true);
@@ -151,8 +152,13 @@ class _CarouselPageState extends State<CarouselPage> {
         return;
       }
       await action(images);
+      if (successMessage != null) _showMessage(successMessage);
     } catch (error) {
-      _showMessage('Nedlasting ble avbrutt eller feilet.');
+      _showMessage(
+        isGallerySaveError(error)
+            ? gallerySaveErrorMessage(error)
+            : 'Deling ble avbrutt eller feilet.',
+      );
     } finally {
       if (!mounted) return;
       _pageController.jumpToPage(current);
@@ -169,16 +175,9 @@ class _CarouselPageState extends State<CarouselPage> {
 
   Future<void> _downloadAll() {
     return _withExport((images) async {
-      for (final image in images) {
-        await FileSaver.instance.saveFile(
-          name: image.name,
-          bytes: image.bytes,
-          fileExtension: 'png',
-          mimeType: MimeType.png,
-        );
-      }
+      await savePngsToGallery(images);
       _showMessage(
-        'Lastet ned ${images.length} bilde${images.length == 1 ? '' : 'r'}.',
+        'Lagret ${images.length} bilde${images.length == 1 ? '' : 'r'} i Bilder.',
       );
     });
   }
@@ -312,7 +311,7 @@ class _CarouselPageState extends State<CarouselPage> {
                   enabled: _hasAnyImage,
                   busy: _exporting,
                   shareLabel: 'Del alle',
-                  downloadLabel: 'Last ned alle',
+                  downloadLabel: 'Lagre alle',
                   onShare: _shareAll,
                   onDownload: _downloadAll,
                 ),

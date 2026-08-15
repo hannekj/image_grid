@@ -7,7 +7,7 @@ class ExportBar extends StatelessWidget {
     required this.busy,
     required this.onShare,
     required this.onDownload,
-    this.downloadLabel = 'Last ned',
+    this.downloadLabel = 'Lagre',
     this.shareLabel = 'Del',
   });
 
@@ -39,7 +39,7 @@ class ExportBar extends StatelessWidget {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: enabled && !busy ? onDownload : null,
-            icon: const Icon(Icons.download),
+            icon: const Icon(Icons.photo_library_outlined),
             label: Text(downloadLabel),
           ),
         ),
