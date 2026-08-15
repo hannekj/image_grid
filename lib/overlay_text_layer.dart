@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'overlay_text.dart';
 
-class OverlayTextLayer extends StatelessWidget {
+class OverlayTextLayer extends StatefulWidget {
   const OverlayTextLayer({
     super.key,
     required this.overlay,
     required this.onAlignmentChanged,
     required this.onFontSizeChanged,
     required this.onEdit,
+    required this.onSelect,
     this.interactive = true,
   });
 
@@ -16,94 +17,157 @@ class OverlayTextLayer extends StatelessWidget {
   final ValueChanged<Alignment> onAlignmentChanged;
   final ValueChanged<double> onFontSizeChanged;
   final VoidCallback onEdit;
+  final VoidCallback onSelect;
   final bool interactive;
 
   static const _handleSize = 16.0;
+  static const _snapThreshold = 0.07;
+
+  @override
+  State<OverlayTextLayer> createState() => _OverlayTextLayerState();
+}
+
+class _OverlayTextLayerState extends State<OverlayTextLayer> {
+  bool _dragging = false;
+  bool _snapX = false;
+  bool _snapY = false;
+
+  Alignment _snap(Alignment raw) {
+    final x = raw.x.abs() < OverlayTextLayer._snapThreshold ? 0.0 : raw.x;
+    final y = raw.y.abs() < OverlayTextLayer._snapThreshold ? 0.0 : raw.y;
+    _snapX = x == 0.0;
+    _snapY = y == 0.0;
+    return Alignment(x, y);
+  }
+
+  void _endDrag() {
+    if (!_dragging && !_snapX && !_snapY) return;
+    setState(() {
+      _dragging = false;
+      _snapX = false;
+      _snapY = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final overlay = widget.overlay;
+    final interactive = widget.interactive;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final box = Padding(
-          padding: EdgeInsets.all(interactive ? _handleSize / 2 : 0),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: constraints.maxWidth * 0.86,
+        final textBox = ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: constraints.maxWidth * 0.86,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: overlay.plateStyle.fill,
+              borderRadius: BorderRadius.circular(4),
             ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: overlay.plate
-                    ? (overlay.color.computeLuminance() > 0.5
-                        ? const Color(0x99000000)
-                        : const Color(0x99FFFFFF))
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(4),
-                border: overlay.plate && interactive
-                    ? Border.all(color: const Color(0x66FFFFFF), width: 1)
-                    : null,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: overlay.plateStyle.hasPlate ? 12 : 4,
+                vertical: overlay.plateStyle.hasPlate ? 8 : 2,
               ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: overlay.plate ? 12 : 4,
-                  vertical: overlay.plate ? 8 : 2,
-                ),
-                child: Text(
-                  overlay.value,
-                  textAlign: TextAlign.center,
-                  style: overlayFontById(overlay.fontId).style(
-                    color: overlay.color,
-                    fontSize: overlay.fontSize,
-                    height: 1.25,
-                  ),
-                ),
-              ),
+              child: _OverlayLabel(overlay: overlay),
             ),
           ),
         );
 
-        if (!interactive) {
-          return Align(alignment: overlay.alignment, child: box);
-        }
-
-        return Align(
-          alignment: overlay.alignment,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              GestureDetector(
-                onTap: onEdit,
-                onPanUpdate: (details) {
-                  final next = Alignment(
-                    (overlay.alignment.x +
-                            details.delta.dx / (constraints.maxWidth / 2))
-                        .clamp(-1.0, 1.0),
-                    (overlay.alignment.y +
-                            details.delta.dy / (constraints.maxHeight / 2))
-                        .clamp(-1.0, 1.0),
-                  );
-                  onAlignmentChanged(next);
-                },
-                child: box,
-              ),
-              ..._Corner.values.map((corner) {
-                return Positioned(
-                  left: corner.isLeft ? 0 : null,
-                  right: corner.isLeft ? null : 0,
-                  top: corner.isTop ? 0 : null,
-                  bottom: corner.isTop ? null : 0,
-                  child: _ResizeHandle(
-                    corner: corner,
-                    onUpdate: (delta) {
-                      final next = (overlay.fontSize +
-                              _sizeDelta(delta, corner))
-                          .clamp(overlayTextMinSize, overlayTextMaxSize);
-                      onFontSizeChanged(next);
-                    },
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            if (interactive && _dragging)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _SnapGuidePainter(
+                      emphasizeX: _snapX,
+                      emphasizeY: _snapY,
+                    ),
                   ),
-                );
-              }),
-            ],
-          ),
+                ),
+              ),
+            Align(
+              alignment: overlay.alignment,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  GestureDetector(
+                    onTap: interactive ? null : widget.onSelect,
+                    onDoubleTap: interactive ? widget.onEdit : null,
+                    onPanStart: interactive
+                        ? (_) => setState(() => _dragging = true)
+                        : null,
+                    onPanUpdate: interactive
+                        ? (details) {
+                            final next = _snap(
+                              Alignment(
+                                (overlay.alignment.x +
+                                        details.delta.dx /
+                                            (constraints.maxWidth / 2))
+                                    .clamp(-1.0, 1.0),
+                                (overlay.alignment.y +
+                                        details.delta.dy /
+                                            (constraints.maxHeight / 2))
+                                    .clamp(-1.0, 1.0),
+                              ),
+                            );
+                            setState(() => _dragging = true);
+                            widget.onAlignmentChanged(next);
+                          }
+                        : null,
+                    onPanEnd: interactive ? (_) => _endDrag() : null,
+                    onPanCancel: interactive ? _endDrag : null,
+                    child: textBox,
+                  ),
+                  if (interactive && overlay.plateStyle.hasPlate)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: const Color(0x66FFFFFF),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (interactive)
+                    ..._Corner.values.map((corner) {
+                      return Positioned(
+                        left: corner.isLeft
+                            ? -OverlayTextLayer._handleSize / 2
+                            : null,
+                        right: corner.isLeft
+                            ? null
+                            : -OverlayTextLayer._handleSize / 2,
+                        top: corner.isTop
+                            ? -OverlayTextLayer._handleSize / 2
+                            : null,
+                        bottom: corner.isTop
+                            ? null
+                            : -OverlayTextLayer._handleSize / 2,
+                        child: _ResizeHandle(
+                          onUpdate: (delta) {
+                            final next = (overlay.fontSize +
+                                    _sizeDelta(delta, corner))
+                                .clamp(
+                                  overlayTextMinSize,
+                                  overlayTextMaxSize,
+                                );
+                            widget.onFontSizeChanged(next);
+                          },
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );
@@ -120,6 +184,85 @@ class OverlayTextLayer extends StatelessWidget {
   }
 }
 
+class _OverlayLabel extends StatelessWidget {
+  const _OverlayLabel({required this.overlay});
+
+  final OverlayText overlay;
+
+  @override
+  Widget build(BuildContext context) {
+    final fill = Text(
+      overlay.value,
+      textAlign: overlay.textAlign,
+      style: overlay.textStyle(),
+    );
+
+    if (overlay.effect != OverlayTextEffect.outline) return fill;
+
+    return Stack(
+      alignment: switch (overlay.textAlign) {
+        TextAlign.left || TextAlign.start => Alignment.centerLeft,
+        TextAlign.right || TextAlign.end => Alignment.centerRight,
+        _ => Alignment.center,
+      },
+      children: [
+        Text(
+          overlay.value,
+          textAlign: overlay.textAlign,
+          style: overlay.outlineStrokeStyle(),
+        ),
+        fill,
+      ],
+    );
+  }
+}
+
+class _SnapGuidePainter extends CustomPainter {
+  const _SnapGuidePainter({
+    this.emphasizeX = false,
+    this.emphasizeY = false,
+  });
+
+  final bool emphasizeX;
+  final bool emphasizeY;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final base = Paint()
+      ..color = const Color(0x55FFFFFF)
+      ..strokeWidth = 1;
+
+    final strong = Paint()
+      ..color = const Color(0xE6FFFFFF)
+      ..strokeWidth = 1.5;
+
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    canvas.drawLine(
+      Offset(cx, 0),
+      Offset(cx, size.height),
+      emphasizeX ? strong : base,
+    );
+    canvas.drawLine(
+      Offset(0, cy),
+      Offset(size.width, cy),
+      emphasizeY ? strong : base,
+    );
+
+    if (emphasizeX || emphasizeY) {
+      final dot = Paint()..color = const Color(0xE6FFFFFF);
+      canvas.drawCircle(Offset(cx, cy), 3, dot);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SnapGuidePainter oldDelegate) {
+    return oldDelegate.emphasizeX != emphasizeX ||
+        oldDelegate.emphasizeY != emphasizeY;
+  }
+}
+
 enum _Corner { topLeft, topRight, bottomLeft, bottomRight }
 
 extension on _Corner {
@@ -128,12 +271,8 @@ extension on _Corner {
 }
 
 class _ResizeHandle extends StatelessWidget {
-  const _ResizeHandle({
-    required this.corner,
-    required this.onUpdate,
-  });
+  const _ResizeHandle({required this.onUpdate});
 
-  final _Corner corner;
   final ValueChanged<Offset> onUpdate;
 
   @override

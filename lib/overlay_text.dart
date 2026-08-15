@@ -22,6 +22,8 @@ class OverlayFont {
           letterSpacing: 1.0,
         ),
       'hand' => GoogleFonts.caveat(fontWeight: FontWeight.w500),
+      'nunito' => GoogleFonts.nunito(fontWeight: FontWeight.w600),
+      'beanie' => GoogleFonts.reenieBeanie(fontWeight: FontWeight.w400),
       _ => GoogleFonts.dmSans(fontWeight: FontWeight.w600),
     };
 
@@ -89,10 +91,12 @@ const overlayTextColorLabels = [
 
 const overlayFonts = [
   OverlayFont(id: 'sans', label: 'Sans'),
+  OverlayFont(id: 'nunito', label: 'Nunito'),
   OverlayFont(id: 'serif', label: 'Serif'),
   OverlayFont(id: 'smal', label: 'Smal'),
   OverlayFont(id: 'plakat', label: 'Plakat'),
   OverlayFont(id: 'hand', label: 'Hånd'),
+  OverlayFont(id: 'beanie', label: 'Beanie'),
 ];
 
 OverlayFont overlayFontById(String id) {
@@ -102,6 +106,54 @@ OverlayFont overlayFontById(String id) {
   );
 }
 
+enum OverlayPlateTone { none, light, dark }
+
+class OverlayPlateStyle {
+  const OverlayPlateStyle({
+    required this.tone,
+    this.opacity = 0.5,
+  });
+
+  final OverlayPlateTone tone;
+  final double opacity;
+
+  bool get hasPlate => tone != OverlayPlateTone.none;
+
+  Color get fill {
+    if (!hasPlate) return Colors.transparent;
+    final base = tone == OverlayPlateTone.dark ? Colors.black : Colors.white;
+    return base.withValues(alpha: opacity);
+  }
+
+  String get label => switch (tone) {
+        OverlayPlateTone.none => 'Ingen plate',
+        OverlayPlateTone.light => 'Lys plate',
+        OverlayPlateTone.dark => 'Mørk plate',
+      };
+
+  bool matches(OverlayPlateStyle other) {
+    return tone == other.tone &&
+        (tone == OverlayPlateTone.none ||
+            (opacity - other.opacity).abs() < 0.01);
+  }
+}
+
+const overlayPlatePresets = [
+  OverlayPlateStyle(tone: OverlayPlateTone.none),
+  OverlayPlateStyle(tone: OverlayPlateTone.light, opacity: 0.25),
+  OverlayPlateStyle(tone: OverlayPlateTone.light, opacity: 0.50),
+  OverlayPlateStyle(tone: OverlayPlateTone.light, opacity: 0.75),
+  OverlayPlateStyle(tone: OverlayPlateTone.dark, opacity: 0.25),
+  OverlayPlateStyle(tone: OverlayPlateTone.dark, opacity: 0.50),
+  OverlayPlateStyle(tone: OverlayPlateTone.dark, opacity: 0.75),
+];
+
+enum OverlayTextEffect { none, shadow, outline }
+
+Color overlayContrastColor(Color color) {
+  return color.computeLuminance() > 0.55 ? const Color(0xFF111111) : Colors.white;
+}
+
 class OverlayText {
   OverlayText({
     required this.value,
@@ -109,7 +161,12 @@ class OverlayText {
     this.fontSize = 24,
     this.fontId = 'sans',
     this.alignment = const Alignment(0, 0.72),
-    this.plate = true,
+    this.textAlign = TextAlign.center,
+    this.effect = OverlayTextEffect.none,
+    this.plateStyle = const OverlayPlateStyle(
+      tone: OverlayPlateTone.dark,
+      opacity: 0.55,
+    ),
   });
 
   String value;
@@ -117,7 +174,49 @@ class OverlayText {
   double fontSize;
   String fontId;
   Alignment alignment;
-  bool plate;
+  TextAlign textAlign;
+  OverlayTextEffect effect;
+  OverlayPlateStyle plateStyle;
+
+  TextStyle textStyle() {
+    final base = overlayFontById(fontId).style(
+      color: color,
+      fontSize: fontSize,
+      height: 1.25,
+    );
+    return switch (effect) {
+      OverlayTextEffect.none => base,
+      OverlayTextEffect.shadow => base.copyWith(
+          shadows: const [
+            Shadow(
+              color: Color(0x99000000),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+            Shadow(
+              color: Color(0x66000000),
+              blurRadius: 2,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+      OverlayTextEffect.outline => base,
+    };
+  }
+
+  TextStyle outlineStrokeStyle() {
+    final strokeWidth = (fontSize * 0.09).clamp(1.5, 5.0);
+    return overlayFontById(fontId).style(
+      fontSize: fontSize,
+      height: 1.25,
+    ).copyWith(
+      foreground: Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeJoin = StrokeJoin.round
+        ..color = overlayContrastColor(color),
+    );
+  }
 
   OverlayText copyWith({
     String? value,
@@ -125,7 +224,9 @@ class OverlayText {
     double? fontSize,
     String? fontId,
     Alignment? alignment,
-    bool? plate,
+    TextAlign? textAlign,
+    OverlayTextEffect? effect,
+    OverlayPlateStyle? plateStyle,
   }) {
     return OverlayText(
       value: value ?? this.value,
@@ -133,7 +234,22 @@ class OverlayText {
       fontSize: fontSize ?? this.fontSize,
       fontId: fontId ?? this.fontId,
       alignment: alignment ?? this.alignment,
-      plate: plate ?? this.plate,
+      textAlign: textAlign ?? this.textAlign,
+      effect: effect ?? this.effect,
+      plateStyle: plateStyle ?? this.plateStyle,
+    );
+  }
+
+  /// Text alignment plus a matching horizontal placement on the canvas.
+  OverlayText withTextAlign(TextAlign align) {
+    final x = switch (align) {
+      TextAlign.left || TextAlign.start => -0.82,
+      TextAlign.right || TextAlign.end => 0.82,
+      _ => 0.0,
+    };
+    return copyWith(
+      textAlign: align,
+      alignment: Alignment(x, alignment.y),
     );
   }
 }

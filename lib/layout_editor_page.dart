@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'app_theme.dart';
+import 'booth_layout.dart';
 import 'canvas_format.dart';
 import 'canvas_gallery.dart';
 import 'canvas_share.dart';
@@ -52,6 +53,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   StrokeColor _color = strokeColors.first;
   StrokeThickness _thickness = strokeThicknesses[1];
   OverlayText? _overlayText;
+  bool _overlayTextSelected = false;
   bool _grain = false;
   bool _dateStamp = false;
   EditorTool? _tool = EditorTool.layout;
@@ -62,11 +64,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   int get _imageCount => _slots.where((bytes) => bytes != null).length;
 
-  double get _strokeWidth =>
-      _layout.isDump ? 0 : (_kind == FrameKind.stroke ? _thickness.width : 0);
+  double get _strokeWidth {
+    if (_layout.usesCreamCanvas) return 0;
+    if (_kind == FrameKind.stroke) return _thickness.width;
+    return 0;
+  }
 
   Color get _canvasColor {
-    if (_layout.isDump) {
+    if (_layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
     }
     return _kind == FrameKind.stroke ? _color.color : Colors.white;
@@ -168,6 +173,16 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  void _deselectOverlayText() {
+    if (!_overlayTextSelected) return;
+    setState(() => _overlayTextSelected = false);
+  }
+
+  void _selectOverlayText() {
+    if (_overlayText == null || _overlayTextSelected) return;
+    setState(() => _overlayTextSelected = true);
+  }
+
   Future<void> _editOverlayText() async {
     final existing = _overlayText;
     final result = await showDialog<String>(
@@ -184,10 +199,13 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     setState(() {
       if (result.isEmpty) {
         _overlayText = null;
+        _overlayTextSelected = false;
       } else if (existing == null) {
         _overlayText = OverlayText(value: result);
+        _overlayTextSelected = true;
       } else {
         _overlayText = existing.copyWith(value: result);
+        _overlayTextSelected = true;
       }
     });
   }
@@ -291,6 +309,18 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     return Column(children: rows);
   }
 
+  Widget _slot(int index) {
+    return _SwappableSlot(
+      index: index,
+      imageBytes: _slots[index],
+      showChrome: !_exporting,
+      onPick: _slots[index] == null
+          ? () => _pickImages(index)
+          : () => _pickImage(index),
+      onSwap: _swapSlots,
+    );
+  }
+
   Widget _buildDump() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -302,20 +332,16 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           child: SizedBox(
             width: width,
             height: height,
-            child: PolaroidFrame(
-              child: _SwappableSlot(
-                index: 0,
-                imageBytes: _slots[0],
-                showChrome: !_exporting,
-                onPick: _slots[0] == null
-                    ? () => _pickImages(0)
-                    : () => _pickImage(0),
-                onSwap: _swapSlots,
-              ),
-            ),
+            child: PolaroidFrame(child: _slot(0)),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBooth() {
+    return PhotoboothStrip(
+      slots: [_slot(0), _slot(1), _slot(2)],
     );
   }
 
@@ -327,22 +353,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         final margin = shortest * 0.045;
         final radius = insetSize * 0.18;
 
-        Widget slot(int index) {
-          return _SwappableSlot(
-            index: index,
-            imageBytes: _slots[index],
-            showChrome: !_exporting,
-            onPick: _slots[index] == null
-                ? () => _pickImages(index)
-                : () => _pickImage(index),
-            onSwap: _swapSlots,
-          );
-        }
-
         return Stack(
           fit: StackFit.expand,
           children: [
-            slot(0),
+            _slot(0),
             Positioned(
               right: margin,
               bottom: margin,
@@ -366,7 +380,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                     borderRadius: BorderRadius.circular(
                       math.max(0, radius - 2),
                     ),
-                    child: slot(1),
+                    child: _slot(1),
                   ),
                 ),
               ),
@@ -375,6 +389,13 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         );
       },
     );
+  }
+
+  Widget _buildBody(double strokeWidth) {
+    if (_layout.isDump) return _buildDump();
+    if (_layout.isBooth) return _buildBooth();
+    if (_layout.isReaction) return _buildReaction();
+    return _buildGrid(strokeWidth);
   }
 
   @override
@@ -423,61 +444,65 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           child: Column(
             children: [
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio: _format.aspectRatio,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: RepaintBoundary(
-                          key: _frameKey,
-                          child: ColoredBox(
-                            color: canvasColor,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Padding(
-                                  padding: EdgeInsets.all(
-                                    _layout.isDump ? 12 : strokeWidth,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _deselectOverlayText,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Center(
+                      child: AspectRatio(
+                        aspectRatio: _format.aspectRatio,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 24,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: RepaintBoundary(
+                            key: _frameKey,
+                            child: ColoredBox(
+                              color: canvasColor,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.all(
+                                      _layout.usesCreamCanvas
+                                          ? 12
+                                          : strokeWidth,
+                                    ),
+                                    child: _buildBody(strokeWidth),
                                   ),
-                                  child: _layout.isDump
-                                      ? _buildDump()
-                                      : _layout.isReaction
-                                          ? _buildReaction()
-                                          : _buildGrid(strokeWidth),
-                                ),
-                                if (_overlayText != null)
-                                  OverlayTextLayer(
-                                    overlay: _overlayText!,
-                                    interactive: !_exporting,
-                                    onEdit: _editOverlayText,
-                                    onAlignmentChanged: (alignment) {
-                                      setState(() {
-                                        _overlayText = _overlayText!
-                                            .copyWith(alignment: alignment);
-                                      });
-                                    },
-                                    onFontSizeChanged: (fontSize) {
-                                      setState(() {
-                                        _overlayText = _overlayText!
-                                            .copyWith(fontSize: fontSize);
-                                      });
-                                    },
+                                  if (_overlayText != null)
+                                    OverlayTextLayer(
+                                      overlay: _overlayText!,
+                                      interactive: !_exporting &&
+                                          _overlayTextSelected,
+                                      onEdit: _editOverlayText,
+                                      onSelect: _selectOverlayText,
+                                      onAlignmentChanged: (alignment) {
+                                        setState(() {
+                                          _overlayText = _overlayText!
+                                              .copyWith(alignment: alignment);
+                                        });
+                                      },
+                                      onFontSizeChanged: (fontSize) {
+                                        setState(() {
+                                          _overlayText = _overlayText!
+                                              .copyWith(fontSize: fontSize);
+                                        });
+                                      },
+                                    ),
+                                  FilmLookLayer(
+                                    grain: _grain,
+                                    dateStamp: _dateStamp,
                                   ),
-                                FilmLookLayer(
-                                  grain: _grain,
-                                  dateStamp: _dateStamp,
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -508,7 +533,12 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                 ),
               EditorToolBar(
                 selected: _tool,
-                onChanged: (tool) => setState(() => _tool = tool),
+                onChanged: (tool) => setState(() {
+                  _tool = tool;
+                  if (tool == EditorTool.text && _overlayText != null) {
+                    _overlayTextSelected = true;
+                  }
+                }),
               ),
             ],
           ),
@@ -557,8 +587,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         return OverlayTextControls(
           overlay: _overlayText,
           onAdd: _editOverlayText,
-          onChanged: (overlay) => setState(() => _overlayText = overlay),
-          onRemove: () => setState(() => _overlayText = null),
+          onChanged: (overlay) => setState(() {
+            _overlayText = overlay;
+            _overlayTextSelected = true;
+          }),
+          onRemove: () => setState(() {
+            _overlayText = null;
+            _overlayTextSelected = false;
+          }),
         );
       case null:
         return const SizedBox.shrink();

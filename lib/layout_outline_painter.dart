@@ -25,6 +25,11 @@ class LayoutOutlinePainter extends CustomPainter {
       return;
     }
 
+    if (layout.isBooth) {
+      _paintBooth(canvas, size);
+      return;
+    }
+
     if (layout.isReaction) {
       _paintReaction(canvas, size);
       return;
@@ -85,6 +90,39 @@ class LayoutOutlinePainter extends CustomPainter {
       ),
       Paint()..color = cellColor,
     );
+  }
+
+  void _paintBooth(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = AppTheme.cream);
+    final width = size.shortestSide * 0.38;
+    final height = width * 2.55;
+    final center = Offset(size.width / 2, size.height / 2);
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(-0.04);
+    final strip = Rect.fromCenter(
+      center: Offset.zero,
+      width: width,
+      height: height,
+    );
+    canvas.drawRect(strip, Paint()..color = Colors.white);
+
+    final insetX = width * 0.10;
+    final top = -height / 2 + width * 0.10;
+    final bottom = height / 2 - width * 0.28;
+    final cellGap = width * 0.06;
+    final cellHeight = (bottom - top - cellGap * 2) / 3;
+    final cellPaint = Paint()..color = cellColor;
+
+    for (var i = 0; i < 3; i++) {
+      final y = top + i * (cellHeight + cellGap);
+      canvas.drawRect(
+        Rect.fromLTRB(-width / 2 + insetX, y, width / 2 - insetX, y + cellHeight),
+        cellPaint,
+      );
+    }
+    canvas.restore();
   }
 
   void _paintReaction(Canvas canvas, Size size) {

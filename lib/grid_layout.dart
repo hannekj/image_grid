@@ -31,6 +31,10 @@ class GridLayout {
   bool get isDump => id == 'dump';
 
   bool get isReaction => id == 'reaction';
+
+  bool get isBooth => id == 'booth';
+
+  bool get usesCreamCanvas => isDump || isBooth;
 }
 
 const gridLayouts = [
@@ -181,6 +185,13 @@ const gridLayouts = [
     label: 'Dump',
     rows: [
       LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
+  GridLayout(
+    id: 'booth',
+    label: 'Booth',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
     ],
   ),
   GridLayout(

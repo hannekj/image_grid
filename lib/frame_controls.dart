@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'color_scrub_strip.dart';
 import 'frame_style.dart';
 
 class FrameControls extends StatelessWidget {
@@ -45,23 +46,17 @@ class FrameControls extends StatelessWidget {
         ),
         if (kind == FrameKind.stroke) ...[
           const SizedBox(height: 16),
-          SizedBox(
-            height: 30,
-            child: Row(
-              children: [
-                for (var i = 0; i < strokeColors.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 3),
-                  Expanded(
-                    child: _ColorSwatch(
-                      option: strokeColors[i],
-                      selected: strokeColors[i].color.toARGB32() ==
-                          color.color.toARGB32(),
-                      onTap: () => onColorChanged(strokeColors[i]),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          ColorScrubStrip(
+            colors: [for (final option in strokeColors) option.color],
+            labels: [for (final option in strokeColors) option.label],
+            selected: color.color,
+            onChanged: (next) {
+              final match = strokeColors.firstWhere(
+                (option) => option.color.toARGB32() == next.toARGB32(),
+                orElse: () => strokeColors.first,
+              );
+              onColorChanged(match);
+            },
           ),
           const SizedBox(height: 14),
           Row(
@@ -117,47 +112,6 @@ class _ChoiceChip extends StatelessWidget {
               fontSize: 13,
               fontWeight: FontWeight.w500,
               color: selected ? Colors.white : Colors.black,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ColorSwatch extends StatelessWidget {
-  const _ColorSwatch({
-    required this.option,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final StrokeColor option;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isLight = option.color.computeLuminance() > 0.82;
-
-    return Semantics(
-      button: true,
-      label: option.label,
-      selected: selected,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          decoration: BoxDecoration(
-            color: option.color,
-            borderRadius: BorderRadius.circular(3),
-            border: Border.all(
-              color: selected
-                  ? const Color(0xFF2C3028)
-                  : isLight
-                  ? const Color(0xFFCCCCCC)
-                  : option.color,
-              width: selected ? 2 : 1,
             ),
           ),
         ),

@@ -36,6 +36,7 @@ void main() {
     expect(find.text('Tekst'), findsOneWidget);
     expect(find.text('Del'), findsOneWidget);
     expect(find.byTooltip('Dump'), findsOneWidget);
+    expect(find.byTooltip('Booth'), findsOneWidget);
     expect(find.byTooltip('1 + 3'), findsOneWidget);
     expect(find.byTooltip('1 + 2 + 2'), findsOneWidget);
     expect(find.byTooltip('L-stor'), findsOneWidget);
@@ -80,10 +81,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Lofoten'), findsOneWidget);
+    expect(find.text('Farge'), findsOneWidget);
     expect(find.text('Plate'), findsOneWidget);
+    expect(find.text('Font'), findsOneWidget);
+    expect(find.byIcon(Icons.format_align_center), findsOneWidget);
+    expect(find.byIcon(Icons.blur_on), findsOneWidget);
+    expect(find.text('Aa'), findsNothing);
+    expect(find.text('Serif'), findsNothing);
+
+    await tester.tap(find.text('Plate'));
+    await tester.pump();
+    expect(find.text('Aa'), findsWidgets);
+
+    await tester.tap(find.text('Font'));
+    await tester.pump();
     expect(find.text('Liten'), findsNothing);
     expect(find.text('Serif'), findsOneWidget);
     expect(find.text('Hånd'), findsOneWidget);
+    expect(find.text('Nunito'), findsOneWidget);
+    expect(find.text('Beanie'), findsOneWidget);
 
     await tester.tap(find.text('Oppsett'));
     await tester.pump();
@@ -138,6 +154,14 @@ void main() {
     await tester.tap(find.text('Dato'));
     await tester.pump();
     expect(find.text(filmDateLabel()), findsOneWidget);
+  });
+
+  testWidgets('booth layout opens photobooth strip', (WidgetTester tester) async {
+    await _openEditor(tester);
+    await _tapLayout(tester, 'Booth');
+
+    expect(find.text('Booth'), findsOneWidget);
+    expect(find.text('Trykk for å legge inn bilder'), findsOneWidget);
   });
 
   testWidgets('reaction layout opens overlay editor', (WidgetTester tester) async {

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
+import 'color_scrub_strip.dart';
 import 'overlay_text.dart';
+import 'plate_scrub_strip.dart';
 
-class OverlayTextControls extends StatelessWidget {
+enum _TextSection { color, plate, font }
+
+class OverlayTextControls extends StatefulWidget {
   const OverlayTextControls({
     super.key,
     required this.overlay,
@@ -17,13 +22,20 @@ class OverlayTextControls extends StatelessWidget {
   final VoidCallback onRemove;
 
   @override
+  State<OverlayTextControls> createState() => _OverlayTextControlsState();
+}
+
+class _OverlayTextControlsState extends State<OverlayTextControls> {
+  _TextSection _section = _TextSection.color;
+
+  @override
   Widget build(BuildContext context) {
-    final current = overlay;
+    final current = widget.overlay;
     if (current == null) {
       return SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: onAdd,
+          onPressed: widget.onAdd,
           icon: const Icon(Icons.title),
           label: const Text('Legg til tekst'),
         ),
@@ -31,112 +43,193 @@ class OverlayTextControls extends StatelessWidget {
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Expanded(
-              child: Text(
-                'Farge',
-                style: TextStyle(fontSize: 12, color: Color(0xFF6F7668)),
+            _IconToggle(
+              tooltip: 'Venstre',
+              icon: Icons.format_align_left,
+              selected: current.textAlign == TextAlign.left,
+              onTap: () => widget.onChanged(
+                current.withTextAlign(TextAlign.left),
               ),
             ),
-            FilterChip(
-              label: const Text('Plate'),
-              selected: current.plate,
-              onSelected: (selected) {
-                onChanged(current.copyWith(plate: selected));
-              },
+            _IconToggle(
+              tooltip: 'Midt',
+              icon: Icons.format_align_center,
+              selected: current.textAlign == TextAlign.center,
+              onTap: () => widget.onChanged(
+                current.withTextAlign(TextAlign.center),
+              ),
             ),
-            const SizedBox(width: 4),
+            _IconToggle(
+              tooltip: 'Høyre',
+              icon: Icons.format_align_right,
+              selected: current.textAlign == TextAlign.right,
+              onTap: () => widget.onChanged(
+                current.withTextAlign(TextAlign.right),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(width: 1, height: 22, color: const Color(0xFFD7DCD0)),
+            const SizedBox(width: 10),
+            _IconToggle(
+              tooltip: 'Ingen effekt',
+              icon: Icons.title,
+              selected: current.effect == OverlayTextEffect.none,
+              onTap: () => widget.onChanged(
+                current.copyWith(effect: OverlayTextEffect.none),
+              ),
+            ),
+            _IconToggle(
+              tooltip: 'Skygge',
+              icon: Icons.blur_on,
+              selected: current.effect == OverlayTextEffect.shadow,
+              onTap: () => widget.onChanged(
+                current.copyWith(effect: OverlayTextEffect.shadow),
+              ),
+            ),
+            _IconToggle(
+              tooltip: 'Kant',
+              icon: Icons.border_style,
+              selected: current.effect == OverlayTextEffect.outline,
+              onTap: () => widget.onChanged(
+                current.copyWith(effect: OverlayTextEffect.outline),
+              ),
+            ),
+            const Spacer(),
             IconButton(
               tooltip: 'Fjern tekst',
-              onPressed: onRemove,
+              onPressed: widget.onRemove,
+              visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.close),
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        SizedBox(
-          height: 28,
-          child: Row(
-            children: [
-              for (var i = 0; i < overlayTextColors.length; i++) ...[
-                if (i > 0) const SizedBox(width: 3),
-                Expanded(
-                  child: _ColorSwatch(
-                    color: overlayTextColors[i],
-                    label: overlayTextColorLabels[i],
-                    selected: current.color.toARGB32() ==
-                        overlayTextColors[i].toARGB32(),
-                    onTap: () {
-                      onChanged(
-                        current.copyWith(color: overlayTextColors[i]),
-                      );
-                    },
-                  ),
-                ),
-              ],
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            for (final section in _TextSection.values) ...[
+              if (section != _TextSection.values.first)
+                const SizedBox(width: 8),
+              _SectionTab(
+                label: switch (section) {
+                  _TextSection.color => 'Farge',
+                  _TextSection.plate => 'Plate',
+                  _TextSection.font => 'Font',
+                },
+                selected: _section == section,
+                onTap: () => setState(() => _section = section),
+              ),
             ],
-          ),
+          ],
         ),
         const SizedBox(height: 10),
-        SizedBox(
-          height: 36,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: overlayFonts.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final font = overlayFonts[index];
-              final selected = current.fontId == font.id;
-              return _FontChip(
-                font: font,
-                selected: selected,
-                onTap: () => onChanged(current.copyWith(fontId: font.id)),
-              );
-            },
-          ),
-        ),
+        switch (_section) {
+          _TextSection.color => ColorScrubStrip(
+              colors: overlayTextColors,
+              labels: overlayTextColorLabels,
+              selected: current.color,
+              onChanged: (color) =>
+                  widget.onChanged(current.copyWith(color: color)),
+            ),
+          _TextSection.plate => PlateScrubStrip(
+              selected: current.plateStyle,
+              textColor: current.color,
+              fontId: current.fontId,
+              onChanged: (style) =>
+                  widget.onChanged(current.copyWith(plateStyle: style)),
+            ),
+          _TextSection.font => SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: overlayFonts.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final font = overlayFonts[index];
+                  final selected = current.fontId == font.id;
+                  return _FontChip(
+                    font: font,
+                    selected: selected,
+                    onTap: () =>
+                        widget.onChanged(current.copyWith(fontId: font.id)),
+                  );
+                },
+              ),
+            ),
+        },
       ],
     );
   }
 }
 
-class _ColorSwatch extends StatelessWidget {
-  const _ColorSwatch({
-    required this.color,
+class _SectionTab extends StatelessWidget {
+  const _SectionTab({
     required this.label,
     required this.selected,
     required this.onTap,
   });
 
-  final Color color;
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isLight = color.computeLuminance() > 0.82;
-
-    return Semantics(
-      button: true,
-      label: label,
-      selected: selected,
-      child: GestureDetector(
+    return Material(
+      color: selected ? const Color(0xFF2C3028) : Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-            border: Border.all(
-              color: selected
-                  ? const Color(0xFF2C3028)
-                  : isLight
-                  ? const Color(0xFFCCCCCC)
-                  : color,
-              width: selected ? 2 : 1,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: selected ? Colors.white : AppTheme.muted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IconToggle extends StatelessWidget {
+  const _IconToggle({
+    required this.tooltip,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: selected ? const Color(0xFF2C3028) : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(
+              icon,
+              size: 18,
+              color: selected ? Colors.white : const Color(0xFF5C6358),
             ),
           ),
         ),
