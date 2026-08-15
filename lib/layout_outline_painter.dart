@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
 import 'grid_layout.dart';
 
 class LayoutOutlinePainter extends CustomPainter {
   const LayoutOutlinePainter({
     required this.layout,
-    this.cellColor = const Color(0xFFB7B2A8),
+    this.cellColor = AppTheme.leaf,
     this.gapColor = Colors.white,
     this.gap = 2.5,
   });
@@ -64,7 +65,7 @@ class LayoutOutlinePainter extends CustomPainter {
   }
 
   void _paintDump(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFFE8E0D4));
+    canvas.drawRect(Offset.zero & size, Paint()..color = AppTheme.cream);
     final maxWidth = size.width * 0.72;
     final maxHeight = size.height * 0.82;
     final width = maxWidth < maxHeight / 1.22 ? maxWidth : maxHeight / 1.22;

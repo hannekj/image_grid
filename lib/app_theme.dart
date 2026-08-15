@@ -6,13 +6,16 @@ class AppTheme {
   static const matcha = Color(0xFF7E8F72);
   static const ink = Color(0xFF2C3028);
   static const muted = Color(0xFF6F7668);
+  static const leaf = Color(0xFFC5CBBC);
   static const line = Color(0xFFD2D6C8);
 
   static ThemeData data() {
     return ThemeData(
       colorScheme: const ColorScheme.light(
-        primary: ink,
+        primary: matcha,
         onPrimary: cream,
+        secondary: matcha,
+        onSecondary: cream,
         surface: cream,
         onSurface: ink,
       ),
@@ -22,6 +25,16 @@ class AppTheme {
         foregroundColor: ink,
         elevation: 0,
         scrolledUnderElevation: 0,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: matcha,
+          foregroundColor: cream,
+          elevation: 0,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: muted),
       ),
       useMaterial3: true,
     );

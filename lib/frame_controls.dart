@@ -36,7 +36,7 @@ class FrameControls extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: _ChoiceChip(
-                label: 'Strek',
+                label: 'Ramme',
                 selected: kind == FrameKind.stroke,
                 onTap: () => onKindChanged(FrameKind.stroke),
               ),
@@ -45,18 +45,22 @@ class FrameControls extends StatelessWidget {
         ),
         if (kind == FrameKind.stroke) ...[
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (final option in strokeColors) ...[
-                _ColorDot(
-                  option: option,
-                  selected: option.color == color.color,
-                  onTap: () => onColorChanged(option),
-                ),
-                const SizedBox(width: 12),
+          SizedBox(
+            height: 30,
+            child: Row(
+              children: [
+                for (var i = 0; i < strokeColors.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 3),
+                  Expanded(
+                    child: _ColorSwatch(
+                      option: strokeColors[i],
+                      selected: strokeColors[i].color == color.color,
+                      onTap: () => onColorChanged(strokeColors[i]),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           const SizedBox(height: 14),
           Row(
@@ -120,8 +124,8 @@ class _ChoiceChip extends StatelessWidget {
   }
 }
 
-class _ColorDot extends StatelessWidget {
-  const _ColorDot({
+class _ColorSwatch extends StatelessWidget {
+  const _ColorSwatch({
     required this.option,
     required this.selected,
     required this.onTap,
@@ -133,7 +137,7 @@ class _ColorDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = option.color.computeLuminance() > 0.85;
+    final isLight = option.color.computeLuminance() > 0.82;
 
     return Semantics(
       button: true,
@@ -143,28 +147,17 @@ class _ColorDot extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          width: 28,
-          height: 28,
           decoration: BoxDecoration(
             color: option.color,
-            shape: BoxShape.circle,
+            borderRadius: BorderRadius.circular(3),
             border: Border.all(
               color: selected
-                  ? Colors.black
+                  ? const Color(0xFF2C3028)
                   : isLight
                   ? const Color(0xFFCCCCCC)
                   : option.color,
-              width: selected ? 2.5 : 1,
+              width: selected ? 2 : 1,
             ),
-            boxShadow: selected
-                ? const [
-                    BoxShadow(
-                      color: Color(0x33000000),
-                      blurRadius: 4,
-                      offset: Offset(0, 1),
-                    ),
-                  ]
-                : null,
           ),
         ),
       ),

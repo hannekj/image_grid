@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
+
 class ImageSlot extends StatefulWidget {
   const ImageSlot({
     super.key,
@@ -109,35 +111,23 @@ class _ImageSlotState extends State<ImageSlot>
     final bytes = widget.imageBytes;
 
     return Material(
-      color: const Color(0xFFF0F0F0),
+      color: AppTheme.mist,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final slot = constraints.biggest;
           final compact = slot.shortestSide < 72;
 
           if (bytes == null) {
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: widget.showChrome ? widget.onPick : null,
-              child: widget.showChrome
-                  ? Center(
-                      child: compact
-                          ? const Icon(Icons.add_photo_alternate_outlined)
-                          : const FittedBox(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.add_photo_alternate_outlined,
-                                    size: 36,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text('Velg bilde'),
-                                ],
-                              ),
-                            ),
-                    )
-                  : const SizedBox.expand(),
+            return Semantics(
+              button: true,
+              label: 'Velg bilde',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.showChrome ? widget.onPick : null,
+                child: widget.showChrome
+                    ? Center(child: _AddMark(compact: compact))
+                    : const SizedBox.expand(),
+              ),
             );
           }
 
@@ -213,6 +203,32 @@ class _ImageSlotState extends State<ImageSlot>
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _AddMark extends StatelessWidget {
+  const _AddMark({required this.compact});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = compact ? 30.0 : 38.0;
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppTheme.matcha,
+      ),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Icon(
+          Icons.add,
+          size: compact ? 18 : 22,
+          color: AppTheme.cream,
+        ),
       ),
     );
   }

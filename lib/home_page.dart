@@ -82,7 +82,7 @@ class HomePage extends StatelessWidget {
                 child: FilledButton(
                   onPressed: () => _openGrid(context),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.ink,
+                    backgroundColor: AppTheme.matcha,
                     foregroundColor: AppTheme.cream,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -103,7 +103,6 @@ class HomePage extends StatelessWidget {
                 children: [
                   TextButton(
                     onPressed: () => _openCarousel(context),
-                    style: TextButton.styleFrom(foregroundColor: AppTheme.muted),
                     child: const Text('Karusell'),
                   ),
                   const Text(
@@ -112,7 +111,6 @@ class HomePage extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () => _openCrop(context),
-                    style: TextButton.styleFrom(foregroundColor: AppTheme.muted),
                     child: const Text('Beskjær'),
                   ),
                 ],
@@ -134,9 +132,9 @@ class _HomePreview extends StatelessWidget {
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
+            color: AppTheme.matcha.withValues(alpha: 0.16),
             blurRadius: 28,
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -151,6 +149,7 @@ class _HomePreview extends StatelessWidget {
               child: CustomPaint(
                 painter: LayoutOutlinePainter(
                   layout: defaultGridLayout,
+                  cellColor: AppTheme.leaf,
                   gapColor: Colors.white,
                   gap: 6,
                 ),

@@ -47,10 +47,10 @@ void main() {
     expect(find.text('Ingen ramme'), findsOneWidget);
     expect(find.text('Korn'), findsOneWidget);
     expect(find.text('Dato'), findsOneWidget);
-    expect(find.text('Strek'), findsOneWidget);
+    expect(find.text('Ramme'), findsOneWidget);
     expect(find.text('Tynn'), findsNothing);
 
-    await tester.tap(find.text('Strek'));
+    await tester.tap(find.text('Ramme'));
     await tester.pump();
 
     expect(find.text('Tynn'), findsOneWidget);
