@@ -72,7 +72,7 @@ class HomePage extends StatelessWidget {
               const SizedBox(height: 40),
               GestureDetector(
                 onTap: () => _openGrid(context),
-                child: _HomePreview(),
+                child: const _HomePreview(),
               ),
               const Spacer(flex: 3),
               SizedBox(

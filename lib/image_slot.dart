@@ -12,11 +12,13 @@ class ImageSlot extends StatefulWidget {
     required this.imageBytes,
     required this.onPick,
     this.showChrome = true,
+    this.enableGestures = true,
   });
 
   final Uint8List? imageBytes;
   final VoidCallback onPick;
   final bool showChrome;
+  final bool enableGestures;
 
   @override
   State<ImageSlot> createState() => _ImageSlotState();
@@ -138,9 +140,12 @@ class _ImageSlotState extends State<ImageSlot>
               children: [
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onScaleStart: _onScaleStart,
-                  onScaleUpdate: (details) => _onScaleUpdate(details, slot),
-                  onDoubleTap: _resetView,
+                  onScaleStart:
+                      widget.enableGestures ? _onScaleStart : null,
+                  onScaleUpdate: widget.enableGestures
+                      ? (details) => _onScaleUpdate(details, slot)
+                      : null,
+                  onDoubleTap: widget.enableGestures ? _resetView : null,
                   child: ClipRect(
                     child: Image.memory(
                       bytes,
@@ -171,9 +176,11 @@ class _ImageSlotState extends State<ImageSlot>
             children: [
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onScaleStart: _onScaleStart,
-                onScaleUpdate: (details) => _onScaleUpdate(details, slot),
-                onDoubleTap: _resetView,
+                onScaleStart: widget.enableGestures ? _onScaleStart : null,
+                onScaleUpdate: widget.enableGestures
+                    ? (details) => _onScaleUpdate(details, slot)
+                    : null,
+                onDoubleTap: widget.enableGestures ? _resetView : null,
                 child: ClipRect(
                   child: Stack(
                     children: [

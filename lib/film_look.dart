@@ -3,6 +3,75 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+enum PhotoFilter { original, blackAndWhite, fade, warm, cool, contrast }
+
+/// Luminance grayscale.
+const _blackAndWhiteMatrix = <double>[
+  0.2126, 0.7152, 0.0722, 0, 0,
+  0.2126, 0.7152, 0.0722, 0, 0,
+  0.2126, 0.7152, 0.0722, 0, 0,
+  0, 0, 0, 1, 0,
+];
+
+/// Soft washed look — lower contrast, lifted shadows.
+const _fadeMatrix = <double>[
+  0.78, 0.08, 0.08, 0, 28,
+  0.08, 0.78, 0.08, 0, 28,
+  0.08, 0.08, 0.78, 0, 28,
+  0, 0, 0, 1, 0,
+];
+
+/// Golden / warm cast.
+const _warmMatrix = <double>[
+  1.12, 0.04, 0, 0, 12,
+  0.02, 0.98, 0, 0, 4,
+  0, 0, 0.82, 0, 0,
+  0, 0, 0, 1, 0,
+];
+
+/// Cool blue cast.
+const _coolMatrix = <double>[
+  0.86, 0, 0.04, 0, 0,
+  0, 0.96, 0.04, 0, 6,
+  0.04, 0.04, 1.14, 0, 18,
+  0, 0, 0, 1, 0,
+];
+
+/// Punchier contrast.
+const _contrastMatrix = <double>[
+  1.35, 0, 0, 0, -36,
+  0, 1.35, 0, 0, -36,
+  0, 0, 1.35, 0, -36,
+  0, 0, 0, 1, 0,
+];
+
+extension PhotoFilterX on PhotoFilter {
+  String get label => switch (this) {
+        PhotoFilter.original => 'Original',
+        PhotoFilter.blackAndWhite => 'S/H',
+        PhotoFilter.fade => 'Fade',
+        PhotoFilter.warm => 'Varm',
+        PhotoFilter.cool => 'Cool',
+        PhotoFilter.contrast => 'Kontrast',
+      };
+
+  ColorFilter? get colorFilter => switch (this) {
+        PhotoFilter.original => null,
+        PhotoFilter.blackAndWhite =>
+          const ColorFilter.matrix(_blackAndWhiteMatrix),
+        PhotoFilter.fade => const ColorFilter.matrix(_fadeMatrix),
+        PhotoFilter.warm => const ColorFilter.matrix(_warmMatrix),
+        PhotoFilter.cool => const ColorFilter.matrix(_coolMatrix),
+        PhotoFilter.contrast => const ColorFilter.matrix(_contrastMatrix),
+      };
+}
+
+Widget applyPhotoFilter(PhotoFilter filter, Widget child) {
+  final colorFilter = filter.colorFilter;
+  if (colorFilter == null) return child;
+  return ColorFiltered(colorFilter: colorFilter, child: child);
+}
+
 String filmDateLabel([DateTime? date]) {
   final value = date ?? DateTime.now();
   String two(int number) => number.toString().padLeft(2, '0');
@@ -89,6 +158,47 @@ class GrainPainter extends CustomPainter {
   bool shouldRepaint(covariant GrainPainter oldDelegate) => false;
 }
 
+class FilterLookControls extends StatelessWidget {
+  const FilterLookControls({
+    super.key,
+    required this.filter,
+    required this.grain,
+    required this.onFilterChanged,
+    required this.onGrainChanged,
+  });
+
+  final PhotoFilter filter;
+  final bool grain;
+  final ValueChanged<PhotoFilter> onFilterChanged;
+  final ValueChanged<bool> onGrainChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = <Widget>[
+      for (final option in PhotoFilter.values)
+        LookToggleChip(
+          label: option.label,
+          selected: filter == option,
+          expand: false,
+          onTap: () => onFilterChanged(option),
+        ),
+      LookToggleChip(
+        label: 'Korn',
+        selected: grain,
+        expand: false,
+        onTap: () => onGrainChanged(!grain),
+      ),
+    ];
+
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: chips.length,
+      separatorBuilder: (context, index) => const SizedBox(width: 8),
+      itemBuilder: (context, index) => chips[index],
+    );
+  }
+}
+
 class LookControls extends StatelessWidget {
   const LookControls({
     super.key,
@@ -133,11 +243,13 @@ class LookToggleChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.expand = true,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool expand;
 
   @override
   Widget build(BuildContext context) {
@@ -153,9 +265,12 @@ class LookToggleChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(4),
         child: SizedBox(
-          width: double.infinity,
+          width: expand ? double.infinity : null,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
+            padding: EdgeInsets.symmetric(
+              horizontal: expand ? 0 : 14,
+              vertical: 10,
+            ),
             child: Text(
               label,
               textAlign: TextAlign.center,

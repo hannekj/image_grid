@@ -5,7 +5,7 @@ import 'film_look.dart';
 import 'frame_controls.dart';
 import 'frame_style.dart';
 
-enum _LookSection { type, color, thickness, grain, date }
+enum _LookSection { type, color, thickness, filter, date }
 
 class LookPanel extends StatefulWidget {
   const LookPanel({
@@ -13,11 +13,13 @@ class LookPanel extends StatefulWidget {
     required this.kind,
     required this.color,
     required this.thickness,
+    required this.filter,
     required this.grain,
     required this.dateStamp,
     required this.onKindChanged,
     required this.onColorChanged,
     required this.onThicknessChanged,
+    required this.onFilterChanged,
     required this.onGrainChanged,
     required this.onDateStampChanged,
   });
@@ -25,11 +27,13 @@ class LookPanel extends StatefulWidget {
   final FrameKind kind;
   final StrokeColor color;
   final StrokeThickness thickness;
+  final PhotoFilter filter;
   final bool grain;
   final bool dateStamp;
   final ValueChanged<FrameKind> onKindChanged;
   final ValueChanged<StrokeColor> onColorChanged;
   final ValueChanged<StrokeThickness> onThicknessChanged;
+  final ValueChanged<PhotoFilter> onFilterChanged;
   final ValueChanged<bool> onGrainChanged;
   final ValueChanged<bool> onDateStampChanged;
 
@@ -50,7 +54,7 @@ class _LookPanelState extends State<LookPanel> {
         _LookSection.type,
         if (_hasFrame) _LookSection.color,
         if (_hasFrame) _LookSection.thickness,
-        _LookSection.grain,
+        _LookSection.filter,
         _LookSection.date,
       ];
 
@@ -103,7 +107,7 @@ class _LookPanelState extends State<LookPanel> {
                   _LookSection.type => 'Type',
                   _LookSection.color => 'Farge',
                   _LookSection.thickness => 'Tykkelse',
-                  _LookSection.grain => 'Korn',
+                  _LookSection.filter => 'Filter',
                   _LookSection.date => 'Dato',
                 },
                 selected: _section == section,
@@ -131,10 +135,11 @@ class _LookPanelState extends State<LookPanel> {
                   thickness: widget.thickness,
                   onThicknessChanged: widget.onThicknessChanged,
                 ),
-              _LookSection.grain => LookToggleChip(
-                  label: 'Korn',
-                  selected: widget.grain,
-                  onTap: () => widget.onGrainChanged(!widget.grain),
+              _LookSection.filter => FilterLookControls(
+                  filter: widget.filter,
+                  grain: widget.grain,
+                  onFilterChanged: widget.onFilterChanged,
+                  onGrainChanged: widget.onGrainChanged,
                 ),
               _LookSection.date => LookToggleChip(
                   label: 'Dato',

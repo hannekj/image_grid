@@ -57,6 +57,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   int? _selectedOverlayIndex;
   bool _grain = false;
   bool _dateStamp = false;
+  PhotoFilter _filter = PhotoFilter.original;
   EditorTool? _tool = EditorTool.layout;
 
   bool _swapHintShown = false;
@@ -588,7 +589,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                           ? 12
                                           : strokeWidth,
                                     ),
-                                    child: _buildBody(strokeWidth),
+                                    child: applyPhotoFilter(
+                                      _filter,
+                                      _buildBody(strokeWidth),
+                                    ),
                                   ),
                                   OverlayTextsLayer(
                                     overlays: _overlayTexts,
@@ -698,12 +702,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           kind: _kind,
           color: _color,
           thickness: _thickness,
+          filter: _filter,
           grain: _grain,
           dateStamp: _dateStamp,
           onKindChanged: (kind) => setState(() => _kind = kind),
           onColorChanged: (color) => setState(() => _color = color),
           onThicknessChanged: (thickness) =>
               setState(() => _thickness = thickness),
+          onFilterChanged: (filter) => setState(() => _filter = filter),
           onGrainChanged: (value) => setState(() => _grain = value),
           onDateStampChanged: (value) => setState(() => _dateStamp = value),
         );
