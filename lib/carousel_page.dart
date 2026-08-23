@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,9 +12,16 @@ import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'carousel_slide.dart';
 import 'discard_dialog.dart';
+import 'editor_tool_grid.dart';
+import 'image_corner_handles.dart';
 import 'image_slot.dart';
+import 'overlay_text.dart';
+import 'overlay_text_controls.dart';
+import 'overlay_text_dialog.dart';
+import 'overlay_text_layer.dart';
+import 'overlay_text_templates.dart';
 
-enum _CarouselTool { slides, format }
+enum _CarouselTool { slides, format, text }
 
 class CarouselPage extends StatefulWidget {
   const CarouselPage({super.key});
@@ -33,15 +42,21 @@ class _CarouselPageState extends State<CarouselPage> {
   CanvasFormat _format = canvasFormats.first;
   int _index = 0;
   bool _exporting = false;
+  bool _previewing = false;
+  bool _spanInteracting = false;
+  bool _imageFocused = false;
   int _spanSeq = 0;
   int _slideSeq = 0;
-  _CarouselTool? _tool = _CarouselTool.slides;
+  int? _selectedOverlayIndex;
+  _CarouselTool? _tool;
   late final List<CarouselSlide> _slides = [
     CarouselSlide(id: _nextSlideId()),
     CarouselSlide(id: _nextSlideId()),
   ];
 
   bool get _hasAnyImage => _slides.any((slide) => !slide.isEmpty);
+
+  bool get _cleanView => _exporting || _previewing;
 
   CarouselSlide get _current => _slides[_index];
 
@@ -64,6 +79,182 @@ class _CarouselPageState extends State<CarouselPage> {
     return 'span-$_spanSeq';
   }
 
+  void _togglePreview() {
+    if (!_hasAnyImage || _exporting) return;
+    setState(() {
+      _previewing = !_previewing;
+      if (_previewing) {
+        _selectedOverlayIndex = null;
+        _imageFocused = false;
+      }
+    });
+  }
+
+  void _exitPreview() {
+    if (!_previewing) return;
+    setState(() => _previewing = false);
+  }
+
+  void _updateSpanPan(String spanId, Offset pan) {
+    setState(() {
+      for (var i = 0; i < _slides.length; i++) {
+        if (_slides[i].spanId == spanId) {
+          _slides[i] = _slides[i].copyWith(spanPan: pan);
+        }
+      }
+    });
+  }
+
+  void _updateSpanScale(String spanId, double scale) {
+    setState(() {
+      for (var i = 0; i < _slides.length; i++) {
+        if (_slides[i].spanId == spanId) {
+          _slides[i] = _slides[i].copyWith(spanScale: scale);
+        }
+      }
+    });
+  }
+
+  void _setCurrentOverlays(List<OverlayText> overlays, {int? selected}) {
+    setState(() {
+      _slides[_index] = _current.copyWith(overlays: overlays);
+      _selectedOverlayIndex = selected;
+    });
+  }
+
+  void _selectOverlay(int index) {
+    setState(() {
+      _selectedOverlayIndex = index;
+      _imageFocused = false;
+      _tool = _CarouselTool.text;
+    });
+  }
+
+  void _deselectOverlay() {
+    if (_selectedOverlayIndex == null) return;
+    setState(() => _selectedOverlayIndex = null);
+  }
+
+  void _deselectImage() {
+    if (!_imageFocused) return;
+    setState(() => _imageFocused = false);
+  }
+
+  void _selectImage() {
+    setState(() {
+      _imageFocused = true;
+      _selectedOverlayIndex = null;
+    });
+  }
+
+  void _clearFocus() {
+    if (!_imageFocused && _selectedOverlayIndex == null) return;
+    setState(() {
+      _imageFocused = false;
+      _selectedOverlayIndex = null;
+    });
+  }
+
+  void _updateSelectedOverlay(OverlayText overlay) {
+    final index = _selectedOverlayIndex;
+    if (index == null || index >= _current.overlays.length) return;
+    final next = List<OverlayText>.from(_current.overlays);
+    next[index] = overlay;
+    _setCurrentOverlays(next, selected: index);
+  }
+
+  void _removeSelectedOverlay() {
+    final index = _selectedOverlayIndex;
+    if (index == null || index >= _current.overlays.length) return;
+    final next = List<OverlayText>.from(_current.overlays)..removeAt(index);
+    _setCurrentOverlays(
+      next,
+      selected: next.isEmpty ? null : index.clamp(0, next.length - 1),
+    );
+  }
+
+  Future<void> _addOverlay(OverlayKind kind) async {
+    if (_current.isEmpty) {
+      _showMessage('Legg inn bilde først.');
+      return;
+    }
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return OverlayTextDialog(
+          initialValue: '',
+          isNew: true,
+          kind: kind,
+        );
+      },
+    );
+    if (!mounted || result == null || result.isEmpty) return;
+
+    final overlays = List<OverlayText>.from(_current.overlays);
+    final styleFrom = _selectedOverlayIndex != null
+        ? overlays[_selectedOverlayIndex!]
+        : (overlays.isNotEmpty ? overlays.last : null);
+    overlays.add(
+      OverlayText.create(
+        value: result,
+        index: overlays.length,
+        kind: kind,
+        styleFrom: styleFrom,
+      ),
+    );
+    _setCurrentOverlays(overlays, selected: overlays.length - 1);
+  }
+
+  Future<void> _addEditorial() async {
+    if (_current.isEmpty) {
+      _showMessage('Legg inn bilde først.');
+      return;
+    }
+    final result = await showDialog<List<OverlayText>>(
+      context: context,
+      builder: (context) => const EditorialTextDialog(),
+    );
+    if (!mounted || result == null || result.isEmpty) return;
+
+    final overlays = List<OverlayText>.from(_current.overlays)..addAll(result);
+    _setCurrentOverlays(
+      overlays,
+      selected: overlays.length - result.length,
+    );
+  }
+
+  Future<void> _editOverlay(int index) async {
+    final overlays = _current.overlays;
+    if (index < 0 || index >= overlays.length) return;
+    final existing = overlays[index];
+    if (_selectedOverlayIndex != index) {
+      setState(() => _selectedOverlayIndex = index);
+    }
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return OverlayTextDialog(
+          initialValue: existing.value,
+          isNew: false,
+          kind: existing.kind,
+        );
+      },
+    );
+    if (!mounted || result == null) return;
+
+    final next = List<OverlayText>.from(overlays);
+    if (result.isEmpty) {
+      next.removeAt(index);
+      _setCurrentOverlays(
+        next,
+        selected: next.isEmpty ? null : index.clamp(0, next.length - 1),
+      );
+    } else {
+      next[index] = existing.copyWith(value: result);
+      _setCurrentOverlays(next, selected: index);
+    }
+  }
+
   List<_ReorderUnit> _buildUnits() {
     final units = <_ReorderUnit>[];
     final seenSpans = <String>{};
@@ -83,7 +274,7 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   void _reorderUnits(int oldIndex, int newIndex) {
-    if (_exporting || oldIndex == newIndex) return;
+    if (_exporting || _previewing || oldIndex == newIndex) return;
     final currentId = _current.id;
     setState(() {
       final units = _buildUnits();
@@ -94,6 +285,7 @@ class _CarouselPageState extends State<CarouselPage> {
         ..addAll([for (final unit in units) ...unit.slides]);
       final next = _slides.indexWhere((slide) => slide.id == currentId);
       _index = next < 0 ? 0 : next;
+      _selectedOverlayIndex = null;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_pageController.hasClients) {
@@ -201,6 +393,7 @@ class _CarouselPageState extends State<CarouselPage> {
       } else {
         return;
       }
+      _selectedOverlayIndex = null;
     });
 
     if (!mounted) return;
@@ -259,7 +452,11 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   void _goTo(int index, {bool animate = true}) {
-    setState(() => _index = index);
+    setState(() {
+      _index = index;
+      _selectedOverlayIndex = null;
+      _imageFocused = false;
+    });
     if (!_pageController.hasClients) return;
     if (animate) {
       _pageController.animateToPage(
@@ -296,6 +493,7 @@ class _CarouselPageState extends State<CarouselPage> {
         _slides.add(CarouselSlide(id: _nextSlideId()));
       }
       _index = removeAt.clamp(0, _slides.length - 1);
+      _selectedOverlayIndex = null;
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -329,7 +527,11 @@ class _CarouselPageState extends State<CarouselPage> {
   }) async {
     if (!_hasAnyImage || _exporting) return;
 
-    setState(() => _exporting = true);
+    setState(() {
+      _exporting = true;
+      _previewing = false;
+      _selectedOverlayIndex = null;
+    });
     final current = _index;
 
     try {
@@ -410,7 +612,7 @@ class _CarouselPageState extends State<CarouselPage> {
           return ReorderableDelayedDragStartListener(
             key: ValueKey(unit.key),
             index: unitIndex,
-            enabled: !_exporting && units.length > 1,
+            enabled: !_exporting && !_previewing && units.length > 1,
             child: Padding(
               padding: EdgeInsets.only(
                 right: unitIndex == units.length - 1 ? 0 : 8,
@@ -431,6 +633,116 @@ class _CarouselPageState extends State<CarouselPage> {
         },
       ),
     );
+  }
+
+  Widget _buildSlidePage(int index) {
+    final slide = _slides[index];
+    final showChrome = !_cleanView;
+    final imageSelected = showChrome && _imageFocused && index == _index;
+
+    Widget image;
+    if (slide.isSpan && slide.imageBytes != null) {
+      image = _SpanImagePage(
+        imageBytes: slide.imageBytes!,
+        spanIndex: slide.spanIndex,
+        spanCount: slide.spanCount,
+        spanPan: slide.spanPan,
+        spanScale: slide.spanScale,
+        showChrome: showChrome,
+        selected: imageSelected,
+        onSelect: _selectImage,
+        onReplace: () => _pickImage(index),
+        onSpanPanChanged: (pan) => _updateSpanPan(slide.spanId!, pan),
+        onSpanScaleChanged: (scale) => _updateSpanScale(slide.spanId!, scale),
+        onInteractionChanged: (active) {
+          if (_spanInteracting == active) return;
+          setState(() => _spanInteracting = active);
+        },
+      );
+    } else {
+      image = ImageSlot(
+        imageBytes: slide.imageBytes,
+        onPick: () => _pickImage(index),
+        showChrome: showChrome,
+        enableGestures: false,
+        showResizeHandles: true,
+        selected: imageSelected,
+        onSelect: _selectImage,
+        onInteractionChanged: (active) {
+          if (_spanInteracting == active) return;
+          setState(() => _spanInteracting = active);
+        },
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        image,
+        OverlayTextsLayer(
+          overlays: slide.overlays,
+          selectedIndex: index == _index ? _selectedOverlayIndex : null,
+          exporting: _cleanView,
+          onSelect: _selectOverlay,
+          onEdit: _editOverlay,
+          onAlignmentChanged: (overlayIndex, alignment) {
+            if (index != _index) return;
+            final next = List<OverlayText>.from(slide.overlays);
+            next[overlayIndex] = next[overlayIndex].copyWith(
+              alignment: alignment,
+            );
+            _setCurrentOverlays(next, selected: overlayIndex);
+          },
+          onFontSizeChanged: (overlayIndex, fontSize) {
+            if (index != _index) return;
+            final next = List<OverlayText>.from(slide.overlays);
+            next[overlayIndex] = next[overlayIndex].copyWith(
+              fontSize: fontSize,
+            );
+            _setCurrentOverlays(next, selected: overlayIndex);
+          },
+          onRotationChanged: (overlayIndex, rotation) {
+            if (index != _index) return;
+            final next = List<OverlayText>.from(slide.overlays);
+            next[overlayIndex] = next[overlayIndex].copyWith(
+              rotation: rotation,
+            );
+            _setCurrentOverlays(next, selected: overlayIndex);
+          },
+        ),
+      ],
+    );
+  }
+
+  String? get _activeToolId {
+    return switch (_tool) {
+      _CarouselTool.slides => 'slides',
+      _CarouselTool.format => 'format',
+      _CarouselTool.text => 'text',
+      null => null,
+    };
+  }
+
+  void _onGridToolSelected(EditorToolDefinition definition) {
+    switch (definition.id) {
+      case 'slides':
+        setState(() => _tool = _CarouselTool.slides);
+      case 'format':
+        setState(() => _tool = _CarouselTool.format);
+      case 'text':
+        setState(() {
+          _tool = _CarouselTool.text;
+          if (_current.overlays.isNotEmpty && _selectedOverlayIndex == null) {
+            _selectedOverlayIndex = _current.overlays.length - 1;
+          }
+        });
+      case 'editorial':
+        setState(() => _tool = _CarouselTool.text);
+        _addEditorial();
+      case 'location':
+        setState(() => _tool = _CarouselTool.text);
+        _addOverlay(OverlayKind.location);
+    }
   }
 
   Widget _buildToolPanel() {
@@ -500,6 +812,18 @@ class _CarouselPageState extends State<CarouselPage> {
           compact: true,
           onChanged: (format) => setState(() => _format = format),
         );
+      case _CarouselTool.text:
+        return OverlayTextControls(
+          overlays: _current.overlays,
+          selectedIndex: _selectedOverlayIndex,
+          onSelect: _selectOverlay,
+          onAddText: () => _addOverlay(OverlayKind.text),
+          onAddLocation: () => _addOverlay(OverlayKind.location),
+          onAddEditorial: _addEditorial,
+          onChanged: _updateSelectedOverlay,
+          onRemove: _removeSelectedOverlay,
+          onEdit: _editOverlay,
+        );
       case null:
         return const SizedBox.shrink();
     }
@@ -521,13 +845,23 @@ class _CarouselPageState extends State<CarouselPage> {
           title: const Text('Karusell'),
           centerTitle: true,
           actions: [
+            IconButton(
+              tooltip: _previewing ? 'Avslutt forhåndsvisning' : 'Forhåndsvis',
+              onPressed: _hasAnyImage && !_exporting ? _togglePreview : null,
+              icon: Icon(
+                _previewing
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+              ),
+            ),
             TextButton(
-              onPressed: _hasAnyImage && !_exporting ? _shareAll : null,
+              onPressed:
+                  _hasAnyImage && !_exporting && !_previewing ? _shareAll : null,
               child: Text(_exporting ? 'Vent…' : 'Del'),
             ),
             PopupMenuButton<String>(
               tooltip: 'Mer',
-              enabled: _hasAnyImage && !_exporting,
+              enabled: _hasAnyImage && !_exporting && !_previewing,
               onSelected: (value) {
                 if (value == 'download') _downloadAll();
               },
@@ -548,51 +882,52 @@ class _CarouselPageState extends State<CarouselPage> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio: _format.aspectRatio,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: RepaintBoundary(
-                          key: _frameKey,
-                          child: ColoredBox(
-                            color: Colors.white,
-                            child: PageView.builder(
-                              controller: _pageController,
-                              physics: _exporting
-                                  ? const NeverScrollableScrollPhysics()
-                                  : const PageScrollPhysics(),
-                              itemCount: _slides.length,
-                              onPageChanged: (index) {
-                                setState(() => _index = index);
-                                _scrollStripToCurrent();
-                              },
-                              itemBuilder: (context, index) {
-                                final slide = _slides[index];
-                                if (slide.isSpan && slide.imageBytes != null) {
-                                  return _SpanImagePage(
-                                    imageBytes: slide.imageBytes!,
-                                    spanIndex: slide.spanIndex,
-                                    spanCount: slide.spanCount,
-                                    showChrome: !_exporting,
-                                    onReplace: () => _pickImage(index),
-                                  );
-                                }
-                                return ImageSlot(
-                                  imageBytes: slide.imageBytes,
-                                  onPick: () => _pickImage(index),
-                                  showChrome: !_exporting,
-                                  enableGestures: false,
-                                );
-                              },
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: () {
+                      if (_previewing) {
+                        _exitPreview();
+                      } else {
+                        _clearFocus();
+                      }
+                    },
+                    child: Center(
+                      child: AspectRatio(
+                        aspectRatio: _format.aspectRatio,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            boxShadow: _previewing
+                                ? const []
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.12),
+                                      blurRadius: 24,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                          ),
+                          child: RepaintBoundary(
+                            key: _frameKey,
+                            child: ColoredBox(
+                              color: Colors.white,
+                              child: PageView.builder(
+                                controller: _pageController,
+                                physics: _exporting || _spanInteracting
+                                    ? const NeverScrollableScrollPhysics()
+                                    : const PageScrollPhysics(),
+                                itemCount: _slides.length,
+                                onPageChanged: (index) {
+                                  setState(() {
+                                    _index = index;
+                                    _selectedOverlayIndex = null;
+                                    _imageFocused = false;
+                                  });
+                                  _scrollStripToCurrent();
+                                },
+                                itemBuilder: (context, index) {
+                                  return _buildSlidePage(index);
+                                },
+                              ),
                             ),
                           ),
                         ),
@@ -602,16 +937,33 @@ class _CarouselPageState extends State<CarouselPage> {
                 ),
               ),
               if (_tool != null)
-                ColoredBox(
-                  color: AppTheme.cream,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                    child: _buildToolPanel(),
+                Visibility(
+                  visible: !_previewing,
+                  maintainState: true,
+                  maintainAnimation: true,
+                  maintainSize: true,
+                  child: ColoredBox(
+                    color: AppTheme.cream,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: _buildToolPanel(),
+                    ),
                   ),
                 ),
-              _CarouselToolBar(
-                selected: _tool,
-                onChanged: (tool) => setState(() => _tool = tool),
+              Visibility(
+                visible: !_previewing,
+                maintainState: true,
+                maintainAnimation: true,
+                maintainSize: true,
+                child: EditorToolBottomBar(
+                  tools: carouselToolDefinitions,
+                  activeTool: toolDefinitionById(
+                    carouselToolDefinitions,
+                    _activeToolId,
+                  ),
+                  onBack: () => setState(() => _tool = null),
+                  onToolSelected: _onGridToolSelected,
+                ),
               ),
             ],
           ),
@@ -626,92 +978,6 @@ class _ReorderUnit {
 
   final String key;
   final List<CarouselSlide> slides;
-}
-
-class _CarouselToolBar extends StatelessWidget {
-  const _CarouselToolBar({
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final _CarouselTool? selected;
-  final ValueChanged<_CarouselTool?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: AppTheme.mist,
-        border: Border(top: BorderSide(color: AppTheme.line)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-        child: Row(
-          children: [
-            _CarouselToolButton(
-              icon: Icons.view_carousel_outlined,
-              label: 'Sider',
-              selected: selected == _CarouselTool.slides,
-              onTap: () => onChanged(
-                selected == _CarouselTool.slides ? null : _CarouselTool.slides,
-              ),
-            ),
-            _CarouselToolButton(
-              icon: Icons.aspect_ratio,
-              label: 'Format',
-              selected: selected == _CarouselTool.format,
-              onTap: () => onChanged(
-                selected == _CarouselTool.format ? null : _CarouselTool.format,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CarouselToolButton extends StatelessWidget {
-  const _CarouselToolButton({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? AppTheme.matcha : AppTheme.muted;
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 22, color: color),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _FilmThumb extends StatelessWidget {
@@ -759,7 +1025,11 @@ class _FilmThumb extends StatelessWidget {
                 alignment: Alignment.bottomCenter,
                 child: Padding(
                   padding: EdgeInsets.only(bottom: 3),
-                  child: Icon(Icons.chrome_reader_mode, size: 12, color: Colors.white),
+                  child: Icon(
+                    Icons.chrome_reader_mode,
+                    size: 12,
+                    color: Colors.white,
+                  ),
                 ),
               ),
           ],
@@ -769,21 +1039,99 @@ class _FilmThumb extends StatelessWidget {
   }
 }
 
-/// Shows one page-width window into a virtual multi-page-wide image.
-class _SpanImagePage extends StatelessWidget {
+class _SpanImagePage extends StatefulWidget {
   const _SpanImagePage({
     required this.imageBytes,
     required this.spanIndex,
     required this.spanCount,
+    required this.spanPan,
+    required this.spanScale,
     required this.showChrome,
+    required this.selected,
+    required this.onSelect,
     required this.onReplace,
+    required this.onSpanPanChanged,
+    required this.onSpanScaleChanged,
+    required this.onInteractionChanged,
   });
 
   final Uint8List imageBytes;
   final int spanIndex;
   final int spanCount;
+  final Offset spanPan;
+  final double spanScale;
   final bool showChrome;
+  final bool selected;
+  final VoidCallback onSelect;
   final VoidCallback onReplace;
+  final ValueChanged<Offset> onSpanPanChanged;
+  final ValueChanged<double> onSpanScaleChanged;
+  final ValueChanged<bool> onInteractionChanged;
+
+  @override
+  State<_SpanImagePage> createState() => _SpanImagePageState();
+}
+
+class _SpanImagePageState extends State<_SpanImagePage> {
+  static const _minScale = 0.45;
+  static const _maxScale = 4.0;
+
+  Size? _imageSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _decodeSize(widget.imageBytes);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SpanImagePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageBytes != widget.imageBytes) {
+      _imageSize = null;
+      _decodeSize(widget.imageBytes);
+    }
+  }
+
+  Future<void> _decodeSize(Uint8List bytes) async {
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+    final size = Size(image.width.toDouble(), image.height.toDouble());
+    image.dispose();
+    if (!mounted || widget.imageBytes != bytes) return;
+    setState(() => _imageSize = size);
+  }
+
+  double _coverScale(Size wide) {
+    final image = _imageSize;
+    if (image == null || image.width == 0 || image.height == 0) return 1;
+    return math.max(wide.width / image.width, wide.height / image.height);
+  }
+
+  Offset _clampPan(Offset pan, Size page, double scaleFactor) {
+    final image = _imageSize;
+    final wide = Size(page.width * widget.spanCount, page.height);
+    if (image == null || image.width == 0 || image.height == 0) {
+      return Offset.zero;
+    }
+    final scale = _coverScale(wide) * scaleFactor;
+    final displayW = image.width * scale;
+    final displayH = image.height * scale;
+    final maxX = math.max(0.0, (displayW - wide.width) / 2);
+    final maxY = math.max(0.0, (displayH - wide.height) / 2);
+    return Offset(
+      pan.dx.clamp(-maxX, maxX),
+      pan.dy.clamp(-maxY, maxY),
+    );
+  }
+
+  bool get _handlesVisible => widget.showChrome && widget.selected;
+
+  void _handleTap() {
+    if (!widget.showChrome) return;
+    if (!widget.selected) widget.onSelect();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -791,30 +1139,96 @@ class _SpanImagePage extends StatelessWidget {
       builder: (context, constraints) {
         final pageWidth = constraints.maxWidth;
         final pageHeight = constraints.maxHeight;
+        final page = Size(pageWidth, pageHeight);
+        final wide = Size(pageWidth * widget.spanCount, pageHeight);
+        final scaleFactor = widget.spanScale.clamp(_minScale, _maxScale);
+        final pan = _clampPan(widget.spanPan, page, scaleFactor);
+        final image = _imageSize;
+        final scale = image == null ? 1.0 : _coverScale(wide) * scaleFactor;
+        final displayW = image == null ? wide.width : image.width * scale;
+        final displayH = image == null ? wide.height : image.height * scale;
 
         return Stack(
           fit: StackFit.expand,
+          clipBehavior: Clip.none,
           children: [
-            ClipRect(
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: -spanIndex * pageWidth,
-                    top: 0,
-                    width: pageWidth * spanCount,
-                    height: pageHeight,
-                    child: Image.memory(
-                      imageBytes,
-                      fit: BoxFit.cover,
-                      width: pageWidth * spanCount,
-                      height: pageHeight,
-                      gaplessPlayback: true,
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _handleTap,
+              onPanStart: _handlesVisible
+                  ? (_) => widget.onInteractionChanged(true)
+                  : null,
+              onPanUpdate: _handlesVisible
+                  ? (details) {
+                      final next = _clampPan(
+                        widget.spanPan + details.delta,
+                        page,
+                        scaleFactor,
+                      );
+                      widget.onSpanPanChanged(next);
+                    }
+                  : null,
+              onPanEnd: _handlesVisible
+                  ? (_) => widget.onInteractionChanged(false)
+                  : null,
+              onPanCancel: _handlesVisible
+                  ? () => widget.onInteractionChanged(false)
+                  : null,
+              onDoubleTap: _handlesVisible
+                  ? () {
+                      widget.onSpanScaleChanged(1);
+                      widget.onSpanPanChanged(Offset.zero);
+                    }
+                  : null,
+              child: ClipRect(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: -widget.spanIndex * pageWidth +
+                          (wide.width - displayW) / 2 +
+                          pan.dx,
+                      top: (wide.height - displayH) / 2 + pan.dy,
+                      width: displayW,
+                      height: displayH,
+                      child: Image.memory(
+                        widget.imageBytes,
+                        fit: BoxFit.fill,
+                        width: displayW,
+                        height: displayH,
+                        gaplessPlayback: true,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            if (showChrome) ...[
+            if (_handlesVisible) ...[
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              ImageCornerHandles(
+                onScaleDelta: (delta) {
+                  final next = (widget.spanScale + delta)
+                      .clamp(_minScale, _maxScale)
+                      .toDouble();
+                  widget.onSpanScaleChanged(next);
+                  widget.onSpanPanChanged(
+                    _clampPan(widget.spanPan, page, next),
+                  );
+                },
+                onInteractionChanged: widget.onInteractionChanged,
+              ),
+            ],
+            if (widget.showChrome) ...[
               Positioned(
                 top: 10,
                 left: 10,
@@ -829,7 +1243,7 @@ class _SpanImagePage extends StatelessWidget {
                       vertical: 4,
                     ),
                     child: Text(
-                      '${spanIndex + 1}/$spanCount',
+                      '${widget.spanIndex + 1}/${widget.spanCount}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -847,7 +1261,7 @@ class _SpanImagePage extends StatelessWidget {
                   elevation: 1,
                   borderRadius: BorderRadius.circular(18),
                   child: InkWell(
-                    onTap: onReplace,
+                    onTap: widget.onReplace,
                     borderRadius: BorderRadius.circular(18),
                     child: const SizedBox(
                       width: 36,

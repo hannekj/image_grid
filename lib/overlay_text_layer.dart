@@ -12,6 +12,7 @@ class OverlayTextsLayer extends StatelessWidget {
     required this.onEdit,
     required this.onAlignmentChanged,
     required this.onFontSizeChanged,
+    required this.onRotationChanged,
   });
 
   final List<OverlayText> overlays;
@@ -21,6 +22,7 @@ class OverlayTextsLayer extends StatelessWidget {
   final ValueChanged<int> onEdit;
   final void Function(int index, Alignment alignment) onAlignmentChanged;
   final void Function(int index, double fontSize) onFontSizeChanged;
+  final void Function(int index, double rotation) onRotationChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +48,7 @@ class OverlayTextsLayer extends StatelessWidget {
             onAlignmentChanged: (alignment) =>
                 onAlignmentChanged(i, alignment),
             onFontSizeChanged: (fontSize) => onFontSizeChanged(i, fontSize),
+            onRotationChanged: (rotation) => onRotationChanged(i, rotation),
           ),
       ],
     );
@@ -58,6 +61,7 @@ class OverlayTextLayer extends StatefulWidget {
     required this.overlay,
     required this.onAlignmentChanged,
     required this.onFontSizeChanged,
+    required this.onRotationChanged,
     required this.onEdit,
     required this.onSelect,
     this.interactive = true,
@@ -66,6 +70,7 @@ class OverlayTextLayer extends StatefulWidget {
   final OverlayText overlay;
   final ValueChanged<Alignment> onAlignmentChanged;
   final ValueChanged<double> onFontSizeChanged;
+  final ValueChanged<double> onRotationChanged;
   final VoidCallback onEdit;
   final VoidCallback onSelect;
   final bool interactive;
@@ -148,81 +153,99 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
               ),
             Align(
               alignment: overlay.alignment,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  GestureDetector(
-                    onTap: interactive ? null : widget.onSelect,
-                    onDoubleTap: widget.onEdit,
-                    onPanStart: interactive
-                        ? (_) => setState(() => _dragging = true)
-                        : null,
-                    onPanUpdate: interactive
-                        ? (details) {
-                            final next = _snap(
-                              Alignment(
-                                (overlay.alignment.x +
-                                        details.delta.dx /
-                                            (constraints.maxWidth / 2))
-                                    .clamp(-1.0, 1.0),
-                                (overlay.alignment.y +
-                                        details.delta.dy /
-                                            (constraints.maxHeight / 2))
-                                    .clamp(-1.0, 1.0),
+              child: Transform.rotate(
+                angle: overlay.rotation,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    GestureDetector(
+                      onTap: interactive ? null : widget.onSelect,
+                      onDoubleTap: widget.onEdit,
+                      onPanStart: interactive
+                          ? (_) => setState(() => _dragging = true)
+                          : null,
+                      onPanUpdate: interactive
+                          ? (details) {
+                              final next = _snap(
+                                Alignment(
+                                  (overlay.alignment.x +
+                                          details.delta.dx /
+                                              (constraints.maxWidth / 2))
+                                      .clamp(-1.0, 1.0),
+                                  (overlay.alignment.y +
+                                          details.delta.dy /
+                                              (constraints.maxHeight / 2))
+                                      .clamp(-1.0, 1.0),
+                                ),
+                              );
+                              setState(() => _dragging = true);
+                              widget.onAlignmentChanged(next);
+                            }
+                          : null,
+                      onPanEnd: interactive ? (_) => _endDrag() : null,
+                      onPanCancel: interactive ? _endDrag : null,
+                      child: content,
+                    ),
+                    if (showSelectionRing)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius:
+                                  BorderRadius.circular(selectionRadius),
+                              border: Border.all(
+                                color: const Color(0x66FFFFFF),
+                                width: 1,
                               ),
-                            );
-                            setState(() => _dragging = true);
-                            widget.onAlignmentChanged(next);
-                          }
-                        : null,
-                    onPanEnd: interactive ? (_) => _endDrag() : null,
-                    onPanCancel: interactive ? _endDrag : null,
-                    child: content,
-                  ),
-                  if (showSelectionRing)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius:
-                                BorderRadius.circular(selectionRadius),
-                            border: Border.all(
-                              color: const Color(0x66FFFFFF),
-                              width: 1,
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  if (interactive)
-                    ..._Corner.values.map((corner) {
-                      return Positioned(
-                        left: corner.isLeft
-                            ? -OverlayTextLayer._handleSize / 2
-                            : null,
-                        right: corner.isLeft
-                            ? null
-                            : -OverlayTextLayer._handleSize / 2,
-                        top: corner.isTop
-                            ? -OverlayTextLayer._handleSize / 2
-                            : null,
-                        bottom: corner.isTop
-                            ? null
-                            : -OverlayTextLayer._handleSize / 2,
-                        child: _ResizeHandle(
-                          onUpdate: (delta) {
-                            final next = (overlay.fontSize +
-                                    _sizeDelta(delta, corner))
-                                .clamp(
-                                  overlayTextMinSize,
-                                  overlayTextMaxSize,
-                                );
-                            widget.onFontSizeChanged(next);
-                          },
+                    if (interactive && !overlay.isLocation)
+                      Positioned(
+                        top: -28,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: _RotateHandle(
+                            onUpdate: (delta) {
+                              widget.onRotationChanged(
+                                overlay.rotation + delta * 0.015,
+                              );
+                            },
+                          ),
                         ),
-                      );
-                    }),
-                ],
+                      ),
+                    if (interactive)
+                      ..._Corner.values.map((corner) {
+                        return Positioned(
+                          left: corner.isLeft
+                              ? -OverlayTextLayer._handleSize / 2
+                              : null,
+                          right: corner.isLeft
+                              ? null
+                              : -OverlayTextLayer._handleSize / 2,
+                          top: corner.isTop
+                              ? -OverlayTextLayer._handleSize / 2
+                              : null,
+                          bottom: corner.isTop
+                              ? null
+                              : -OverlayTextLayer._handleSize / 2,
+                          child: _ResizeHandle(
+                            onUpdate: (delta) {
+                              final next = (overlay.fontSize +
+                                      _sizeDelta(delta, corner))
+                                  .clamp(
+                                    overlayTextMinSize,
+                                    overlayTextMaxSize,
+                                  );
+                              widget.onFontSizeChanged(next);
+                            },
+                          ),
+                        );
+                      }),
+                  ],
+                ),
               ),
             ),
           ],
@@ -413,6 +436,43 @@ class _ResizeHandle extends StatelessWidget {
               ],
             ),
             child: const SizedBox(width: 10, height: 10),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RotateHandle extends StatelessWidget {
+  const _RotateHandle({required this.onUpdate});
+
+  final ValueChanged<double> onUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanUpdate: (details) => onUpdate(details.delta.dx),
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFF2C3028), width: 1.5),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x33000000),
+                blurRadius: 3,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.rotate_right,
+            size: 16,
+            color: Color(0xFF2C3028),
           ),
         ),
       ),

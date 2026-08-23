@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -12,7 +14,7 @@ class OverlayFont {
   final String id;
   final String label;
 
-  TextStyle style({Color? color, double? fontSize, double? height}) {
+  TextStyle style({Color? color, double? fontSize, double? height, double? letterSpacing}) {
     final base = switch (id) {
       'serif' => GoogleFonts.libreBaskerville(fontWeight: FontWeight.w500),
       'smal' => GoogleFonts.barlowCondensed(
@@ -26,6 +28,13 @@ class OverlayFont {
       'hand' => GoogleFonts.caveat(fontWeight: FontWeight.w500),
       'nunito' => GoogleFonts.nunito(fontWeight: FontWeight.w600),
       'beanie' => GoogleFonts.reenieBeanie(fontWeight: FontWeight.w400),
+      'vibes' => GoogleFonts.greatVibes(fontWeight: FontWeight.w400),
+      'cormorant' => GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w400),
+      'cinzel' => GoogleFonts.cinzel(
+          fontWeight: FontWeight.w400,
+          letterSpacing: 2.0,
+        ),
+      'lora' => GoogleFonts.lora(fontWeight: FontWeight.w400),
       // SIL OFL via Google Fonts — free for commercial embedding.
       'klipp' => GoogleFonts.londrinaSketch(fontWeight: FontWeight.w400),
       'roff' => GoogleFonts.rubikDirt(fontWeight: FontWeight.w400),
@@ -37,6 +46,7 @@ class OverlayFont {
       color: color,
       fontSize: fontSize,
       height: height,
+      letterSpacing: letterSpacing,
     );
   }
 }
@@ -52,9 +62,13 @@ const overlayFonts = [
   OverlayFont(id: 'sans', label: 'Sans'),
   OverlayFont(id: 'nunito', label: 'Nunito'),
   OverlayFont(id: 'serif', label: 'Serif'),
+  OverlayFont(id: 'cormorant', label: 'Cormorant'),
+  OverlayFont(id: 'lora', label: 'Lora'),
   OverlayFont(id: 'smal', label: 'Smal'),
   OverlayFont(id: 'plakat', label: 'Plakat'),
+  OverlayFont(id: 'cinzel', label: 'Cinzel'),
   OverlayFont(id: 'hand', label: 'Hånd'),
+  OverlayFont(id: 'vibes', label: 'Vibes'),
   OverlayFont(id: 'beanie', label: 'Beanie'),
   OverlayFont(id: 'klipp', label: 'Klipp'),
   OverlayFont(id: 'roff', label: 'Røff'),
@@ -138,6 +152,8 @@ class OverlayText {
     this.fontId = 'sans',
     this.alignment = const Alignment(0, 0.72),
     this.textAlign = TextAlign.center,
+    this.rotation = 0,
+    this.letterSpacing = 0,
     this.effect = OverlayTextEffect.none,
     this.plateStyle = const OverlayPlateStyle(
       tone: OverlayPlateTone.dark,
@@ -196,6 +212,8 @@ class OverlayText {
   String fontId;
   Alignment alignment;
   TextAlign textAlign;
+  double rotation;
+  double letterSpacing;
   OverlayTextEffect effect;
   OverlayPlateStyle plateStyle;
 
@@ -206,6 +224,7 @@ class OverlayText {
       color: color,
       fontSize: fontSize,
       height: 1.25,
+      letterSpacing: letterSpacing == 0 ? null : letterSpacing,
     );
     return switch (effect) {
       OverlayTextEffect.none => base,
@@ -232,6 +251,7 @@ class OverlayText {
     return overlayFontById(fontId).style(
       fontSize: fontSize,
       height: 1.25,
+      letterSpacing: letterSpacing == 0 ? null : letterSpacing,
     ).copyWith(
       foreground: Paint()
         ..style = PaintingStyle.stroke
@@ -249,6 +269,8 @@ class OverlayText {
     String? fontId,
     Alignment? alignment,
     TextAlign? textAlign,
+    double? rotation,
+    double? letterSpacing,
     OverlayTextEffect? effect,
     OverlayPlateStyle? plateStyle,
   }) {
@@ -260,9 +282,34 @@ class OverlayText {
       fontId: fontId ?? this.fontId,
       alignment: alignment ?? this.alignment,
       textAlign: textAlign ?? this.textAlign,
+      rotation: rotation ?? this.rotation,
+      letterSpacing: letterSpacing ?? this.letterSpacing,
       effect: effect ?? this.effect,
       plateStyle: plateStyle ?? this.plateStyle,
     );
+  }
+
+  /// Rotation in degrees for UI display.
+  double get rotationDegrees => rotation * 180 / math.pi;
+
+  OverlayText withRotationDegrees(double degrees) {
+    return copyWith(rotation: degrees * math.pi / 180);
+  }
+
+  /// Advance rotation by 90° (0 → 90 → 180 → -90 → 0).
+  OverlayText withNextQuarterTurn() {
+    const steps = [0.0, 90.0, 180.0, -90.0];
+    final current = rotationDegrees;
+    var index = 0;
+    var minDist = double.infinity;
+    for (var i = 0; i < steps.length; i++) {
+      final dist = (current - steps[i]).abs();
+      if (dist < minDist) {
+        minDist = dist;
+        index = i;
+      }
+    }
+    return withRotationDegrees(steps[(index + 1) % steps.length]);
   }
 
   /// Text alignment plus a matching horizontal placement on the canvas.

@@ -12,6 +12,7 @@ import 'canvas_format.dart';
 import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'dump_layout.dart';
+import 'editor_tool_grid.dart';
 import 'editor_toolbar.dart';
 import 'film_look.dart';
 import 'frame_style.dart';
@@ -21,7 +22,9 @@ import 'layout_strip.dart';
 import 'look_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_controls.dart';
+import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
+import 'overlay_text_templates.dart';
 
 class LayoutEditorPage extends StatefulWidget {
   const LayoutEditorPage({
@@ -55,10 +58,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   StrokeThickness _thickness = strokeThicknesses[1];
   final List<OverlayText> _overlayTexts = [];
   int? _selectedOverlayIndex;
+  int? _selectedSlotIndex;
   bool _grain = false;
   bool _dateStamp = false;
   PhotoFilter _filter = PhotoFilter.original;
-  EditorTool? _tool = EditorTool.layout;
+  EditorTool? _tool;
 
   bool _swapHintShown = false;
 
@@ -92,6 +96,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     setState(() {
       _layout = next;
       _slots = nextSlots;
+      _selectedSlotIndex = null;
     });
   }
 
@@ -184,7 +189,25 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   void _selectOverlayText(int index) {
     if (index < 0 || index >= _overlayTexts.length) return;
-    setState(() => _selectedOverlayIndex = index);
+    setState(() {
+      _selectedOverlayIndex = index;
+      _selectedSlotIndex = null;
+    });
+  }
+
+  void _selectSlot(int index) {
+    setState(() {
+      _selectedSlotIndex = index;
+      _selectedOverlayIndex = null;
+    });
+  }
+
+  void _clearFocus() {
+    if (_selectedOverlayIndex == null && _selectedSlotIndex == null) return;
+    setState(() {
+      _selectedOverlayIndex = null;
+      _selectedSlotIndex = null;
+    });
   }
 
   void _updateSelectedOverlay(OverlayText overlay) {
@@ -217,7 +240,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
-        return _OverlayTextDialog(
+        return OverlayTextDialog(
           initialValue: '',
           isNew: true,
           kind: kind,
@@ -242,6 +265,20 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     });
   }
 
+  Future<void> _addEditorial() async {
+    final result = await showDialog<List<OverlayText>>(
+      context: context,
+      builder: (context) => const EditorialTextDialog(),
+    );
+    if (!mounted || result == null || result.isEmpty) return;
+
+    setState(() {
+      _overlayTexts.addAll(result);
+      _selectedOverlayIndex = _overlayTexts.length - result.length;
+      _selectedSlotIndex = null;
+    });
+  }
+
   Future<void> _editOverlayText(int index) async {
     if (index < 0 || index >= _overlayTexts.length) return;
     final existing = _overlayTexts[index];
@@ -251,7 +288,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
-        return _OverlayTextDialog(
+        return OverlayTextDialog(
           initialValue: existing.value,
           isNew: false,
           kind: existing.kind,
@@ -354,6 +391,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
               index: slotIndex,
               imageBytes: _slots[slotIndex],
               showChrome: !_cleanView,
+              selected: !_cleanView && _selectedSlotIndex == slotIndex,
+              onSelect: () => _selectSlot(slotIndex),
               onPick: _slots[slotIndex] == null
                   ? () => _pickImages(slotIndex)
                   : () => _pickImage(slotIndex),
@@ -379,6 +418,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       index: index,
       imageBytes: _slots[index],
       showChrome: !_cleanView,
+      selected: !_cleanView && _selectedSlotIndex == index,
+      onSelect: () => _selectSlot(index),
       onPick: _slots[index] == null
           ? () => _pickImages(index)
           : () => _pickImage(index),
@@ -392,6 +433,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       _previewing = !_previewing;
       if (_previewing) {
         _selectedOverlayIndex = null;
+        _selectedSlotIndex = null;
       }
     });
   }
@@ -545,7 +587,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                             if (_previewing) {
                               _exitPreview();
                             } else {
-                              _deselectOverlayText();
+                              _clearFocus();
                             }
                           },
                           child: const ColoredBox(color: Colors.transparent),
@@ -578,7 +620,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                       if (_previewing) {
                                         _exitPreview();
                                       } else {
-                                        _deselectOverlayText();
+                                        _clearFocus();
                                       }
                                     },
                                     child: ColoredBox(color: canvasColor),
@@ -607,6 +649,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                           alignment: alignment,
                                         );
                                         _selectedOverlayIndex = index;
+                                        _selectedSlotIndex = null;
                                       });
                                     },
                                     onFontSizeChanged: (index, fontSize) {
@@ -616,6 +659,17 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                           fontSize: fontSize,
                                         );
                                         _selectedOverlayIndex = index;
+                                        _selectedSlotIndex = null;
+                                      });
+                                    },
+                                    onRotationChanged: (index, rotation) {
+                                      setState(() {
+                                        _overlayTexts[index] =
+                                            _overlayTexts[index].copyWith(
+                                          rotation: rotation,
+                                        );
+                                        _selectedOverlayIndex = index;
+                                        _selectedSlotIndex = null;
                                       });
                                     },
                                   ),
@@ -654,7 +708,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                   child: ColoredBox(
                     color: AppTheme.cream,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                       child: _buildToolPanel(),
                     ),
                   ),
@@ -664,16 +718,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                 maintainState: true,
                 maintainAnimation: true,
                 maintainSize: true,
-                child: EditorToolBar(
-                  selected: _tool,
-                  onChanged: (tool) => setState(() {
-                    _tool = tool;
-                    if (tool == EditorTool.text &&
-                        _overlayTexts.isNotEmpty &&
-                        _selectedOverlayIndex == null) {
-                      _selectedOverlayIndex = _overlayTexts.length - 1;
-                    }
-                  }),
+                child: EditorToolBottomBar(
+                  tools: gridToolDefinitions,
+                  activeTool: toolDefinitionById(
+                    gridToolDefinitions,
+                    _activeToolId,
+                  ),
+                  onBack: () => setState(() => _tool = null),
+                  onToolSelected: _onGridToolSelected,
                 ),
               ),
             ],
@@ -681,6 +733,40 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         ),
       ),
     );
+  }
+
+  String? get _activeToolId {
+    return switch (_tool) {
+      EditorTool.layout => 'layout',
+      EditorTool.format => 'format',
+      EditorTool.look => 'look',
+      EditorTool.text => 'text',
+      null => null,
+    };
+  }
+
+  void _onGridToolSelected(EditorToolDefinition definition) {
+    switch (definition.id) {
+      case 'layout':
+        setState(() => _tool = EditorTool.layout);
+      case 'format':
+        setState(() => _tool = EditorTool.format);
+      case 'look':
+        setState(() => _tool = EditorTool.look);
+      case 'text':
+        setState(() {
+          _tool = EditorTool.text;
+          if (_overlayTexts.isNotEmpty && _selectedOverlayIndex == null) {
+            _selectedOverlayIndex = _overlayTexts.length - 1;
+          }
+        });
+      case 'editorial':
+        setState(() => _tool = EditorTool.text);
+        _addEditorial();
+      case 'location':
+        setState(() => _tool = EditorTool.text);
+        _addOverlayLocation();
+    }
   }
 
   Widget _buildToolPanel() {
@@ -720,6 +806,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           onSelect: _selectOverlayText,
           onAddText: _addOverlayText,
           onAddLocation: _addOverlayLocation,
+          onAddEditorial: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
           onEdit: _editOverlayText,
@@ -730,72 +817,13 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 }
 
-class _OverlayTextDialog extends StatefulWidget {
-  const _OverlayTextDialog({
-    required this.initialValue,
-    required this.isNew,
-    this.kind = OverlayKind.text,
-  });
-
-  final String initialValue;
-  final bool isNew;
-  final OverlayKind kind;
-
-  @override
-  State<_OverlayTextDialog> createState() => _OverlayTextDialogState();
-}
-
-class _OverlayTextDialogState extends State<_OverlayTextDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialValue,
-  );
-
-  bool get _isLocation => widget.kind == OverlayKind.location;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        _isLocation
-            ? (widget.isNew ? 'Legg til sted' : 'Rediger sted')
-            : (widget.isNew ? 'Legg til tekst' : 'Rediger tekst'),
-      ),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLines: _isLocation ? 1 : 3,
-        maxLength: _isLocation ? 40 : 80,
-        textCapitalization: TextCapitalization.words,
-        decoration: InputDecoration(
-          hintText: _isLocation ? 'F.eks. Lofoten' : 'Skriv teksten her',
-          prefixIcon: _isLocation ? const Icon(Icons.location_on) : null,
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Avbryt'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, _controller.text.trim()),
-          child: const Text('Ferdig'),
-        ),
-      ],
-    );
-  }
-}
-
 class _SwappableSlot extends StatelessWidget {
   const _SwappableSlot({
     required this.index,
     required this.imageBytes,
     required this.showChrome,
+    required this.selected,
+    required this.onSelect,
     required this.onPick,
     required this.onSwap,
   });
@@ -803,6 +831,8 @@ class _SwappableSlot extends StatelessWidget {
   final int index;
   final Uint8List? imageBytes;
   final bool showChrome;
+  final bool selected;
+  final VoidCallback onSelect;
   final VoidCallback onPick;
   final void Function(int from, int to) onSwap;
 
@@ -814,6 +844,8 @@ class _SwappableSlot extends StatelessWidget {
       imageBytes: bytes,
       onPick: onPick,
       showChrome: showChrome,
+      selected: selected,
+      onSelect: onSelect,
     );
 
     return DragTarget<int>(

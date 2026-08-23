@@ -15,6 +15,7 @@ class OverlayTextControls extends StatefulWidget {
     required this.onSelect,
     required this.onAddText,
     required this.onAddLocation,
+    required this.onAddEditorial,
     required this.onChanged,
     required this.onRemove,
     required this.onEdit,
@@ -25,6 +26,7 @@ class OverlayTextControls extends StatefulWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onAddText;
   final VoidCallback onAddLocation;
+  final VoidCallback onAddEditorial;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
   final ValueChanged<int> onEdit;
@@ -60,25 +62,42 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
     }
   }
 
+  void _rotateSelected() {
+    final current = _current;
+    if (current == null || current.isLocation) return;
+    widget.onChanged(current.withNextQuarterTurn());
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.overlays.isEmpty) {
-      return Row(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: widget.onAddText,
-              icon: const Icon(Icons.title),
-              label: const Text('Tekst'),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: widget.onAddText,
+                  icon: const Icon(Icons.title),
+                  label: const Text('Tekst'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: widget.onAddLocation,
+                  icon: const Icon(Icons.location_on_outlined),
+                  label: const Text('Sted'),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: widget.onAddLocation,
-              icon: const Icon(Icons.location_on_outlined),
-              label: const Text('Sted'),
-            ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: widget.onAddEditorial,
+            icon: const Icon(Icons.auto_stories_outlined),
+            label: const Text('Editorial'),
           ),
         ],
       );
@@ -168,6 +187,16 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
               onPressed: widget.onAddLocation,
             ),
             _ActionIcon(
+              tooltip: 'Editorial',
+              icon: Icons.auto_stories_outlined,
+              onPressed: widget.onAddEditorial,
+            ),
+            _ActionIcon(
+              tooltip: 'Roter tekst',
+              icon: Icons.rotate_right,
+              onPressed: current.isLocation ? null : _rotateSelected,
+            ),
+            _ActionIcon(
               tooltip: 'Fjern',
               icon: Icons.close,
               onPressed: widget.onRemove,
@@ -233,62 +262,117 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                 },
               ),
             ),
-          _TextSection.other => Row(
+          _TextSection.other => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _IconToggle(
-                  tooltip: 'Venstre',
-                  icon: Icons.format_align_left,
-                  selected: current.textAlign == TextAlign.left,
-                  onTap: () => widget.onChanged(
-                    current.withTextAlign(TextAlign.left),
-                  ),
+                Row(
+                  children: [
+                    _IconToggle(
+                      tooltip: 'Venstre',
+                      icon: Icons.format_align_left,
+                      selected: current.textAlign == TextAlign.left,
+                      onTap: () => widget.onChanged(
+                        current.withTextAlign(TextAlign.left),
+                      ),
+                    ),
+                    _IconToggle(
+                      tooltip: 'Midt',
+                      icon: Icons.format_align_center,
+                      selected: current.textAlign == TextAlign.center,
+                      onTap: () => widget.onChanged(
+                        current.withTextAlign(TextAlign.center),
+                      ),
+                    ),
+                    _IconToggle(
+                      tooltip: 'Høyre',
+                      icon: Icons.format_align_right,
+                      selected: current.textAlign == TextAlign.right,
+                      onTap: () => widget.onChanged(
+                        current.withTextAlign(TextAlign.right),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      width: 1,
+                      height: 22,
+                      color: const Color(0xFFD7DCD0),
+                    ),
+                    const SizedBox(width: 10),
+                    _IconToggle(
+                      tooltip: 'Ingen effekt',
+                      icon: Icons.title,
+                      selected: current.effect == OverlayTextEffect.none,
+                      onTap: () => widget.onChanged(
+                        current.copyWith(effect: OverlayTextEffect.none),
+                      ),
+                    ),
+                    _IconToggle(
+                      tooltip: 'Skygge',
+                      icon: Icons.blur_on,
+                      selected: current.effect == OverlayTextEffect.shadow,
+                      onTap: () => widget.onChanged(
+                        current.copyWith(effect: OverlayTextEffect.shadow),
+                      ),
+                    ),
+                    _IconToggle(
+                      tooltip: 'Kant',
+                      icon: Icons.border_style,
+                      selected: current.effect == OverlayTextEffect.outline,
+                      onTap: () => widget.onChanged(
+                        current.copyWith(effect: OverlayTextEffect.outline),
+                      ),
+                    ),
+                  ],
                 ),
-                _IconToggle(
-                  tooltip: 'Midt',
-                  icon: Icons.format_align_center,
-                  selected: current.textAlign == TextAlign.center,
-                  onTap: () => widget.onChanged(
-                    current.withTextAlign(TextAlign.center),
-                  ),
+                const SizedBox(height: 10),
+                Text(
+                  'Rotasjon: ${current.rotationDegrees.round()}°',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.muted),
                 ),
-                _IconToggle(
-                  tooltip: 'Høyre',
-                  icon: Icons.format_align_right,
-                  selected: current.textAlign == TextAlign.right,
-                  onTap: () => widget.onChanged(
-                    current.withTextAlign(TextAlign.right),
-                  ),
+                Row(
+                  children: [
+                    _RotationChip(
+                      label: '0°',
+                      selected: current.rotationDegrees.abs() < 3,
+                      onTap: () =>
+                          widget.onChanged(current.withRotationDegrees(0)),
+                    ),
+                    const SizedBox(width: 6),
+                    _RotationChip(
+                      label: '-90°',
+                      selected: (current.rotationDegrees + 90).abs() < 3,
+                      onTap: () =>
+                          widget.onChanged(current.withRotationDegrees(-90)),
+                    ),
+                    const SizedBox(width: 6),
+                    _RotationChip(
+                      label: '90°',
+                      selected: (current.rotationDegrees - 90).abs() < 3,
+                      onTap: () =>
+                          widget.onChanged(current.withRotationDegrees(90)),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Container(
-                  width: 1,
-                  height: 22,
-                  color: const Color(0xFFD7DCD0),
+                Slider(
+                  value: current.rotationDegrees.clamp(-180, 180),
+                  min: -180,
+                  max: 180,
+                  divisions: 72,
+                  label: '${current.rotationDegrees.round()}°',
+                  onChanged: (value) =>
+                      widget.onChanged(current.withRotationDegrees(value)),
                 ),
-                const SizedBox(width: 10),
-                _IconToggle(
-                  tooltip: 'Ingen effekt',
-                  icon: Icons.title,
-                  selected: current.effect == OverlayTextEffect.none,
-                  onTap: () => widget.onChanged(
-                    current.copyWith(effect: OverlayTextEffect.none),
-                  ),
+                Text(
+                  'Bokstavavstand: ${current.letterSpacing.toStringAsFixed(1)}',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.muted),
                 ),
-                _IconToggle(
-                  tooltip: 'Skygge',
-                  icon: Icons.blur_on,
-                  selected: current.effect == OverlayTextEffect.shadow,
-                  onTap: () => widget.onChanged(
-                    current.copyWith(effect: OverlayTextEffect.shadow),
-                  ),
-                ),
-                _IconToggle(
-                  tooltip: 'Kant',
-                  icon: Icons.border_style,
-                  selected: current.effect == OverlayTextEffect.outline,
-                  onTap: () => widget.onChanged(
-                    current.copyWith(effect: OverlayTextEffect.outline),
-                  ),
+                Slider(
+                  value: current.letterSpacing.clamp(0, 8),
+                  min: 0,
+                  max: 8,
+                  divisions: 16,
+                  onChanged: (value) =>
+                      widget.onChanged(current.copyWith(letterSpacing: value)),
                 ),
               ],
             ),
@@ -438,6 +522,41 @@ class _IconToggle extends StatelessWidget {
               icon,
               size: 18,
               color: selected ? Colors.white : const Color(0xFF5C6358),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RotationChip extends StatelessWidget {
+  const _RotationChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? const Color(0xFF2C3028) : Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: selected ? Colors.white : AppTheme.muted,
             ),
           ),
         ),
