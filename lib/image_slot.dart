@@ -5,7 +5,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
-import 'image_corner_handles.dart';
+import 'image_adjust_handles.dart';
+import 'image_adjust_toolbar.dart';
 import 'slot_inset_shadow.dart';
 
 class ImageSlot extends StatefulWidget {
@@ -19,6 +20,17 @@ class ImageSlot extends StatefulWidget {
     this.selected = false,
     this.onSelect,
     this.onInteractionChanged,
+    this.pan,
+    this.zoom,
+    this.rotation,
+    this.locked = false,
+    this.onPanChanged,
+    this.onZoomChanged,
+    this.onRotationChanged,
+    this.showAdjustToolbar = false,
+    this.onDelete,
+    this.onDuplicate,
+    this.onLockToggle,
   });
 
   final Uint8List? imageBytes;
@@ -29,6 +41,17 @@ class ImageSlot extends StatefulWidget {
   final bool selected;
   final VoidCallback? onSelect;
   final ValueChanged<bool>? onInteractionChanged;
+  final Offset? pan;
+  final double? zoom;
+  final double? rotation;
+  final bool locked;
+  final ValueChanged<Offset>? onPanChanged;
+  final ValueChanged<double>? onZoomChanged;
+  final ValueChanged<double>? onRotationChanged;
+  final bool showAdjustToolbar;
+  final VoidCallback? onDelete;
+  final VoidCallback? onDuplicate;
+  final VoidCallback? onLockToggle;
 
   @override
   State<ImageSlot> createState() => _ImageSlotState();
@@ -39,16 +62,29 @@ class _ImageSlotState extends State<ImageSlot>
   static const _minZoom = 0.45;
   static const _maxZoom = 4.0;
 
-  double _zoom = 1.0;
-  Offset _pan = Offset.zero;
+  double _localZoom = 1.0;
+  Offset _localPan = Offset.zero;
+  double _localRotation = 0.0;
   double _gestureStartZoom = 1.0;
   Size? _imageSize;
+
+  bool get _controlled => widget.onPanChanged != null;
+
+  double get _zoom => widget.zoom ?? _localZoom;
+
+  Offset get _pan => widget.pan ?? _localPan;
+
+  double get _rotation => widget.rotation ?? _localRotation;
 
   bool get _handlesVisible =>
       widget.showChrome &&
       widget.showResizeHandles &&
       widget.selected &&
-      widget.imageBytes != null;
+      widget.imageBytes != null &&
+      !widget.locked;
+
+  bool get _canAdjust =>
+      widget.selected && widget.imageBytes != null && !widget.locked;
 
   @override
   bool get wantKeepAlive => widget.imageBytes != null;
@@ -63,8 +99,11 @@ class _ImageSlotState extends State<ImageSlot>
   void didUpdateWidget(covariant ImageSlot oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageBytes != widget.imageBytes) {
-      _zoom = 1.0;
-      _pan = Offset.zero;
+      if (!_controlled) {
+        _localZoom = 1.0;
+        _localPan = Offset.zero;
+        _localRotation = 0.0;
+      }
       _imageSize = null;
       _decodeSize(widget.imageBytes);
       updateKeepAlive();
@@ -95,19 +134,53 @@ class _ImageSlotState extends State<ImageSlot>
     if (image == null) return Offset.zero;
 
     final scale = _coverScale(slot) * _zoom;
-    final maxX = math.max(0.0, (image.width * scale - slot.width) / 2);
-    final maxY = math.max(0.0, (image.height * scale - slot.height) / 2);
+    var maxX = math.max(0.0, (image.width * scale - slot.width) / 2);
+    var maxY = math.max(0.0, (image.height * scale - slot.height) / 2);
+
+    if (_rotation.abs() > 0.01) {
+      final extra = math.max(slot.width, slot.height) * 0.35;
+      maxX += extra;
+      maxY += extra;
+    }
+
     return Offset(
       pan.dx.clamp(-maxX, maxX),
       pan.dy.clamp(-maxY, maxY),
     );
   }
 
+  void _setPan(Offset pan, Size slot) {
+    final next = _clampPan(pan, slot);
+    if (_controlled) {
+      widget.onPanChanged?.call(next);
+    } else {
+      setState(() => _localPan = next);
+    }
+  }
+
+  void _setZoom(double zoom, Size slot) {
+    final next = zoom.clamp(_minZoom, _maxZoom).toDouble();
+    if (_controlled) {
+      widget.onZoomChanged?.call(next);
+      widget.onPanChanged?.call(_clampPan(_pan, slot));
+    } else {
+      setState(() {
+        _localZoom = next;
+        _localPan = _clampPan(_localPan, slot);
+      });
+    }
+  }
+
+  void _setRotation(double rotation) {
+    if (_controlled) {
+      widget.onRotationChanged?.call(rotation);
+    } else {
+      setState(() => _localRotation = rotation);
+    }
+  }
+
   void _applyZoomDelta(double delta, Size slot) {
-    setState(() {
-      _zoom = (_zoom + delta).clamp(_minZoom, _maxZoom).toDouble();
-      _pan = _clampPan(_pan, slot);
-    });
+    _setZoom(_zoom + delta, slot);
   }
 
   void _onScaleStart(ScaleStartDetails details) {
@@ -116,23 +189,26 @@ class _ImageSlotState extends State<ImageSlot>
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details, Size slot) {
-    setState(() {
-      _zoom = (_gestureStartZoom * details.scale)
-          .clamp(_minZoom, _maxZoom)
-          .toDouble();
-      _pan = _clampPan(_pan + details.focalPointDelta, slot);
-    });
+    _setZoom(_gestureStartZoom * details.scale, slot);
+    _setPan(_pan + details.focalPointDelta, slot);
   }
 
   void _onScaleEnd(ScaleEndDetails details) {
     widget.onInteractionChanged?.call(false);
   }
 
-  void _resetView() {
-    setState(() {
-      _zoom = 1.0;
-      _pan = Offset.zero;
-    });
+  void _resetView(Size slot) {
+    if (_controlled) {
+      widget.onPanChanged?.call(Offset.zero);
+      widget.onZoomChanged?.call(1.0);
+      widget.onRotationChanged?.call(0.0);
+    } else {
+      setState(() {
+        _localZoom = 1.0;
+        _localPan = Offset.zero;
+        _localRotation = 0.0;
+      });
+    }
   }
 
   void _handleTap() {
@@ -147,6 +223,66 @@ class _ImageSlotState extends State<ImageSlot>
     return Positioned.fill(
       child: IgnorePointer(
         child: SlotInsetShadow(emphasized: empty),
+      ),
+    );
+  }
+
+  Widget _buildImageContent({
+    required Uint8List bytes,
+    required Size slot,
+    required Size image,
+  }) {
+    final pan = _clampPan(_pan, slot);
+    final scale = _coverScale(slot) * _zoom;
+    final displayWidth = image.width * scale;
+    final displayHeight = image.height * scale;
+    final gesturesEnabled = widget.enableGestures && _canAdjust;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _handleTap,
+      onScaleStart: gesturesEnabled ? _onScaleStart : null,
+      onScaleUpdate:
+          gesturesEnabled ? (details) => _onScaleUpdate(details, slot) : null,
+      onScaleEnd: gesturesEnabled ? _onScaleEnd : null,
+      onDoubleTap: _canAdjust ? () => _resetView(slot) : null,
+      onPanStart: !gesturesEnabled && _handlesVisible
+          ? (_) => widget.onInteractionChanged?.call(true)
+          : null,
+      onPanUpdate: !gesturesEnabled && _handlesVisible
+          ? (details) => _setPan(_pan + details.delta, slot)
+          : null,
+      onPanEnd: !gesturesEnabled && _handlesVisible
+          ? (_) => widget.onInteractionChanged?.call(false)
+          : null,
+      onPanCancel: !gesturesEnabled && _handlesVisible
+          ? () => widget.onInteractionChanged?.call(false)
+          : null,
+      child: ClipRect(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Center(
+              child: Transform.rotate(
+                angle: _rotation,
+                child: Transform.translate(
+                  offset: pan,
+                  child: SizedBox(
+                    width: displayWidth,
+                    height: displayHeight,
+                    child: Image.memory(
+                      bytes,
+                      fit: BoxFit.fill,
+                      width: displayWidth,
+                      height: displayHeight,
+                      gaplessPlayback: true,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -204,7 +340,7 @@ class _ImageSlotState extends State<ImageSlot>
                     ),
                   ),
                 ),
-                if (widget.showChrome)
+                if (widget.showChrome && !widget.showAdjustToolbar)
                   Positioned(
                     top: 6,
                     right: 6,
@@ -215,89 +351,80 @@ class _ImageSlotState extends State<ImageSlot>
             );
           }
 
-          final pan = _clampPan(_pan, slot);
-          final scale = _coverScale(slot) * _zoom;
-          final displayWidth = image.width * scale;
-          final displayHeight = image.height * scale;
-          final canPan = _handlesVisible || widget.enableGestures;
-
           return Stack(
             fit: StackFit.expand,
             clipBehavior: Clip.none,
             children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _handleTap,
-                onScaleStart:
-                    widget.enableGestures && widget.selected
-                        ? _onScaleStart
-                        : null,
-                onScaleUpdate: widget.enableGestures && widget.selected
-                    ? (details) => _onScaleUpdate(details, slot)
-                    : null,
-                onScaleEnd: widget.enableGestures && widget.selected
-                    ? _onScaleEnd
-                    : null,
-                onDoubleTap: canPan ? _resetView : null,
-                onPanStart: !widget.enableGestures && _handlesVisible
-                    ? (_) => widget.onInteractionChanged?.call(true)
-                    : null,
-                onPanUpdate: !widget.enableGestures && _handlesVisible
-                    ? (details) {
-                        setState(() {
-                          _pan = _clampPan(_pan + details.delta, slot);
-                        });
-                      }
-                    : null,
-                onPanEnd: !widget.enableGestures && _handlesVisible
-                    ? (_) => widget.onInteractionChanged?.call(false)
-                    : null,
-                onPanCancel: !widget.enableGestures && _handlesVisible
-                    ? () => widget.onInteractionChanged?.call(false)
-                    : null,
-                child: ClipRect(
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        left: (slot.width - displayWidth) / 2 + pan.dx,
-                        top: (slot.height - displayHeight) / 2 + pan.dy,
-                        width: displayWidth,
-                        height: displayHeight,
-                        child: Image.memory(
-                          bytes,
-                          fit: BoxFit.fill,
-                          width: displayWidth,
-                          height: displayHeight,
-                          gaplessPlayback: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _buildImageContent(bytes: bytes, slot: slot, image: image),
               if (_handlesVisible) ...[
                 Positioned.fill(
                   child: IgnorePointer(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          width: 1.5,
+                          color: Colors.white.withValues(alpha: 0.95),
+                          width: 2,
                         ),
                       ),
                     ),
                   ),
                 ),
-                ImageCornerHandles(
+                ImageAdjustHandles(
                   onScaleDelta: (delta) => _applyZoomDelta(delta, slot),
                   onInteractionChanged: widget.onInteractionChanged,
                 ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: -38,
+                  child: Center(
+                    child: ImageRotateHandle(
+                      onUpdate: (delta) => _setRotation(_rotation + delta),
+                      onInteractionChanged: widget.onInteractionChanged,
+                    ),
+                  ),
+                ),
               ],
-              if (widget.showChrome)
+              if (widget.showAdjustToolbar &&
+                  widget.onDelete != null &&
+                  widget.onDuplicate != null &&
+                  widget.onLockToggle != null)
+                Positioned(
+                  top: 8,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ImageAdjustToolbar(
+                      locked: widget.locked,
+                      onDelete: widget.onDelete!,
+                      onDuplicate: widget.onDuplicate!,
+                      onLockToggle: widget.onLockToggle!,
+                      onReplace: widget.onPick,
+                    ),
+                  ),
+                )
+              else if (widget.showChrome && !widget.showAdjustToolbar)
                 Positioned(
                   top: 6,
                   right: 6,
                   child: _ReplaceButton(onTap: widget.onPick),
+                ),
+              if (widget.locked && widget.selected)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.all(6),
+                        child: Icon(Icons.lock, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
                 ),
               _insetShadowOverlay(empty: false),
             ],

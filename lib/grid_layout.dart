@@ -39,6 +39,13 @@ class GridLayout {
 
 const gridLayouts = [
   GridLayout(
+    id: '1-col',
+    label: '1 kolonne',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
+  GridLayout(
     id: '2-rows',
     label: '2 rader',
     rows: [
@@ -77,6 +84,18 @@ const gridLayouts = [
     ],
   ),
   GridLayout(
+    id: '6-rows',
+    label: '6 rader',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
+  GridLayout(
     id: '2-cols',
     label: '2 kolonner',
     rows: [
@@ -107,6 +126,13 @@ const gridLayouts = [
     ],
   ),
   GridLayout(
+    id: '4-cols',
+    label: '4 kolonner',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
+    ],
+  ),
+  GridLayout(
     id: 'two-hero',
     label: 'To + stort',
     rows: [
@@ -123,6 +149,15 @@ const gridLayouts = [
     ],
   ),
   GridLayout(
+    id: '2x3',
+    label: '2 × 3',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
     id: '3x3',
     label: '3 × 3',
     rows: [
@@ -132,11 +167,39 @@ const gridLayouts = [
     ],
   ),
   GridLayout(
+    id: '4x6',
+    label: '4 × 6',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'mosaic-top-full',
+    label: 'Stort + hel bunn',
+    rows: [
+      LayoutRow(flex: 2, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
+  GridLayout(
     id: 'mosaic-13',
     label: '1 + 3',
     rows: [
       LayoutRow(flex: 2, cells: [1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'mosaic-14',
+    label: 'Stort + 4',
+    rows: [
+      LayoutRow(flex: 2, cells: [1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
     ],
   ),
   GridLayout(
@@ -178,6 +241,44 @@ const gridLayouts = [
       LayoutRow(flex: 2, cells: [1]),
       LayoutRow(flex: 1, cells: [2, 1]),
       LayoutRow(flex: 1, cells: [1, 2]),
+    ],
+  ),
+  GridLayout(
+    id: 'mosaic-212',
+    label: '2 + 1 + 2',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'mosaic-5',
+    label: 'Mosaikk 5',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 2]),
+      LayoutRow(flex: 1, cells: [1, 2]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'mosaic-21',
+    label: 'Mosaikk 7',
+    rows: [
+      LayoutRow(flex: 1, cells: [2, 1]),
+      LayoutRow(flex: 1, cells: [1, 2]),
+    ],
+  ),
+  GridLayout(
+    id: 'mosaic-8',
+    label: 'Mosaikk 8',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 2]),
+      LayoutRow(flex: 1, cells: [2, 1]),
+      LayoutRow(flex: 1, cells: [1]),
     ],
   ),
   GridLayout(

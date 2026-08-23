@@ -34,6 +34,7 @@ class CarouselPage extends StatefulWidget {
 class _CarouselPageState extends State<CarouselPage> {
   static const _maxSlides = 30;
   static const _thumbHeight = 48.0;
+  static const _workZonePadding = EdgeInsets.fromLTRB(24, 24, 24, 48);
 
   final _frameKey = GlobalKey();
   final _picker = ImagePicker();
@@ -114,6 +115,61 @@ class _CarouselPageState extends State<CarouselPage> {
         }
       }
     });
+  }
+
+  void _updateSlideImagePan(int index, Offset pan) {
+    setState(() => _slides[index] = _slides[index].copyWith(imagePan: pan));
+  }
+
+  void _updateSlideImageZoom(int index, double zoom) {
+    setState(() => _slides[index] = _slides[index].copyWith(imageZoom: zoom));
+  }
+
+  void _updateSlideImageRotation(int index, double rotation) {
+    setState(() {
+      _slides[index] = _slides[index].copyWith(imageRotation: rotation);
+    });
+  }
+
+  void _toggleImageLock() {
+    setState(() {
+      _slides[_index] =
+          _current.copyWith(imageLocked: !_current.imageLocked);
+    });
+  }
+
+  void _clearCurrentImage() {
+    setState(() {
+      _slides[_index] = _current.copyWith(
+        clearImage: true,
+        clearImageTransform: true,
+      );
+      _imageFocused = false;
+    });
+  }
+
+  void _duplicateCurrentSlide() {
+    if (_current.isEmpty) {
+      _showMessage('Legg inn bilde først.');
+      return;
+    }
+    if (_slides.length >= _maxSlides) {
+      _showMessage('Maks $_maxSlides sider.');
+      return;
+    }
+
+    final copy = CarouselSlide(
+      id: _nextSlideId(),
+      imageBytes: _current.imageBytes,
+      imagePan: _current.imagePan,
+      imageZoom: _current.imageZoom,
+      imageRotation: _current.imageRotation,
+      imageLocked: _current.imageLocked,
+      overlays: List<OverlayText>.from(_current.overlays),
+    );
+
+    setState(() => _slides.insert(_index + 1, copy));
+    _goTo(_index + 1);
   }
 
   void _setCurrentOverlays(List<OverlayText> overlays, {int? selected}) {
@@ -341,7 +397,12 @@ class _CarouselPageState extends State<CarouselPage> {
           clearSpan: true,
           spanIndex: 0,
           spanCount: 1,
+          clearImageTransform: true,
         );
+        if (index == _index) {
+          _imageFocused = true;
+          _selectedOverlayIndex = null;
+        }
       }
     });
   }
@@ -667,10 +728,27 @@ class _CarouselPageState extends State<CarouselPage> {
         imageBytes: slide.imageBytes,
         onPick: () => _pickImage(index),
         showChrome: showChrome,
-        enableGestures: false,
+        enableGestures: true,
         showResizeHandles: true,
         selected: imageSelected,
         onSelect: _selectImage,
+        pan: slide.imagePan,
+        zoom: slide.imageZoom,
+        rotation: slide.imageRotation,
+        locked: slide.imageLocked,
+        onPanChanged: slide.imageBytes == null
+            ? null
+            : (pan) => _updateSlideImagePan(index, pan),
+        onZoomChanged: slide.imageBytes == null
+            ? null
+            : (zoom) => _updateSlideImageZoom(index, zoom),
+        onRotationChanged: slide.imageBytes == null
+            ? null
+            : (rotation) => _updateSlideImageRotation(index, rotation),
+        showAdjustToolbar: imageSelected && showChrome,
+        onDelete: _clearCurrentImage,
+        onDuplicate: _duplicateCurrentSlide,
+        onLockToggle: _toggleImageLock,
         onInteractionChanged: (active) {
           if (_spanInteracting == active) return;
           setState(() => _spanInteracting = active);
@@ -680,6 +758,7 @@ class _CarouselPageState extends State<CarouselPage> {
 
     return Stack(
       fit: StackFit.expand,
+      clipBehavior: Clip.none,
       children: [
         image,
         OverlayTextsLayer(
@@ -910,41 +989,47 @@ class _CarouselPageState extends State<CarouselPage> {
                       }
                     },
                     child: Center(
-                      child: AspectRatio(
-                        aspectRatio: _format.aspectRatio,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            boxShadow: _previewing
-                                ? const []
-                                : [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.12),
-                                      blurRadius: 24,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                          ),
-                          child: RepaintBoundary(
-                            key: _frameKey,
-                            child: ColoredBox(
-                              color: Colors.white,
-                              child: PageView.builder(
-                                controller: _pageController,
-                                physics: _exporting || _spanInteracting
-                                    ? const NeverScrollableScrollPhysics()
-                                    : const PageScrollPhysics(),
-                                itemCount: _slides.length,
-                                onPageChanged: (index) {
-                                  setState(() {
-                                    _index = index;
-                                    _selectedOverlayIndex = null;
-                                    _imageFocused = false;
-                                  });
-                                  _scrollStripToCurrent();
-                                },
-                                itemBuilder: (context, index) {
-                                  return _buildSlidePage(index);
-                                },
+                      child: Padding(
+                        padding:
+                            _cleanView ? EdgeInsets.zero : _workZonePadding,
+                        child: AspectRatio(
+                          aspectRatio: _format.aspectRatio,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              boxShadow: _previewing
+                                  ? const []
+                                  : [
+                                      BoxShadow(
+                                        color:
+                                            Colors.black.withValues(alpha: 0.12),
+                                        blurRadius: 24,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                            ),
+                            child: RepaintBoundary(
+                              key: _frameKey,
+                              child: ColoredBox(
+                                color: Colors.white,
+                                child: PageView.builder(
+                                  clipBehavior: Clip.none,
+                                  controller: _pageController,
+                                  physics: _exporting || _spanInteracting
+                                      ? const NeverScrollableScrollPhysics()
+                                      : const PageScrollPhysics(),
+                                  itemCount: _slides.length,
+                                  onPageChanged: (index) {
+                                    setState(() {
+                                      _index = index;
+                                      _selectedOverlayIndex = null;
+                                      _imageFocused = false;
+                                    });
+                                    _scrollStripToCurrent();
+                                  },
+                                  itemBuilder: (context, index) {
+                                    return _buildSlidePage(index);
+                                  },
+                                ),
                               ),
                             ),
                           ),

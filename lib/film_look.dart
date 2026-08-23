@@ -72,10 +72,25 @@ Widget applyPhotoFilter(PhotoFilter filter, Widget child) {
   return ColorFiltered(colorFilter: colorFilter, child: child);
 }
 
+const _norwegianMonths = [
+  'januar',
+  'februar',
+  'mars',
+  'april',
+  'mai',
+  'juni',
+  'juli',
+  'august',
+  'september',
+  'oktober',
+  'november',
+  'desember',
+];
+
 String filmDateLabel([DateTime? date]) {
   final value = date ?? DateTime.now();
-  String two(int number) => number.toString().padLeft(2, '0');
-  return '${two(value.month)}.${two(value.day)}.${two(value.year % 100)}';
+  final month = _norwegianMonths[value.month - 1];
+  return '${value.day}. $month ${value.year}';
 }
 
 class FilmLookLayer extends StatelessWidget {
@@ -109,8 +124,8 @@ class FilmLookLayer extends StatelessWidget {
               child: Text(
                 filmDateLabel(date),
                 style: GoogleFonts.specialElite(
-                  fontSize: 14,
-                  letterSpacing: 1.4,
+                  fontSize: 12,
+                  letterSpacing: 0.4,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
                   shadows: const [
