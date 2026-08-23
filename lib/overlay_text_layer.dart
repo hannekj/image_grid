@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'chat_bubble.dart';
 import 'overlay_text.dart';
 
 class OverlayTextsLayer extends StatelessWidget {
@@ -113,10 +114,14 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
       builder: (context, constraints) {
         final content = ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: constraints.maxWidth * 0.86,
+            maxWidth: constraints.maxWidth *
+                (overlay.isBubble ? 0.75 : 0.86),
           ),
-          child: overlay.isLocation
-              ? _LocationPill(overlay: overlay)
+          child: overlay.isBubble
+              ? _ChatBubbleContent(
+                  overlay: overlay,
+                  maxWidth: constraints.maxWidth * 0.75,
+                )
               : DecoratedBox(
                   decoration: BoxDecoration(
                     color: overlay.plateStyle.fill,
@@ -132,10 +137,9 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                 ),
         );
 
-        final selectionRadius =
-            overlay.isLocation ? 999.0 : 4.0;
-        final showSelectionRing = interactive &&
-            (overlay.isLocation || overlay.plateStyle.hasPlate);
+        final selectionRadius = overlay.isBubble ? 18.0 : 4.0;
+        final showSelectionRing =
+            interactive && (overlay.isBubble || overlay.plateStyle.hasPlate);
 
         return Stack(
           fit: StackFit.expand,
@@ -201,7 +205,7 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                           ),
                         ),
                       ),
-                    if (interactive && !overlay.isLocation)
+                    if (interactive && !overlay.isBubble)
                       Positioned(
                         top: -28,
                         left: 0,
@@ -298,35 +302,41 @@ class _OverlayLabel extends StatelessWidget {
   }
 }
 
-class _LocationPill extends StatelessWidget {
-  const _LocationPill({required this.overlay});
+class _ChatBubbleContent extends StatelessWidget {
+  const _ChatBubbleContent({
+    required this.overlay,
+    required this.maxWidth,
+  });
 
   final OverlayText overlay;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = (overlay.fontSize * 1.05).clamp(12.0, 28.0);
-    final fill = overlay.plateStyle.hasPlate
-        ? overlay.plateStyle.fill
-        : Colors.white.withValues(alpha: 0.92);
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 10,
-            offset: Offset(0, 3),
+    if (overlay.isMessage) {
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: ChatBubble(
+          color: overlay.effectiveBubbleColor,
+          tailSide: overlay.tailSide,
+          child: Text(
+            overlay.value,
+            style: overlayFontById(overlay.fontId).style(
+              color: overlay.color,
+              fontSize: overlay.fontSize,
+              height: 1.22,
+            ),
           ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: overlay.fontSize * 0.7,
-          vertical: overlay.fontSize * 0.38,
         ),
+      );
+    }
+
+    final iconSize = (overlay.fontSize * 1.05).clamp(12.0, 28.0);
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: LocationPill(
+        color: overlay.effectiveBubbleColor,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -344,7 +354,7 @@ class _LocationPill extends StatelessWidget {
                 style: overlayFontById('sans').style(
                   color: overlay.color,
                   fontSize: overlay.fontSize,
-                  height: 1.15,
+                  height: 1.22,
                 ),
               ),
             ),

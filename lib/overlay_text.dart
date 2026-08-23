@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'editor_colors.dart';
+import 'chat_bubble.dart';
 
 class OverlayFont {
   const OverlayFont({
@@ -57,6 +58,24 @@ const overlayTextMaxSize = 72.0;
 List<Color> get overlayTextColors => editorSwatchColors;
 
 List<String> get overlayTextColorLabels => editorSwatchLabels;
+
+List<Color> get overlayBubbleColors => [
+      chatBubbleBlue,
+      locationPillColor,
+      const Color(0xFF34C759),
+      chatBubbleGray,
+      const Color(0xFF5856D6),
+      ...editorSwatchColors,
+    ];
+
+List<String> get overlayBubbleColorLabels => [
+      'Blå',
+      'Mørk',
+      'Grønn',
+      'Grå',
+      'Lilla',
+      ...editorSwatchLabels,
+    ];
 
 const overlayFonts = [
   OverlayFont(id: 'sans', label: 'Sans'),
@@ -124,7 +143,7 @@ const overlayPlatePresets = [
   OverlayPlateStyle(tone: OverlayPlateTone.dark, opacity: 0.75),
 ];
 
-enum OverlayKind { text, location }
+enum OverlayKind { text, message, location }
 
 enum OverlayTextEffect { none, shadow, outline }
 
@@ -159,6 +178,8 @@ class OverlayText {
       tone: OverlayPlateTone.dark,
       opacity: 0.55,
     ),
+    this.bubbleColor,
+    this.tailSide = BubbleTailSide.right,
   });
 
   factory OverlayText.create({
@@ -168,19 +189,44 @@ class OverlayText {
     OverlayText? styleFrom,
   }) {
     if (kind == OverlayKind.location) {
+      const bubble = locationPillColor;
+      final base = styleFrom != null && styleFrom.kind == OverlayKind.location
+          ? styleFrom
+          : null;
+      final bubbleColor = base?.bubbleColor ?? bubble;
       return OverlayText(
         value: value,
         kind: OverlayKind.location,
-        color: const Color(0xFF111111),
-        fontSize: 15,
+        bubbleColor: bubbleColor,
+        color: base?.color ?? overlayContrastColor(bubbleColor),
+        fontSize: base?.fontSize ?? 15,
         fontId: 'sans',
-        alignment: const Alignment(0, -0.78),
-        textAlign: TextAlign.center,
+        alignment: base?.alignment ?? const Alignment(-0.72, 0.72),
+        textAlign: TextAlign.left,
         effect: OverlayTextEffect.none,
-        plateStyle: const OverlayPlateStyle(
-          tone: OverlayPlateTone.light,
-          opacity: 0.92,
-        ),
+        tailSide: base?.tailSide ?? BubbleTailSide.left,
+        plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
+      );
+    }
+
+    if (kind == OverlayKind.message) {
+      const bubble = chatBubbleBlue;
+      final base = styleFrom != null && styleFrom.kind == OverlayKind.message
+          ? styleFrom
+          : null;
+      final bubbleColor = base?.bubbleColor ?? bubble;
+      return OverlayText(
+        value: value,
+        kind: OverlayKind.message,
+        bubbleColor: bubbleColor,
+        color: base?.color ?? overlayContrastColor(bubbleColor),
+        fontSize: base?.fontSize ?? 17,
+        fontId: base?.fontId ?? 'sans',
+        alignment: base?.alignment ?? const Alignment(0.72, 0.72),
+        textAlign: TextAlign.left,
+        effect: OverlayTextEffect.none,
+        tailSide: base?.tailSide ?? BubbleTailSide.right,
+        plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
       );
     }
 
@@ -216,8 +262,20 @@ class OverlayText {
   double letterSpacing;
   OverlayTextEffect effect;
   OverlayPlateStyle plateStyle;
+  Color? bubbleColor;
+  BubbleTailSide tailSide;
 
   bool get isLocation => kind == OverlayKind.location;
+
+  bool get isMessage => kind == OverlayKind.message;
+
+  bool get isBubble => isMessage || isLocation;
+
+  Color get effectiveBubbleColor {
+    if (bubbleColor != null) return bubbleColor!;
+    if (isLocation) return locationPillColor;
+    return tailSide == BubbleTailSide.left ? chatBubbleGray : chatBubbleBlue;
+  }
 
   TextStyle textStyle() {
     final base = overlayFontById(fontId).style(
@@ -273,6 +331,8 @@ class OverlayText {
     double? letterSpacing,
     OverlayTextEffect? effect,
     OverlayPlateStyle? plateStyle,
+    Color? bubbleColor,
+    BubbleTailSide? tailSide,
   }) {
     return OverlayText(
       value: value ?? this.value,
@@ -286,6 +346,25 @@ class OverlayText {
       letterSpacing: letterSpacing ?? this.letterSpacing,
       effect: effect ?? this.effect,
       plateStyle: plateStyle ?? this.plateStyle,
+      bubbleColor: bubbleColor ?? this.bubbleColor,
+      tailSide: tailSide ?? this.tailSide,
+    );
+  }
+
+  OverlayText withBubbleColor(Color color) {
+    return copyWith(
+      bubbleColor: color,
+      color: overlayContrastColor(color),
+    );
+  }
+
+  OverlayText withTailSide(BubbleTailSide side) {
+    return copyWith(
+      tailSide: side,
+      alignment: Alignment(
+        side == BubbleTailSide.left ? -0.72 : 0.72,
+        alignment.y,
+      ),
     );
   }
 

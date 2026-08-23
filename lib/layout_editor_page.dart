@@ -25,6 +25,7 @@ import 'overlay_text_controls.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'overlay_text_templates.dart';
+import 'overlay_widget_controls.dart';
 
 class LayoutEditorPage extends StatefulWidget {
   const LayoutEditorPage({
@@ -234,6 +235,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   Future<void> _addOverlayText() => _addOverlay(OverlayKind.text);
 
+  Future<void> _addOverlayMessage() => _addOverlay(OverlayKind.message);
+
   Future<void> _addOverlayLocation() => _addOverlay(OverlayKind.location);
 
   Future<void> _addOverlay(OverlayKind kind) async {
@@ -262,14 +265,16 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         ),
       );
       _selectedOverlayIndex = _overlayTexts.length - 1;
+      if (kind == OverlayKind.message || kind == OverlayKind.location) {
+        _tool = EditorTool.widget;
+      } else if (kind == OverlayKind.text) {
+        _tool = EditorTool.text;
+      }
     });
   }
 
   Future<void> _addEditorial() async {
-    final result = await showDialog<List<OverlayText>>(
-      context: context,
-      builder: (context) => const EditorialTextDialog(),
-    );
+    final result = await showEditorialTextSheet(context);
     if (!mounted || result == null || result.isEmpty) return;
 
     setState(() {
@@ -741,6 +746,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       EditorTool.format => 'format',
       EditorTool.look => 'look',
       EditorTool.text => 'text',
+      EditorTool.widget => 'widget',
       null => null,
     };
   }
@@ -761,11 +767,15 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           }
         });
       case 'editorial':
-        setState(() => _tool = EditorTool.text);
         _addEditorial();
-      case 'location':
-        setState(() => _tool = EditorTool.text);
-        _addOverlayLocation();
+      case 'widget':
+        setState(() {
+          _tool = EditorTool.widget;
+          final bubbleIndex = _overlayTexts.indexWhere((o) => o.isBubble);
+          if (bubbleIndex >= 0) {
+            _selectedOverlayIndex = bubbleIndex;
+          }
+        });
     }
   }
 
@@ -805,8 +815,17 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlayText,
           onAddText: _addOverlayText,
+          onChanged: _updateSelectedOverlay,
+          onRemove: _removeSelectedOverlay,
+          onEdit: _editOverlayText,
+        );
+      case EditorTool.widget:
+        return OverlayWidgetControls(
+          overlays: _overlayTexts,
+          selectedIndex: _selectedOverlayIndex,
+          onSelect: _selectOverlayText,
+          onAddMessage: _addOverlayMessage,
           onAddLocation: _addOverlayLocation,
-          onAddEditorial: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
           onEdit: _editOverlayText,

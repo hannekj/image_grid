@@ -20,8 +20,9 @@ import 'overlay_text_controls.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'overlay_text_templates.dart';
+import 'overlay_widget_controls.dart';
 
-enum _CarouselTool { slides, format, text }
+enum _CarouselTool { slides, format, text, widget }
 
 class CarouselPage extends StatefulWidget {
   const CarouselPage({super.key});
@@ -203,6 +204,11 @@ class _CarouselPageState extends State<CarouselPage> {
       ),
     );
     _setCurrentOverlays(overlays, selected: overlays.length - 1);
+    if (kind == OverlayKind.message || kind == OverlayKind.location) {
+      setState(() => _tool = _CarouselTool.widget);
+    } else if (kind == OverlayKind.text) {
+      setState(() => _tool = _CarouselTool.text);
+    }
   }
 
   Future<void> _addEditorial() async {
@@ -210,10 +216,7 @@ class _CarouselPageState extends State<CarouselPage> {
       _showMessage('Legg inn bilde først.');
       return;
     }
-    final result = await showDialog<List<OverlayText>>(
-      context: context,
-      builder: (context) => const EditorialTextDialog(),
-    );
+    final result = await showEditorialTextSheet(context);
     if (!mounted || result == null || result.isEmpty) return;
 
     final overlays = List<OverlayText>.from(_current.overlays)..addAll(result);
@@ -719,6 +722,7 @@ class _CarouselPageState extends State<CarouselPage> {
       _CarouselTool.slides => 'slides',
       _CarouselTool.format => 'format',
       _CarouselTool.text => 'text',
+      _CarouselTool.widget => 'widget',
       null => null,
     };
   }
@@ -737,11 +741,16 @@ class _CarouselPageState extends State<CarouselPage> {
           }
         });
       case 'editorial':
-        setState(() => _tool = _CarouselTool.text);
         _addEditorial();
-      case 'location':
-        setState(() => _tool = _CarouselTool.text);
-        _addOverlay(OverlayKind.location);
+      case 'widget':
+        setState(() {
+          _tool = _CarouselTool.widget;
+          final bubbleIndex =
+              _current.overlays.indexWhere((overlay) => overlay.isBubble);
+          if (bubbleIndex >= 0) {
+            _selectedOverlayIndex = bubbleIndex;
+          }
+        });
     }
   }
 
@@ -818,8 +827,17 @@ class _CarouselPageState extends State<CarouselPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlay,
           onAddText: () => _addOverlay(OverlayKind.text),
+          onChanged: _updateSelectedOverlay,
+          onRemove: _removeSelectedOverlay,
+          onEdit: _editOverlay,
+        );
+      case _CarouselTool.widget:
+        return OverlayWidgetControls(
+          overlays: _current.overlays,
+          selectedIndex: _selectedOverlayIndex,
+          onSelect: _selectOverlay,
+          onAddMessage: () => _addOverlay(OverlayKind.message),
           onAddLocation: () => _addOverlay(OverlayKind.location),
-          onAddEditorial: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
           onEdit: _editOverlay,

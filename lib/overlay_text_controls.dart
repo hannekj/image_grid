@@ -14,8 +14,6 @@ class OverlayTextControls extends StatefulWidget {
     required this.selectedIndex,
     required this.onSelect,
     required this.onAddText,
-    required this.onAddLocation,
-    required this.onAddEditorial,
     required this.onChanged,
     required this.onRemove,
     required this.onEdit,
@@ -25,8 +23,6 @@ class OverlayTextControls extends StatefulWidget {
   final int? selectedIndex;
   final ValueChanged<int> onSelect;
   final VoidCallback onAddText;
-  final VoidCallback onAddLocation;
-  final VoidCallback onAddEditorial;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
   final ValueChanged<int> onEdit;
@@ -38,68 +34,42 @@ class OverlayTextControls extends StatefulWidget {
 class _OverlayTextControlsState extends State<OverlayTextControls> {
   _TextSection _section = _TextSection.color;
 
+  List<int> get _textIndexes => [
+        for (var i = 0; i < widget.overlays.length; i++)
+          if (widget.overlays[i].kind == OverlayKind.text) i,
+      ];
+
   OverlayText? get _current {
     final index = widget.selectedIndex;
     if (index == null || index < 0 || index >= widget.overlays.length) {
       return null;
     }
-    return widget.overlays[index];
-  }
-
-  List<_TextSection> _sectionsFor(OverlayText current) {
-    if (current.isLocation) {
-      return const [_TextSection.color, _TextSection.plate];
-    }
-    return _TextSection.values;
+    final overlay = widget.overlays[index];
+    return overlay.kind == OverlayKind.text ? overlay : null;
   }
 
   @override
   void didUpdateWidget(covariant OverlayTextControls oldWidget) {
     super.didUpdateWidget(oldWidget);
     final current = _current;
-    if (current != null && !_sectionsFor(current).contains(_section)) {
+    if (current == null && _section != _TextSection.color) {
       _section = _TextSection.color;
     }
   }
 
   void _rotateSelected() {
     final current = _current;
-    if (current == null || current.isLocation) return;
+    if (current == null) return;
     widget.onChanged(current.withNextQuarterTurn());
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.overlays.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: widget.onAddText,
-                  icon: const Icon(Icons.title),
-                  label: const Text('Tekst'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: widget.onAddLocation,
-                  icon: const Icon(Icons.location_on_outlined),
-                  label: const Text('Sted'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: widget.onAddEditorial,
-            icon: const Icon(Icons.auto_stories_outlined),
-            label: const Text('Editorial'),
-          ),
-        ],
+    if (_textIndexes.isEmpty) {
+      return OutlinedButton.icon(
+        onPressed: widget.onAddText,
+        icon: const Icon(Icons.title),
+        label: const Text('Tekst'),
       );
     }
 
@@ -109,7 +79,7 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
         children: [
           const Expanded(
             child: Text(
-              'Velg tekst eller sted på bildet',
+              'Velg tekst på bildet',
               style: TextStyle(fontSize: 13, color: AppTheme.muted),
             ),
           ),
@@ -118,43 +88,36 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
             onPressed: widget.onAddText,
             icon: const Icon(Icons.add),
           ),
-          IconButton(
-            tooltip: 'Legg til sted',
-            onPressed: widget.onAddLocation,
-            icon: const Icon(Icons.location_on_outlined),
-          ),
         ],
       );
     }
 
-    final sections = _sectionsFor(current);
+    const sections = _TextSection.values;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            if (widget.overlays.length > 1)
+            if (_textIndexes.length > 1)
               Expanded(
                 child: SizedBox(
                   height: 32,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: widget.overlays.length,
+                    itemCount: _textIndexes.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(width: 6),
-                    itemBuilder: (context, index) {
+                    itemBuilder: (context, listIndex) {
+                      final index = _textIndexes[listIndex];
                       final overlay = widget.overlays[index];
                       final selected = widget.selectedIndex == index;
                       final label = overlay.value.trim().isEmpty
-                          ? (overlay.isLocation
-                              ? 'Sted ${index + 1}'
-                              : 'Tekst ${index + 1}')
+                          ? 'Tekst ${listIndex + 1}'
                           : overlay.value;
                       return _TextChip(
                         label: label,
                         selected: selected,
-                        isLocation: overlay.isLocation,
                         onTap: () {
                           if (selected) {
                             widget.onEdit(index);
@@ -170,7 +133,7 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
             else
               const Spacer(),
             _ActionIcon(
-              tooltip: current.isLocation ? 'Rediger sted' : 'Rediger tekst',
+              tooltip: 'Rediger tekst',
               icon: Icons.edit_outlined,
               onPressed: widget.selectedIndex == null
                   ? null
@@ -182,19 +145,9 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
               onPressed: widget.onAddText,
             ),
             _ActionIcon(
-              tooltip: 'Legg til sted',
-              icon: Icons.location_on_outlined,
-              onPressed: widget.onAddLocation,
-            ),
-            _ActionIcon(
-              tooltip: 'Editorial',
-              icon: Icons.auto_stories_outlined,
-              onPressed: widget.onAddEditorial,
-            ),
-            _ActionIcon(
               tooltip: 'Roter tekst',
               icon: Icons.rotate_right,
-              onPressed: current.isLocation ? null : _rotateSelected,
+              onPressed: _rotateSelected,
             ),
             _ActionIcon(
               tooltip: 'Fjern',
@@ -217,8 +170,7 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
               return _SectionTab(
                 label: switch (section) {
                   _TextSection.color => 'Farge',
-                  _TextSection.plate =>
-                    current.isLocation ? 'Bakgrunn' : 'Plate',
+                  _TextSection.plate => 'Plate',
                   _TextSection.font => 'Font',
                   _TextSection.other => 'Annet',
                 },
@@ -240,7 +192,7 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
           _TextSection.plate => PlateScrubStrip(
               selected: current.plateStyle,
               textColor: current.color,
-              fontId: current.isLocation ? 'sans' : current.fontId,
+              fontId: current.fontId,
               onChanged: (style) =>
                   widget.onChanged(current.copyWith(plateStyle: style)),
             ),
@@ -387,13 +339,11 @@ class _TextChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.isLocation = false,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final bool isLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -406,26 +356,13 @@ class _TextChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isLocation) ...[
-                Icon(
-                  Icons.location_on,
-                  size: 14,
-                  color: selected ? Colors.white : AppTheme.muted,
-                ),
-                const SizedBox(width: 4),
-              ],
-              Text(
-                short,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: selected ? Colors.white : AppTheme.muted,
-                ),
-              ),
-            ],
+          child: Text(
+            short,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: selected ? Colors.white : AppTheme.muted,
+            ),
           ),
         ),
       ),

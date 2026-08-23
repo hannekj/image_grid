@@ -34,9 +34,9 @@ const gridToolDefinitions = [
     label: 'Editorial',
   ),
   EditorToolDefinition(
-    id: 'location',
-    icon: Icons.location_on_outlined,
-    label: 'Sted',
+    id: 'widget',
+    icon: Icons.widgets_outlined,
+    label: 'Widget',
   ),
 ];
 
@@ -59,9 +59,9 @@ const carouselToolDefinitions = [
     label: 'Editorial',
   ),
   EditorToolDefinition(
-    id: 'location',
-    icon: Icons.location_on_outlined,
-    label: 'Sted',
+    id: 'widget',
+    icon: Icons.widgets_outlined,
+    label: 'Widget',
   ),
 ];
 
