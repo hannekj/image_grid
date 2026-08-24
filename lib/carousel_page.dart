@@ -12,15 +12,42 @@ import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'carousel_slide.dart';
 import 'discard_dialog.dart';
+import 'editor_history.dart';
 import 'editor_tool_grid.dart';
+import 'film_look.dart';
+import 'frame_style.dart';
 import 'image_corner_handles.dart';
 import 'image_slot.dart';
+import 'instagram_preview_chrome.dart';
+import 'look_panel.dart';
 import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 
-enum _CarouselTool { slides, format, text }
+enum _CarouselTool { slides, format, look, text }
+
+class _CarouselSnapshot {
+  const _CarouselSnapshot({
+    required this.slides,
+    required this.index,
+    required this.format,
+    required this.kind,
+    required this.color,
+    required this.thickness,
+    required this.filter,
+    required this.grain,
+  });
+
+  final List<CarouselSlide> slides;
+  final int index;
+  final CanvasFormat format;
+  final FrameKind kind;
+  final StrokeColor color;
+  final StrokeThickness thickness;
+  final PhotoFilter filter;
+  final bool grain;
+}
 
 class CarouselPage extends StatefulWidget {
   const CarouselPage({super.key});
@@ -38,8 +65,14 @@ class _CarouselPageState extends State<CarouselPage> {
   final _picker = ImagePicker();
   final _pageController = PageController();
   final _stripController = ScrollController();
+  final _history = EditorHistory<_CarouselSnapshot>();
 
   CanvasFormat _format = canvasFormats.first;
+  FrameKind _kind = FrameKind.none;
+  StrokeColor _color = strokeColors.first;
+  StrokeThickness _thickness = strokeThicknesses[1];
+  PhotoFilter _filter = PhotoFilter.original;
+  bool _grain = false;
   int _index = 0;
   bool _exporting = false;
   bool _previewing = false;
@@ -62,6 +95,12 @@ class _CarouselPageState extends State<CarouselPage> {
 
   int get _room => _maxSlides - _slides.length;
 
+  double get _strokeWidth =>
+      _kind == FrameKind.stroke ? _thickness.width : 0;
+
+  Color get _canvasColor =>
+      _kind == FrameKind.stroke ? _color.color : Colors.white;
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -77,6 +116,132 @@ class _CarouselPageState extends State<CarouselPage> {
   String _nextSpanId() {
     _spanSeq += 1;
     return 'span-$_spanSeq';
+  }
+
+  List<OverlayText> _cloneOverlays(List<OverlayText> overlays) {
+    return [for (final overlay in overlays) overlay.copyWith()];
+  }
+
+  List<CarouselSlide> _cloneSlides(List<CarouselSlide> slides) {
+    return [
+      for (final slide in slides)
+        slide.copyWith(overlays: _cloneOverlays(slide.overlays)),
+    ];
+  }
+
+  void _pushUndo() {
+    _history.push(
+      _CarouselSnapshot(
+        slides: _cloneSlides(_slides),
+        index: _index,
+        format: _format,
+        kind: _kind,
+        color: _color,
+        thickness: _thickness,
+        filter: _filter,
+        grain: _grain,
+      ),
+    );
+  }
+
+  void _undo() {
+    final snapshot = _history.pop();
+    if (snapshot == null) return;
+    setState(() {
+      _slides
+        ..clear()
+        ..addAll(_cloneSlides(snapshot.slides));
+      _index = snapshot.index.clamp(0, _slides.length - 1);
+      _format = snapshot.format;
+      _kind = snapshot.kind;
+      _color = snapshot.color;
+      _thickness = snapshot.thickness;
+      _filter = snapshot.filter;
+      _grain = snapshot.grain;
+      _selectedOverlayIndex = null;
+      _imageFocused = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(_index);
+      }
+    });
+  }
+
+  void _syncPageNumberLabels() {
+    for (var i = 0; i < _slides.length; i++) {
+      final label = overlayPageNumberLabel(i, _slides.length);
+      final overlays = _cloneOverlays(_slides[i].overlays);
+      var changed = false;
+      for (var j = 0; j < overlays.length; j++) {
+        if (!overlays[j].isPageNumber) continue;
+        if (overlays[j].value == label) continue;
+        overlays[j] = overlays[j].copyWith(value: label);
+        changed = true;
+      }
+      if (changed) {
+        _slides[i] = _slides[i].copyWith(overlays: overlays);
+      }
+    }
+  }
+
+  void _addPageNumber() {
+    if (_current.isEmpty) {
+      _showMessage('Legg inn bilde først.');
+      return;
+    }
+    _pushUndo();
+    final label = overlayPageNumberLabel(_index, _slides.length);
+    final overlays = _cloneOverlays(_current.overlays);
+    final existing = overlays.indexWhere((overlay) => overlay.isPageNumber);
+    if (existing >= 0) {
+      overlays[existing] = overlays[existing].copyWith(value: label);
+      _setCurrentOverlays(overlays, selected: existing, recordUndo: false);
+      return;
+    }
+    overlays.add(
+      OverlayText.create(
+        value: label,
+        index: overlays.length,
+        kind: OverlayKind.pageNumber,
+      ),
+    );
+    _setCurrentOverlays(overlays, selected: overlays.length - 1, recordUndo: false);
+    setState(() => _tool = _CarouselTool.text);
+  }
+
+  void _applyStyleToAll() {
+    if (!_hasAnyImage) return;
+    _pushUndo();
+    OverlayText? template;
+    for (final overlay in _current.overlays) {
+      if (overlay.isPageNumber) {
+        template = overlay;
+        break;
+      }
+    }
+    template ??= OverlayText.create(
+      value: overlayPageNumberLabel(_index, _slides.length),
+      index: 0,
+      kind: OverlayKind.pageNumber,
+    );
+
+    setState(() {
+      for (var i = 0; i < _slides.length; i++) {
+        if (_slides[i].isEmpty) continue;
+        final label = overlayPageNumberLabel(i, _slides.length);
+        final overlays = _cloneOverlays(_slides[i].overlays);
+        final existing = overlays.indexWhere((o) => o.isPageNumber);
+        final styled = template!.copyWith(value: label);
+        if (existing >= 0) {
+          overlays[existing] = styled;
+        } else {
+          overlays.add(styled);
+        }
+        _slides[i] = _slides[i].copyWith(overlays: overlays);
+      }
+    });
+    _showMessage('Stil og sidetall oppdatert på alle sider');
   }
 
   void _togglePreview() {
@@ -137,6 +302,7 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   void _clearCurrentImage() {
+    _pushUndo();
     setState(() {
       _slides[_index] = _current.copyWith(
         clearImage: true,
@@ -155,7 +321,12 @@ class _CarouselPageState extends State<CarouselPage> {
       _showMessage('Maks $_maxSlides sider.');
       return;
     }
+    if (_current.isSpan) {
+      _showMessage('Kan ikke duplisere dobbeltside.');
+      return;
+    }
 
+    _pushUndo();
     final copy = CarouselSlide(
       id: _nextSlideId(),
       imageBytes: _current.imageBytes,
@@ -163,14 +334,22 @@ class _CarouselPageState extends State<CarouselPage> {
       imageZoom: _current.imageZoom,
       imageRotation: _current.imageRotation,
       imageLocked: _current.imageLocked,
-      overlays: List<OverlayText>.from(_current.overlays),
+      overlays: _cloneOverlays(_current.overlays),
     );
 
-    setState(() => _slides.insert(_index + 1, copy));
+    setState(() {
+      _slides.insert(_index + 1, copy);
+      _syncPageNumberLabels();
+    });
     _goTo(_index + 1);
   }
 
-  void _setCurrentOverlays(List<OverlayText> overlays, {int? selected}) {
+  void _setCurrentOverlays(
+    List<OverlayText> overlays, {
+    int? selected,
+    bool recordUndo = false,
+  }) {
+    if (recordUndo) _pushUndo();
     setState(() {
       _slides[_index] = _current.copyWith(overlays: overlays);
       _selectedOverlayIndex = selected;
@@ -221,6 +400,7 @@ class _CarouselPageState extends State<CarouselPage> {
   void _removeSelectedOverlay() {
     final index = _selectedOverlayIndex;
     if (index == null || index >= _current.overlays.length) return;
+    _pushUndo();
     final next = List<OverlayText>.from(_current.overlays)..removeAt(index);
     _setCurrentOverlays(
       next,
@@ -245,6 +425,7 @@ class _CarouselPageState extends State<CarouselPage> {
     );
     if (!mounted || result == null || result.isEmpty) return;
 
+    _pushUndo();
     final overlays = List<OverlayText>.from(_current.overlays);
     final styleFrom = _selectedOverlayIndex != null
         ? overlays[_selectedOverlayIndex!]
@@ -269,6 +450,7 @@ class _CarouselPageState extends State<CarouselPage> {
     final result = await showEditorialTextSheet(context);
     if (!mounted || result == null || result.isEmpty) return;
 
+    _pushUndo();
     final overlays = List<OverlayText>.from(_current.overlays)..addAll(result);
     _setCurrentOverlays(
       overlays,
@@ -378,6 +560,7 @@ class _CarouselPageState extends State<CarouselPage> {
     final bytes = await file.readAsBytes();
     if (!mounted) return;
 
+    _pushUndo();
     setState(() {
       final slide = _slides[index];
       if (slide.isSpan) {
@@ -531,7 +714,11 @@ class _CarouselPageState extends State<CarouselPage> {
 
   void _addSlide() {
     if (_slides.length >= _maxSlides) return;
-    setState(() => _slides.add(CarouselSlide(id: _nextSlideId())));
+    _pushUndo();
+    setState(() {
+      _slides.add(CarouselSlide(id: _nextSlideId()));
+      _syncPageNumberLabels();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _goTo(_slides.length - 1);
     });
@@ -542,6 +729,7 @@ class _CarouselPageState extends State<CarouselPage> {
     final removeAt = _index;
     final slide = _slides[removeAt];
 
+    _pushUndo();
     setState(() {
       if (slide.isSpan) {
         _slides.removeWhere((item) => item.spanId == slide.spanId);
@@ -553,6 +741,7 @@ class _CarouselPageState extends State<CarouselPage> {
       }
       _index = removeAt.clamp(0, _slides.length - 1);
       _selectedOverlayIndex = null;
+      _syncPageNumberLabels();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -755,7 +944,11 @@ class _CarouselPageState extends State<CarouselPage> {
       fit: StackFit.expand,
       clipBehavior: Clip.none,
       children: [
-        image,
+        ColoredBox(color: _canvasColor),
+        Padding(
+          padding: EdgeInsets.all(_strokeWidth),
+          child: applyPhotoFilter(_filter, image),
+        ),
         OverlayTextsLayer(
           overlays: slide.overlays,
           selectedIndex: index == _index ? _selectedOverlayIndex : null,
@@ -787,6 +980,10 @@ class _CarouselPageState extends State<CarouselPage> {
             _setCurrentOverlays(next, selected: overlayIndex);
           },
         ),
+        FilmLookLayer(
+          grain: _grain,
+          dateStamp: false,
+        ),
       ],
     );
   }
@@ -795,6 +992,7 @@ class _CarouselPageState extends State<CarouselPage> {
     return switch (_tool) {
       _CarouselTool.slides => 'slides',
       _CarouselTool.format => 'format',
+      _CarouselTool.look => 'look',
       _CarouselTool.text => 'text',
       null => null,
     };
@@ -806,6 +1004,8 @@ class _CarouselPageState extends State<CarouselPage> {
         setState(() => _tool = _CarouselTool.slides);
       case 'format':
         setState(() => _tool = _CarouselTool.format);
+      case 'look':
+        setState(() => _tool = _CarouselTool.look);
       case 'text':
         setState(() {
           _tool = _CarouselTool.text;
@@ -841,6 +1041,14 @@ class _CarouselPageState extends State<CarouselPage> {
                       ? _removeCurrent
                       : null,
                   icon: const Icon(Icons.remove_circle_outline, size: 20),
+                ),
+                IconButton(
+                  tooltip: 'Dupliser side',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: !_exporting && !_current.isEmpty && !_current.isSpan
+                      ? _duplicateCurrentSlide
+                      : null,
+                  icon: const Icon(Icons.copy_outlined, size: 20),
                 ),
                 IconButton(
                   tooltip: 'Ny side',
@@ -881,7 +1089,39 @@ class _CarouselPageState extends State<CarouselPage> {
         return FormatChips(
           selected: _format,
           compact: true,
-          onChanged: (format) => setState(() => _format = format),
+          onChanged: (format) {
+            _pushUndo();
+            setState(() => _format = format);
+          },
+        );
+      case _CarouselTool.look:
+        return LookPanel(
+          kind: _kind,
+          color: _color,
+          thickness: _thickness,
+          filter: _filter,
+          grain: _grain,
+          onKindChanged: (kind) {
+            _pushUndo();
+            setState(() => _kind = kind);
+          },
+          onColorChanged: (color) {
+            _pushUndo();
+            setState(() => _color = color);
+          },
+          onThicknessChanged: (thickness) {
+            _pushUndo();
+            setState(() => _thickness = thickness);
+          },
+          onFilterChanged: (filter) {
+            _pushUndo();
+            setState(() => _filter = filter);
+          },
+          onGrainChanged: (value) {
+            _pushUndo();
+            setState(() => _grain = value);
+          },
+          onApplyToAll: _applyStyleToAll,
         );
       case _CarouselTool.text:
         return OverlayComposePanel(
@@ -894,6 +1134,7 @@ class _CarouselPageState extends State<CarouselPage> {
           onAddDate: () => _addOverlay(OverlayKind.date),
           onAddTime: () => _addOverlay(OverlayKind.time),
           onAddWeather: () => _addOverlay(OverlayKind.weather),
+          onAddPageNumber: _addPageNumber,
           onAddTemplate: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
@@ -925,6 +1166,12 @@ class _CarouselPageState extends State<CarouselPage> {
           title: const Text('Karusell'),
           centerTitle: true,
           actions: [
+            IconButton(
+              tooltip: 'Angre',
+              onPressed:
+                  _history.canUndo && !_exporting && !_previewing ? _undo : null,
+              icon: const Icon(Icons.undo),
+            ),
             IconButton(
               tooltip: _previewing ? 'Avslutt forhåndsvisning' : 'Forhåndsvis',
               onPressed: _hasAnyImage && !_exporting ? _togglePreview : null,
@@ -990,28 +1237,31 @@ class _CarouselPageState extends State<CarouselPage> {
                                       ),
                                     ],
                             ),
-                            child: RepaintBoundary(
-                              key: _frameKey,
-                              child: ColoredBox(
-                                color: Colors.white,
-                                child: PageView.builder(
-                                  clipBehavior: Clip.none,
-                                  controller: _pageController,
-                                  physics: _exporting || _spanInteracting
-                                      ? const NeverScrollableScrollPhysics()
-                                      : const PageScrollPhysics(),
-                                  itemCount: _slides.length,
-                                  onPageChanged: (index) {
-                                    setState(() {
-                                      _index = index;
-                                      _selectedOverlayIndex = null;
-                                      _imageFocused = false;
-                                    });
-                                    _scrollStripToCurrent();
-                                  },
-                                  itemBuilder: (context, index) {
-                                    return _buildSlidePage(index);
-                                  },
+                            child: InstagramPreviewChrome(
+                              enabled: _previewing,
+                              child: RepaintBoundary(
+                                key: _frameKey,
+                                child: ColoredBox(
+                                  color: _canvasColor,
+                                  child: PageView.builder(
+                                    clipBehavior: Clip.none,
+                                    controller: _pageController,
+                                    physics: _exporting || _spanInteracting
+                                        ? const NeverScrollableScrollPhysics()
+                                        : const PageScrollPhysics(),
+                                    itemCount: _slides.length,
+                                    onPageChanged: (index) {
+                                      setState(() {
+                                        _index = index;
+                                        _selectedOverlayIndex = null;
+                                        _imageFocused = false;
+                                      });
+                                      _scrollStripToCurrent();
+                                    },
+                                    itemBuilder: (context, index) {
+                                      return _buildSlidePage(index);
+                                    },
+                                  ),
                                 ),
                               ),
                             ),

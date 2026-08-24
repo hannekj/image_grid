@@ -9,7 +9,7 @@ class EditorChrome {
   static const spaceLg = 16.0;
 
   /// One fixed height for the active tool panel body.
-  static const panelHeight = 148.0;
+  static const panelHeight = 168.0;
   static const tabRowHeight = 36.0;
 }
 

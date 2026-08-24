@@ -12,6 +12,7 @@ import 'canvas_format.dart';
 import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'dump_layout.dart';
+import 'editor_history.dart';
 import 'editor_tool_grid.dart';
 import 'film_strip.dart';
 import 'editor_toolbar.dart';
@@ -19,12 +20,39 @@ import 'film_look.dart';
 import 'frame_style.dart';
 import 'grid_layout.dart';
 import 'image_slot.dart';
+import 'instagram_preview_chrome.dart';
 import 'layout_strip.dart';
 import 'look_panel.dart';
 import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
+
+class _LayoutSnapshot {
+  const _LayoutSnapshot({
+    required this.layout,
+    required this.format,
+    required this.slots,
+    required this.slotViews,
+    required this.overlays,
+    required this.kind,
+    required this.color,
+    required this.thickness,
+    required this.filter,
+    required this.grain,
+  });
+
+  final GridLayout layout;
+  final CanvasFormat format;
+  final List<Uint8List?> slots;
+  final List<_SlotView> slotViews;
+  final List<OverlayText> overlays;
+  final FrameKind kind;
+  final StrokeColor color;
+  final StrokeThickness thickness;
+  final PhotoFilter filter;
+  final bool grain;
+}
 
 class LayoutEditorPage extends StatefulWidget {
   const LayoutEditorPage({
@@ -67,6 +95,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   bool _grain = false;
   PhotoFilter _filter = PhotoFilter.original;
   EditorTool? _tool;
+  final _history = EditorHistory<_LayoutSnapshot>();
 
   bool _swapHintShown = false;
 
@@ -75,6 +104,46 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   bool get _cleanView => _exporting || _previewing;
 
   int get _imageCount => _slots.where((bytes) => bytes != null).length;
+
+  void _pushUndo() {
+    _history.push(
+      _LayoutSnapshot(
+        layout: _layout,
+        format: _format,
+        slots: List<Uint8List?>.from(_slots),
+        slotViews: List<_SlotView>.from(_slotViews),
+        overlays: [for (final overlay in _overlayTexts) overlay.copyWith()],
+        kind: _kind,
+        color: _color,
+        thickness: _thickness,
+        filter: _filter,
+        grain: _grain,
+      ),
+    );
+  }
+
+  void _undo() {
+    final snapshot = _history.pop();
+    if (snapshot == null) return;
+    setState(() {
+      _layout = snapshot.layout;
+      _format = snapshot.format;
+      _slots = List<Uint8List?>.from(snapshot.slots);
+      _slotViews = List<_SlotView>.from(snapshot.slotViews);
+      _overlayTexts
+        ..clear()
+        ..addAll([
+          for (final overlay in snapshot.overlays) overlay.copyWith(),
+        ]);
+      _kind = snapshot.kind;
+      _color = snapshot.color;
+      _thickness = snapshot.thickness;
+      _filter = snapshot.filter;
+      _grain = snapshot.grain;
+      _selectedOverlayIndex = null;
+      _selectedSlotIndex = null;
+    });
+  }
 
   double get _strokeWidth {
     if (_layout.usesCreamCanvas) return 0;
@@ -105,6 +174,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   void _applyLayout(GridLayout next) {
     if (next.id == _layout.id) return;
+    _pushUndo();
     _rememberSlotViews();
     final previous = List<Uint8List?>.from(_slots);
     final nextSlots = List<Uint8List?>.filled(next.slotCount, null);
@@ -253,6 +323,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   void _removeSelectedOverlay() {
     final index = _selectedOverlayIndex;
     if (index == null || index >= _overlayTexts.length) return;
+    _pushUndo();
     setState(() {
       _overlayTexts.removeAt(index);
       if (_overlayTexts.isEmpty) {
@@ -288,6 +359,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
     if (!mounted || result == null || result.isEmpty) return;
 
+    _pushUndo();
     setState(() {
       final styleFrom = _selectedOverlayIndex != null
           ? _overlayTexts[_selectedOverlayIndex!]
@@ -309,6 +381,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     final result = await showEditorialTextSheet(context);
     if (!mounted || result == null || result.isEmpty) return;
 
+    _pushUndo();
     setState(() {
       _overlayTexts.addAll(result);
       _selectedOverlayIndex = _overlayTexts.length - result.length;
@@ -670,6 +743,12 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           centerTitle: true,
           actions: [
             IconButton(
+              tooltip: 'Angre',
+              onPressed:
+                  _history.canUndo && !_exporting && !_previewing ? _undo : null,
+              icon: const Icon(Icons.undo),
+            ),
+            IconButton(
               tooltip: _previewing ? 'Avslutt forhåndsvisning' : 'Forhåndsvis',
               onPressed: _hasAnyImage && !_exporting ? _togglePreview : null,
               icon: Icon(
@@ -737,7 +816,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                       ),
                                     ],
                             ),
-                            child: RepaintBoundary(
+                            child: InstagramPreviewChrome(
+                              enabled: _previewing,
+                              child: RepaintBoundary(
                               key: _frameKey,
                               child: Stack(
                                 fit: StackFit.expand,
@@ -807,6 +888,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                   ),
                                 ],
                               ),
+                            ),
                             ),
                           ),
                         ),
@@ -903,7 +985,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         return FormatChips(
           selected: _format,
           compact: true,
-          onChanged: (format) => setState(() => _format = format),
+          onChanged: (format) {
+            _pushUndo();
+            setState(() => _format = format);
+          },
         );
       case EditorTool.look:
         return LookPanel(
@@ -912,12 +997,26 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           thickness: _thickness,
           filter: _filter,
           grain: _grain,
-          onKindChanged: (kind) => setState(() => _kind = kind),
-          onColorChanged: (color) => setState(() => _color = color),
-          onThicknessChanged: (thickness) =>
-              setState(() => _thickness = thickness),
-          onFilterChanged: (filter) => setState(() => _filter = filter),
-          onGrainChanged: (value) => setState(() => _grain = value),
+          onKindChanged: (kind) {
+            _pushUndo();
+            setState(() => _kind = kind);
+          },
+          onColorChanged: (color) {
+            _pushUndo();
+            setState(() => _color = color);
+          },
+          onThicknessChanged: (thickness) {
+            _pushUndo();
+            setState(() => _thickness = thickness);
+          },
+          onFilterChanged: (filter) {
+            _pushUndo();
+            setState(() => _filter = filter);
+          },
+          onGrainChanged: (value) {
+            _pushUndo();
+            setState(() => _grain = value);
+          },
         );
       case EditorTool.text:
         return OverlayComposePanel(

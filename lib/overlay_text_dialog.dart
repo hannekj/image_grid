@@ -85,6 +85,8 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
             widget.isNew ? 'Legg til klokkeslett' : 'Rediger klokkeslett',
           OverlayKind.weather =>
             widget.isNew ? 'Legg til vær' : 'Rediger vær',
+          OverlayKind.pageNumber =>
+            widget.isNew ? 'Legg til sidetall' : 'Rediger sidetall',
           OverlayKind.text =>
             widget.isNew ? 'Legg til tekst' : 'Rediger tekst',
         },
@@ -99,7 +101,10 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
             maxLines: widget.kind == OverlayKind.message ? 4 : 1,
             maxLength: switch (widget.kind) {
               OverlayKind.location => 40,
-              OverlayKind.date || OverlayKind.time => 40,
+              OverlayKind.date ||
+              OverlayKind.time ||
+              OverlayKind.pageNumber =>
+                40,
               OverlayKind.weather => 12,
               _ => 80,
             },
@@ -107,7 +112,8 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
               OverlayKind.location => TextCapitalization.words,
               OverlayKind.date ||
               OverlayKind.time ||
-              OverlayKind.weather =>
+              OverlayKind.weather ||
+              OverlayKind.pageNumber =>
                 TextCapitalization.none,
               _ => TextCapitalization.sentences,
             },
@@ -121,6 +127,7 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
                 OverlayKind.date => 'F.eks. 24. august 2026',
                 OverlayKind.time => 'F.eks. 19:45',
                 OverlayKind.weather => 'F.eks. 18°',
+                OverlayKind.pageNumber => 'F.eks. 1/7',
                 OverlayKind.text => 'Skriv teksten her',
               },
               prefixIcon: Icon(

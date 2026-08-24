@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
 import 'editor_chrome.dart';
 import 'film_look.dart';
 import 'frame_controls.dart';
@@ -20,6 +21,7 @@ class LookPanel extends StatefulWidget {
     required this.onThicknessChanged,
     required this.onFilterChanged,
     required this.onGrainChanged,
+    this.onApplyToAll,
   });
 
   final FrameKind kind;
@@ -32,6 +34,7 @@ class LookPanel extends StatefulWidget {
   final ValueChanged<StrokeThickness> onThicknessChanged;
   final ValueChanged<PhotoFilter> onFilterChanged;
   final ValueChanged<bool> onGrainChanged;
+  final VoidCallback? onApplyToAll;
 
   @override
   State<LookPanel> createState() => _LookPanelState();
@@ -134,6 +137,20 @@ class _LookPanelState extends State<LookPanel> {
               },
             ),
           ),
+          if (widget.onApplyToAll != null) ...[
+            const SizedBox(height: EditorChrome.spaceSm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: widget.onApplyToAll,
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: AppTheme.matcha,
+                ),
+                child: const Text('Bruk stil på alle sider'),
+              ),
+            ),
+          ],
         ],
       ),
     );

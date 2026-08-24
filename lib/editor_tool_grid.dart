@@ -43,6 +43,11 @@ const carouselToolDefinitions = [
     icon: Icons.aspect_ratio,
     label: 'Format',
   ),
+  EditorToolDefinition(
+    id: 'look',
+    icon: Icons.auto_fix_high,
+    label: 'Stil',
+  ),
   EditorToolDefinition(id: 'text', icon: Icons.title, label: 'Tekst'),
 ];
 

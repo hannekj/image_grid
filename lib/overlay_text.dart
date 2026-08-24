@@ -143,7 +143,7 @@ const overlayPlatePresets = [
   OverlayPlateStyle(tone: OverlayPlateTone.dark, opacity: 0.75),
 ];
 
-enum OverlayKind { text, message, location, date, time, weather }
+enum OverlayKind { text, message, location, date, time, weather, pageNumber }
 
 enum OverlayTextEffect { none, shadow, outline }
 
@@ -254,11 +254,18 @@ IconData overlayWeatherIconForId(String id) {
   return (Icons.wb_sunny_outlined, trimmed);
 }
 
+String overlayPageNumberLabel(int index, int total) {
+  final safeTotal = total < 1 ? 1 : total;
+  final safeIndex = index.clamp(0, safeTotal - 1) + 1;
+  return '$safeIndex/$safeTotal';
+}
+
 String overlayDefaultValue(OverlayKind kind) {
   return switch (kind) {
     OverlayKind.date => overlayDateLabel(),
     OverlayKind.time => overlayTimeLabel(),
     OverlayKind.weather => overlayWeatherLabel(),
+    OverlayKind.pageNumber => '1/1',
     OverlayKind.location => '',
     OverlayKind.message => '',
     OverlayKind.text => '',
@@ -272,6 +279,7 @@ IconData overlayKindIcon(OverlayKind kind) {
     OverlayKind.date => Icons.calendar_today_outlined,
     OverlayKind.time => Icons.schedule,
     OverlayKind.weather => Icons.wb_sunny_outlined,
+    OverlayKind.pageNumber => Icons.tag,
     OverlayKind.text => Icons.title,
   };
 }
@@ -283,6 +291,7 @@ String overlayKindLabel(OverlayKind kind) {
     OverlayKind.date => 'Dato',
     OverlayKind.time => 'Klokke',
     OverlayKind.weather => 'Vær',
+    OverlayKind.pageNumber => 'Side',
     OverlayKind.text => 'Tekst',
   };
 }
@@ -368,13 +377,15 @@ class OverlayText {
 
     if (kind == OverlayKind.date ||
         kind == OverlayKind.time ||
-        kind == OverlayKind.weather) {
+        kind == OverlayKind.weather ||
+        kind == OverlayKind.pageNumber) {
       const bubble = locationPillColor;
       final base = styleFrom != null && styleFrom.kind == kind ? styleFrom : null;
       final bubbleColor = base?.bubbleColor ?? bubble;
       final alignment = switch (kind) {
         OverlayKind.date => const Alignment(-0.55, 0.78),
         OverlayKind.time => const Alignment(0.55, 0.78),
+        OverlayKind.pageNumber => const Alignment(0.72, -0.78),
         _ => const Alignment(0.0, -0.72),
       };
       return OverlayText(
@@ -382,7 +393,7 @@ class OverlayText {
         kind: kind,
         bubbleColor: bubbleColor,
         color: base?.color ?? overlayContrastColor(bubbleColor),
-        fontSize: base?.fontSize ?? 15,
+        fontSize: base?.fontSize ?? (kind == OverlayKind.pageNumber ? 14 : 15),
         fontId: 'sans',
         alignment: base?.alignment ?? alignment,
         textAlign: TextAlign.left,
@@ -436,7 +447,10 @@ class OverlayText {
 
   bool get isWeather => kind == OverlayKind.weather;
 
-  bool get isPill => isLocation || isDate || isTime || isWeather;
+  bool get isPageNumber => kind == OverlayKind.pageNumber;
+
+  bool get isPill =>
+      isLocation || isDate || isTime || isWeather || isPageNumber;
 
   bool get isBubble => isMessage || isPill;
 

@@ -19,6 +19,7 @@ class OverlayWidgetControls extends StatefulWidget {
     required this.onAddDate,
     required this.onAddTime,
     required this.onAddWeather,
+    this.onAddPageNumber,
     required this.onChanged,
     required this.onRemove,
     required this.onEdit,
@@ -32,6 +33,7 @@ class OverlayWidgetControls extends StatefulWidget {
   final VoidCallback onAddDate;
   final VoidCallback onAddTime;
   final VoidCallback onAddWeather;
+  final VoidCallback? onAddPageNumber;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
   final ValueChanged<int> onEdit;
@@ -86,6 +88,12 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
           setState(() => _adding = false);
           widget.onAddWeather();
         },
+        onAddPageNumber: widget.onAddPageNumber == null
+            ? null
+            : () {
+                setState(() => _adding = false);
+                widget.onAddPageNumber!();
+              },
       );
 
   @override

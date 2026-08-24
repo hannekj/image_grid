@@ -12,6 +12,7 @@ class WidgetPickerGrid extends StatelessWidget {
     required this.onAddDate,
     required this.onAddTime,
     required this.onAddWeather,
+    this.onAddPageNumber,
   });
 
   final VoidCallback onAddMessage;
@@ -19,6 +20,7 @@ class WidgetPickerGrid extends StatelessWidget {
   final VoidCallback onAddDate;
   final VoidCallback onAddTime;
   final VoidCallback onAddWeather;
+  final VoidCallback? onAddPageNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -28,21 +30,26 @@ class WidgetPickerGrid extends StatelessWidget {
       ('Dato', Icons.calendar_today_outlined, onAddDate),
       ('Klokke', Icons.schedule, onAddTime),
       ('Vær', Icons.wb_sunny_outlined, onAddWeather),
+      if (onAddPageNumber != null)
+        ('Side', Icons.tag, onAddPageNumber!),
     ];
 
-    return Row(
-      children: [
-        for (var i = 0; i < items.length; i++) ...[
-          if (i > 0) const SizedBox(width: EditorChrome.spaceSm),
-          Expanded(
-            child: _PickerTile(
-              label: items[i].$1,
-              icon: items[i].$2,
-              onTap: items[i].$3,
-            ),
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: items.length,
+      separatorBuilder: (context, index) =>
+          const SizedBox(width: EditorChrome.spaceSm),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return SizedBox(
+          width: 64,
+          child: _PickerTile(
+            label: item.$1,
+            icon: item.$2,
+            onTap: item.$3,
           ),
-        ],
-      ],
+        );
+      },
     );
   }
 }
