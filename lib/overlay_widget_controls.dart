@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
 import 'color_scrub_strip.dart';
+import 'editor_chrome.dart';
 import 'overlay_text.dart';
 import 'widget_picker.dart';
 
@@ -15,6 +16,9 @@ class OverlayWidgetControls extends StatefulWidget {
     required this.onSelect,
     required this.onAddMessage,
     required this.onAddLocation,
+    required this.onAddDate,
+    required this.onAddTime,
+    required this.onAddWeather,
     required this.onChanged,
     required this.onRemove,
     required this.onEdit,
@@ -25,6 +29,9 @@ class OverlayWidgetControls extends StatefulWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onAddMessage;
   final VoidCallback onAddLocation;
+  final VoidCallback onAddDate;
+  final VoidCallback onAddTime;
+  final VoidCallback onAddWeather;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
   final ValueChanged<int> onEdit;
@@ -35,10 +42,11 @@ class OverlayWidgetControls extends StatefulWidget {
 
 class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
   _WidgetSection _section = _WidgetSection.color;
+  bool _adding = false;
 
-  List<int> get _bubbleIndexes => [
+  List<int> get _widgetIndexes => [
         for (var i = 0; i < widget.overlays.length; i++)
-          if (widget.overlays[i].isBubble) i,
+          if (widget.overlays[i].isWidgetOverlay) i,
       ];
 
   OverlayText? get _current {
@@ -47,7 +55,7 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
       return null;
     }
     final overlay = widget.overlays[index];
-    return overlay.isBubble ? overlay : null;
+    return overlay.isWidgetOverlay ? overlay : null;
   }
 
   List<_WidgetSection> _sectionsFor(OverlayText current) {
@@ -57,6 +65,29 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
     ];
   }
 
+  Widget get _picker => WidgetPickerGrid(
+        onAddMessage: () {
+          setState(() => _adding = false);
+          widget.onAddMessage();
+        },
+        onAddLocation: () {
+          setState(() => _adding = false);
+          widget.onAddLocation();
+        },
+        onAddDate: () {
+          setState(() => _adding = false);
+          widget.onAddDate();
+        },
+        onAddTime: () {
+          setState(() => _adding = false);
+          widget.onAddTime();
+        },
+        onAddWeather: () {
+          setState(() => _adding = false);
+          widget.onAddWeather();
+        },
+      );
+
   @override
   void didUpdateWidget(covariant OverlayWidgetControls oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -64,32 +95,32 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
     if (current != null && !_sectionsFor(current).contains(_section)) {
       _section = _WidgetSection.color;
     }
+    if (oldWidget.selectedIndex != widget.selectedIndex &&
+        widget.selectedIndex != null) {
+      _adding = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_bubbleIndexes.isEmpty) {
-      return WidgetPickerGrid(
-        onAddMessage: widget.onAddMessage,
-        onAddLocation: widget.onAddLocation,
-      );
+    if (_widgetIndexes.isEmpty || _adding) {
+      return _picker;
     }
 
     final current = _current;
     if (current == null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
+      return Row(
         children: [
-          WidgetPickerGrid(
-            onAddMessage: widget.onAddMessage,
-            onAddLocation: widget.onAddLocation,
+          const Expanded(
+            child: Text(
+              'Velg en sticker på bildet',
+              style: TextStyle(fontSize: 13, color: AppTheme.muted),
+            ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Velg en widget på bildet',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: AppTheme.muted),
+          IconButton(
+            tooltip: 'Legg til',
+            onPressed: () => setState(() => _adding = true),
+            icon: const Icon(Icons.add),
           ),
         ],
       );
@@ -102,213 +133,93 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
       children: [
         Row(
           children: [
-            if (_bubbleIndexes.length > 1)
-              Expanded(
-                child: SizedBox(
-                  height: 32,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _bubbleIndexes.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(width: 6),
-                    itemBuilder: (context, listIndex) {
-                      final index = _bubbleIndexes[listIndex];
-                      final overlay = widget.overlays[index];
-                      final selected = widget.selectedIndex == index;
-                      final label = overlay.value.trim().isEmpty
-                          ? overlay.isLocation
-                              ? 'Sted ${listIndex + 1}'
-                              : 'Melding ${listIndex + 1}'
-                          : overlay.value;
-                      return _WidgetChip(
-                        label: label,
-                        selected: selected,
-                        isLocation: overlay.isLocation,
-                        onTap: () {
-                          if (selected) {
-                            widget.onEdit(index);
-                          } else {
-                            widget.onSelect(index);
-                          }
-                        },
-                      );
-                    },
-                  ),
+            Expanded(
+              child: SizedBox(
+                height: EditorChrome.tabRowHeight,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: sections.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: EditorChrome.spaceSm),
+                  itemBuilder: (context, index) {
+                    final section = sections[index];
+                    return EditorSegmentTab(
+                      label: switch (section) {
+                        _WidgetSection.color =>
+                          current.isMessage ? 'Boble' : 'Farge',
+                        _WidgetSection.font => 'Font',
+                      },
+                      selected: _section == section,
+                      onTap: () => setState(() => _section = section),
+                    );
+                  },
                 ),
-              )
-            else
-              const Spacer(),
+              ),
+            ),
             IconButton(
-              tooltip: current.isLocation ? 'Rediger sted' : 'Rediger melding',
-              onPressed: widget.selectedIndex == null
-                  ? null
-                  : () => widget.onEdit(widget.selectedIndex!),
+              tooltip: 'Rediger',
+              onPressed: () => widget.onEdit(widget.selectedIndex!),
               icon: const Icon(Icons.edit_outlined, size: 20),
               visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
             ),
             IconButton(
-              tooltip: 'Legg til melding',
-              onPressed: widget.onAddMessage,
-              icon: const Icon(Icons.chat_bubble_outline, size: 20),
+              tooltip: 'Legg til',
+              onPressed: () => setState(() => _adding = true),
+              icon: const Icon(Icons.add, size: 20),
               visualDensity: VisualDensity.compact,
-            ),
-            IconButton(
-              tooltip: 'Legg til sted',
-              onPressed: widget.onAddLocation,
-              icon: const Icon(Icons.location_on_outlined, size: 20),
-              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
             ),
             IconButton(
               tooltip: 'Fjern',
               onPressed: widget.onRemove,
               icon: const Icon(Icons.close, size: 20),
               visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 34,
-          width: double.infinity,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(right: 12),
-            itemCount: sections.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 6),
-            itemBuilder: (context, index) {
-              final section = sections[index];
-              return _SectionTab(
-                label: switch (section) {
-                  _WidgetSection.color => 'Boble',
-                  _WidgetSection.font => 'Font',
-                },
-                selected: _section == section,
-                onTap: () => setState(() => _section = section),
-              );
+        const SizedBox(height: EditorChrome.spaceSm),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: switch (_section) {
+              _WidgetSection.color => ColorScrubStrip(
+                  colors: overlayBubbleColors,
+                  labels: overlayBubbleColorLabels,
+                  selected: current.effectiveBubbleColor,
+                  onChanged: (color) =>
+                      widget.onChanged(current.withBubbleColor(color)),
+                ),
+              _WidgetSection.font => ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: overlayFonts.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: EditorChrome.spaceSm),
+                  itemBuilder: (context, index) {
+                    final font = overlayFonts[index];
+                    final selected = current.fontId == font.id;
+                    return _FontChoice(
+                      font: font,
+                      selected: selected,
+                      onTap: () =>
+                          widget.onChanged(current.copyWith(fontId: font.id)),
+                    );
+                  },
+                ),
             },
           ),
         ),
-        const SizedBox(height: 10),
-        switch (_section) {
-          _WidgetSection.color => ColorScrubStrip(
-              colors: overlayBubbleColors,
-              labels: overlayBubbleColorLabels,
-              selected: current.effectiveBubbleColor,
-              onChanged: (color) =>
-                  widget.onChanged(current.withBubbleColor(color)),
-            ),
-          _WidgetSection.font => SizedBox(
-              height: 36,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: overlayFonts.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final font = overlayFonts[index];
-                  final selected = current.fontId == font.id;
-                  return _FontChip(
-                    font: font,
-                    selected: selected,
-                    onTap: () =>
-                        widget.onChanged(current.copyWith(fontId: font.id)),
-                  );
-                },
-              ),
-            ),
-        },
       ],
     );
   }
 }
 
-class _WidgetChip extends StatelessWidget {
-  const _WidgetChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    required this.isLocation,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool isLocation;
-
-  @override
-  Widget build(BuildContext context) {
-    final short = label.length > 14 ? '${label.substring(0, 14)}…' : label;
-    return Material(
-      color: selected ? const Color(0xFF2C3028) : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isLocation
-                    ? Icons.location_on
-                    : Icons.chat_bubble_outline,
-                size: 14,
-                color: selected ? Colors.white : AppTheme.muted,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                short,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: selected ? Colors.white : AppTheme.muted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionTab extends StatelessWidget {
-  const _SectionTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? const Color(0xFF2C3028) : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: selected ? Colors.white : AppTheme.muted,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FontChip extends StatelessWidget {
-  const _FontChip({
+class _FontChoice extends StatelessWidget {
+  const _FontChoice({
     required this.font,
     required this.selected,
     required this.onTap,
@@ -321,23 +232,20 @@ class _FontChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? Colors.black : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-        side: BorderSide(
-          color: selected ? Colors.black : const Color(0xFFCCCCCC),
-        ),
-      ),
+      color: selected
+          ? AppTheme.matcha.withValues(alpha: 0.14)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text(
             font.label,
             style: font.style(
               fontSize: 13,
-              color: selected ? Colors.white : Colors.black,
+              color: selected ? AppTheme.ink : AppTheme.muted,
             ),
           ),
         ),

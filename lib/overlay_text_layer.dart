@@ -332,6 +332,22 @@ class _ChatBubbleContent extends StatelessWidget {
     }
 
     final iconSize = (overlay.fontSize * 1.05).clamp(12.0, 28.0);
+    final textStyle = overlayFontById('sans').style(
+      color: overlay.color,
+      fontSize: overlay.fontSize,
+      height: 1.15,
+    );
+
+    late final IconData icon;
+    late final String label;
+    if (overlay.isWeather) {
+      final parts = overlayWeatherParts(overlay.value);
+      icon = parts.$1;
+      label = parts.$2;
+    } else {
+      icon = overlayKindIcon(overlay.kind);
+      label = overlay.value;
+    }
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -339,23 +355,16 @@ class _ChatBubbleContent extends StatelessWidget {
         color: overlay.effectiveBubbleColor,
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(
-              Icons.location_on,
-              size: iconSize,
-              color: overlay.color,
-            ),
-            SizedBox(width: overlay.fontSize * 0.22),
+            Icon(icon, size: iconSize, color: overlay.color),
+            SizedBox(width: (overlay.fontSize * 0.35).clamp(6.0, 10.0)),
             Flexible(
               child: Text(
-                overlay.value,
+                label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: overlayFontById('sans').style(
-                  color: overlay.color,
-                  fontSize: overlay.fontSize,
-                  height: 1.22,
-                ),
+                style: textStyle,
               ),
             ),
           ],

@@ -13,6 +13,7 @@ import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'dump_layout.dart';
 import 'editor_tool_grid.dart';
+import 'film_strip.dart';
 import 'editor_toolbar.dart';
 import 'film_look.dart';
 import 'frame_style.dart';
@@ -20,11 +21,10 @@ import 'grid_layout.dart';
 import 'image_slot.dart';
 import 'layout_strip.dart';
 import 'look_panel.dart';
+import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
-import 'overlay_text_controls.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
-import 'overlay_widget_controls.dart';
 
 class LayoutEditorPage extends StatefulWidget {
   const LayoutEditorPage({
@@ -50,6 +50,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     widget.layout.slotCount,
     null,
   );
+  late List<_SlotView> _slotViews = List<_SlotView>.generate(
+    widget.layout.slotCount,
+    (_) => const _SlotView(),
+  );
+  final Map<int, _SlotView> _viewsByImage = {};
 
   bool _exporting = false;
   bool _previewing = false;
@@ -60,7 +65,6 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   int? _selectedOverlayIndex;
   int? _selectedSlotIndex;
   bool _grain = false;
-  bool _dateStamp = false;
   PhotoFilter _filter = PhotoFilter.original;
   EditorTool? _tool;
 
@@ -79,23 +83,42 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Color get _canvasColor {
+    if (_layout.isFilmStrip) return AppTheme.cream;
     if (_layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
     }
     return _kind == FrameKind.stroke ? _color.color : Colors.white;
   }
 
+  void _rememberSlotViews() {
+    for (var i = 0; i < _slots.length; i++) {
+      final bytes = _slots[i];
+      if (bytes == null) continue;
+      _viewsByImage[identityHashCode(bytes)] = _slotViews[i];
+    }
+  }
+
+  _SlotView _viewForImage(Uint8List? bytes) {
+    if (bytes == null) return const _SlotView();
+    return _viewsByImage[identityHashCode(bytes)] ?? const _SlotView();
+  }
+
   void _applyLayout(GridLayout next) {
     if (next.id == _layout.id) return;
+    _rememberSlotViews();
     final previous = List<Uint8List?>.from(_slots);
     final nextSlots = List<Uint8List?>.filled(next.slotCount, null);
     final keep = math.min(previous.length, nextSlots.length);
     for (var i = 0; i < keep; i++) {
       nextSlots[i] = previous[i];
     }
+    final nextViews = [
+      for (final bytes in nextSlots) _viewForImage(bytes),
+    ];
     setState(() {
       _layout = next;
       _slots = nextSlots;
+      _slotViews = nextViews;
       _selectedSlotIndex = null;
     });
   }
@@ -106,7 +129,12 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       final source = _slots[from];
       _slots[from] = _slots[to];
       _slots[to] = source;
+
+      final sourceView = _slotViews[from];
+      _slotViews[from] = _slotViews[to];
+      _slotViews[to] = sourceView;
     });
+    _rememberSlotViews();
   }
 
   Future<bool> _confirmDiscard() async {
@@ -144,7 +172,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     final bytes = await file.readAsBytes();
     if (!mounted) return;
 
-    setState(() => _slots[index] = bytes);
+    setState(() {
+      _slots[index] = bytes;
+      _slotViews[index] = const _SlotView();
+      _viewsByImage[identityHashCode(bytes)] = const _SlotView();
+    });
     _maybeShowSwapHint();
   }
 
@@ -168,7 +200,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
     setState(() {
       for (var i = 0; i < bytesList.length; i++) {
-        _slots[emptyIndexes[i]] = bytesList[i];
+        final slotIndex = emptyIndexes[i];
+        final bytes = bytesList[i];
+        _slots[slotIndex] = bytes;
+        _slotViews[slotIndex] = const _SlotView();
+        _viewsByImage[identityHashCode(bytes)] = const _SlotView();
       }
     });
     _maybeShowSwapHint();
@@ -233,12 +269,18 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   Future<void> _addOverlayLocation() => _addOverlay(OverlayKind.location);
 
+  Future<void> _addOverlayDate() => _addOverlay(OverlayKind.date);
+
+  Future<void> _addOverlayTime() => _addOverlay(OverlayKind.time);
+
+  Future<void> _addOverlayWeather() => _addOverlay(OverlayKind.weather);
+
   Future<void> _addOverlay(OverlayKind kind) async {
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
         return OverlayTextDialog(
-          initialValue: '',
+          initialValue: overlayDefaultValue(kind),
           isNew: true,
           kind: kind,
         );
@@ -259,11 +301,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         ),
       );
       _selectedOverlayIndex = _overlayTexts.length - 1;
-      if (kind == OverlayKind.message || kind == OverlayKind.location) {
-        _tool = EditorTool.widget;
-      } else if (kind == OverlayKind.text) {
-        _tool = EditorTool.text;
-      }
+      _tool = EditorTool.text;
     });
   }
 
@@ -275,6 +313,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       _overlayTexts.addAll(result);
       _selectedOverlayIndex = _overlayTexts.length - result.length;
       _selectedSlotIndex = null;
+      _tool = EditorTool.text;
     });
   }
 
@@ -370,6 +409,39 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _setSlotPan(int index, Offset pan) {
+    if (index < 0 || index >= _slotViews.length) return;
+    setState(() {
+      _slotViews[index] = _slotViews[index].copyWith(pan: pan);
+      final bytes = _slots[index];
+      if (bytes != null) {
+        _viewsByImage[identityHashCode(bytes)] = _slotViews[index];
+      }
+    });
+  }
+
+  void _setSlotZoom(int index, double zoom) {
+    if (index < 0 || index >= _slotViews.length) return;
+    setState(() {
+      _slotViews[index] = _slotViews[index].copyWith(zoom: zoom);
+      final bytes = _slots[index];
+      if (bytes != null) {
+        _viewsByImage[identityHashCode(bytes)] = _slotViews[index];
+      }
+    });
+  }
+
+  void _setSlotRotation(int index, double rotation) {
+    if (index < 0 || index >= _slotViews.length) return;
+    setState(() {
+      _slotViews[index] = _slotViews[index].copyWith(rotation: rotation);
+      final bytes = _slots[index];
+      if (bytes != null) {
+        _viewsByImage[identityHashCode(bytes)] = _slotViews[index];
+      }
+    });
+  }
+
   Widget _buildGrid(double strokeWidth) {
     var index = 0;
     final rows = <Widget>[];
@@ -386,17 +458,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         cells.add(
           Expanded(
             flex: row.cells[c],
-            child: _SwappableSlot(
-              index: slotIndex,
-              imageBytes: _slots[slotIndex],
-              showChrome: !_cleanView,
-              selected: !_cleanView && _selectedSlotIndex == slotIndex,
-              onSelect: () => _selectSlot(slotIndex),
-              onPick: _slots[slotIndex] == null
-                  ? () => _pickImages(slotIndex)
-                  : () => _pickImage(slotIndex),
-              onSwap: _swapSlots,
-            ),
+            child: _slot(slotIndex),
           ),
         );
       }
@@ -413,6 +475,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Widget _slot(int index) {
+    final view = _slotViews[index];
     return _SwappableSlot(
       index: index,
       imageBytes: _slots[index],
@@ -423,6 +486,12 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           ? () => _pickImages(index)
           : () => _pickImage(index),
       onSwap: _swapSlots,
+      pan: view.pan,
+      zoom: view.zoom,
+      rotation: view.rotation,
+      onPanChanged: (pan) => _setSlotPan(index, pan),
+      onZoomChanged: (zoom) => _setSlotZoom(index, zoom),
+      onRotationChanged: (rotation) => _setSlotRotation(index, rotation),
     );
   }
 
@@ -463,6 +532,18 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   Widget _buildBooth() {
     return PhotoboothStrip(
       slots: [_slot(0), _slot(1), _slot(2)],
+    );
+  }
+
+  Widget _buildFilmStrip(FilmStripAxis axis) {
+    final stripColor =
+        _kind == FrameKind.stroke ? _color.color : const Color(0xFF141414);
+    return FilmStrip(
+      axis: axis,
+      color: stripColor,
+      slots: [
+        for (var i = 0; i < filmStripSlotCount; i++) _slot(i),
+      ],
     );
   }
 
@@ -556,6 +637,12 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   Widget _buildBody(double strokeWidth) {
     if (_layout.isDump) return _buildDump();
     if (_layout.isBooth) return _buildBooth();
+    if (_layout.isFilmHorizontal) {
+      return _buildFilmStrip(FilmStripAxis.horizontal);
+    }
+    if (_layout.isFilmVertical) {
+      return _buildFilmStrip(FilmStripAxis.vertical);
+    }
     if (_layout.isReaction) return _buildReaction();
     if (_layout.isOverlayFrame) return _buildOverlayFrame();
     return _buildGrid(strokeWidth);
@@ -716,7 +803,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                   ),
                                   FilmLookLayer(
                                     grain: _grain,
-                                    dateStamp: _dateStamp,
+                                    dateStamp: false,
                                   ),
                                 ],
                               ),
@@ -749,7 +836,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                   child: ColoredBox(
                     color: AppTheme.cream,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       child: _buildToolPanel(),
                     ),
                   ),
@@ -782,7 +869,6 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       EditorTool.format => 'format',
       EditorTool.look => 'look',
       EditorTool.text => 'text',
-      EditorTool.widget => 'widget',
       null => null,
     };
   }
@@ -800,16 +886,6 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           _tool = EditorTool.text;
           if (_overlayTexts.isNotEmpty && _selectedOverlayIndex == null) {
             _selectedOverlayIndex = _overlayTexts.length - 1;
-          }
-        });
-      case 'editorial':
-        _addEditorial();
-      case 'widget':
-        setState(() {
-          _tool = EditorTool.widget;
-          final bubbleIndex = _overlayTexts.indexWhere((o) => o.isBubble);
-          if (bubbleIndex >= 0) {
-            _selectedOverlayIndex = bubbleIndex;
           }
         });
     }
@@ -836,39 +912,61 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           thickness: _thickness,
           filter: _filter,
           grain: _grain,
-          dateStamp: _dateStamp,
           onKindChanged: (kind) => setState(() => _kind = kind),
           onColorChanged: (color) => setState(() => _color = color),
           onThicknessChanged: (thickness) =>
               setState(() => _thickness = thickness),
           onFilterChanged: (filter) => setState(() => _filter = filter),
           onGrainChanged: (value) => setState(() => _grain = value),
-          onDateStampChanged: (value) => setState(() => _dateStamp = value),
         );
       case EditorTool.text:
-        return OverlayTextControls(
+        return OverlayComposePanel(
           overlays: _overlayTexts,
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlayText,
           onAddText: _addOverlayText,
-          onChanged: _updateSelectedOverlay,
-          onRemove: _removeSelectedOverlay,
-          onEdit: _editOverlayText,
-        );
-      case EditorTool.widget:
-        return OverlayWidgetControls(
-          overlays: _overlayTexts,
-          selectedIndex: _selectedOverlayIndex,
-          onSelect: _selectOverlayText,
           onAddMessage: _addOverlayMessage,
           onAddLocation: _addOverlayLocation,
+          onAddDate: _addOverlayDate,
+          onAddTime: _addOverlayTime,
+          onAddWeather: _addOverlayWeather,
+          onAddTemplate: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
           onEdit: _editOverlayText,
+          initialTab: (_selectedOverlayIndex != null &&
+                  _selectedOverlayIndex! < _overlayTexts.length &&
+                  _overlayTexts[_selectedOverlayIndex!].isWidgetOverlay)
+              ? OverlayComposeTab.sticker
+              : OverlayComposeTab.text,
         );
       case null:
         return const SizedBox.shrink();
     }
+  }
+}
+
+class _SlotView {
+  const _SlotView({
+    this.pan = Offset.zero,
+    this.zoom = 1.0,
+    this.rotation = 0.0,
+  });
+
+  final Offset pan;
+  final double zoom;
+  final double rotation;
+
+  _SlotView copyWith({
+    Offset? pan,
+    double? zoom,
+    double? rotation,
+  }) {
+    return _SlotView(
+      pan: pan ?? this.pan,
+      zoom: zoom ?? this.zoom,
+      rotation: rotation ?? this.rotation,
+    );
   }
 }
 
@@ -881,6 +979,12 @@ class _SwappableSlot extends StatelessWidget {
     required this.onSelect,
     required this.onPick,
     required this.onSwap,
+    required this.pan,
+    required this.zoom,
+    required this.rotation,
+    required this.onPanChanged,
+    required this.onZoomChanged,
+    required this.onRotationChanged,
   });
 
   final int index;
@@ -890,6 +994,12 @@ class _SwappableSlot extends StatelessWidget {
   final VoidCallback onSelect;
   final VoidCallback onPick;
   final void Function(int from, int to) onSwap;
+  final Offset pan;
+  final double zoom;
+  final double rotation;
+  final ValueChanged<Offset> onPanChanged;
+  final ValueChanged<double> onZoomChanged;
+  final ValueChanged<double> onRotationChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -901,6 +1011,13 @@ class _SwappableSlot extends StatelessWidget {
       showChrome: showChrome,
       selected: selected,
       onSelect: onSelect,
+      pan: pan,
+      zoom: zoom,
+      rotation: rotation,
+      normalizePan: true,
+      onPanChanged: onPanChanged,
+      onZoomChanged: onZoomChanged,
+      onRotationChanged: onRotationChanged,
     );
 
     return DragTarget<int>(

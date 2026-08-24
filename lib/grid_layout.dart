@@ -36,7 +36,36 @@ class GridLayout {
 
   bool get isOverlayFrame => id == 'overlay-frame';
 
-  bool get usesCreamCanvas => isDump || isBooth;
+  bool get isFilmHorizontal => id == 'film-h';
+
+  bool get isFilmVertical => id == 'film-v';
+
+  bool get isFilmStrip => isFilmHorizontal || isFilmVertical;
+
+  bool get usesCreamCanvas => isDump || isBooth || isFilmStrip;
+
+  LayoutGroup get group {
+    if (isDump || isBooth || isFilmStrip) return LayoutGroup.film;
+    if (isReaction || isOverlayFrame) return LayoutGroup.special;
+    return LayoutGroup.classic;
+  }
+}
+
+enum LayoutGroup { classic, film, special }
+
+extension LayoutGroupX on LayoutGroup {
+  String get label => switch (this) {
+        LayoutGroup.classic => 'Klassisk',
+        LayoutGroup.film => 'Film',
+        LayoutGroup.special => 'Spesial',
+      };
+}
+
+List<GridLayout> layoutsInGroup(LayoutGroup group) {
+  return [
+    for (final layout in gridLayouts)
+      if (layout.group == group) layout,
+  ];
 }
 
 const gridLayouts = [
@@ -302,6 +331,20 @@ const gridLayouts = [
     label: 'Booth',
     rows: [
       LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'film-h',
+    label: 'Film',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'film-v',
+    label: 'Film stående',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
     ],
   ),
   GridLayout(

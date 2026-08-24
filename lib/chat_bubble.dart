@@ -218,29 +218,37 @@ class LocationPillPreview extends StatelessWidget {
   const LocationPillPreview({
     super.key,
     this.label = 'Sted',
+    this.icon = Icons.location_on,
   });
 
   final String label;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return LocationPill(
-      color: locationPillColor,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.location_on, size: 16, color: Colors.white),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              height: 1.2,
-              fontWeight: FontWeight.w500,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 118),
+      child: LocationPill(
+        color: locationPillColor,
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: Colors.white),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  height: 1.2,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

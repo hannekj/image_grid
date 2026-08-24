@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'color_scrub_strip.dart';
+import 'editor_chrome.dart';
 import 'frame_style.dart';
 
 class FrameKindControls extends StatelessWidget {
@@ -18,17 +19,19 @@ class FrameKindControls extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: FrameChoiceChip(
+          child: EditorChoiceTile(
             label: 'Ingen ramme',
             selected: kind == FrameKind.none,
+            compact: true,
             onTap: () => onKindChanged(FrameKind.none),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: EditorChrome.spaceSm),
         Expanded(
-          child: FrameChoiceChip(
+          child: EditorChoiceTile(
             label: 'Ramme',
             selected: kind == FrameKind.stroke,
+            compact: true,
             onTap: () => onKindChanged(FrameKind.stroke),
           ),
         ),
@@ -79,58 +82,18 @@ class FrameThicknessControls extends StatelessWidget {
     return Row(
       children: [
         for (final option in strokeThicknesses) ...[
-          if (option != strokeThicknesses.first) const SizedBox(width: 8),
+          if (option != strokeThicknesses.first)
+            const SizedBox(width: EditorChrome.spaceSm),
           Expanded(
-            child: FrameChoiceChip(
+            child: EditorChoiceTile(
               label: option.label,
               selected: option.width == thickness.width,
+              compact: true,
               onTap: () => onThicknessChanged(option),
             ),
           ),
         ],
       ],
-    );
-  }
-}
-
-class FrameChoiceChip extends StatelessWidget {
-  const FrameChoiceChip({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? Colors.black : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-        side: BorderSide(
-          color: selected ? Colors.black : const Color(0xFFCCCCCC),
-        ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: selected ? Colors.white : Colors.black,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

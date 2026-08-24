@@ -22,15 +22,45 @@ class OverlayTextDialog extends StatefulWidget {
 }
 
 class _OverlayTextDialogState extends State<OverlayTextDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialValue,
-  );
+  late final TextEditingController _controller;
+  late String _weatherId;
 
-  bool get _isLocation => widget.kind == OverlayKind.location;
+  bool get _isWeather => widget.kind == OverlayKind.weather;
 
-  bool get _isMessage => widget.kind == OverlayKind.message;
+  @override
+  void initState() {
+    super.initState();
+    if (_isWeather) {
+      final initial = widget.initialValue.isNotEmpty
+          ? widget.initialValue
+          : overlayWeatherLabel();
+      final parts = overlayWeatherParts(initial);
+      _weatherId = _weatherIdFromValue(initial);
+      _controller = TextEditingController(text: parts.$2);
+    } else {
+      _weatherId = overlayWeatherPresets.first.id;
+      _controller = TextEditingController(
+        text: widget.initialValue.isNotEmpty
+            ? widget.initialValue
+            : overlayDefaultValue(widget.kind),
+      );
+    }
+  }
 
-  bool get _isBubble => _isLocation || _isMessage;
+  String _weatherIdFromValue(String value) {
+    final pipe = value.indexOf('|');
+    if (pipe > 0) return value.substring(0, pipe);
+    final parts = overlayWeatherParts(value);
+    for (final preset in overlayWeatherPresets) {
+      if (preset.icon == parts.$1) return preset.id;
+    }
+    return overlayWeatherPresets.first.id;
+  }
+
+  String _weatherResult() {
+    final temp = _controller.text.trim();
+    return '$_weatherId|${temp.isEmpty ? 'Vær' : temp}';
+  }
 
   @override
   void dispose() {
@@ -40,6 +70,8 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final weatherIcon = overlayWeatherIconForId(_weatherId);
+
     return AlertDialog(
       title: Text(
         switch (widget.kind) {
@@ -47,28 +79,81 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
             widget.isNew ? 'Legg til sted' : 'Rediger sted',
           OverlayKind.message =>
             widget.isNew ? 'Legg til melding' : 'Rediger melding',
-          _ => widget.isNew ? 'Legg til tekst' : 'Rediger tekst',
+          OverlayKind.date =>
+            widget.isNew ? 'Legg til dato' : 'Rediger dato',
+          OverlayKind.time =>
+            widget.isNew ? 'Legg til klokkeslett' : 'Rediger klokkeslett',
+          OverlayKind.weather =>
+            widget.isNew ? 'Legg til vær' : 'Rediger vær',
+          OverlayKind.text =>
+            widget.isNew ? 'Legg til tekst' : 'Rediger tekst',
         },
       ),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLines: _isBubble ? 4 : 3,
-        maxLength: _isLocation ? 40 : 80,
-        textCapitalization:
-            _isLocation ? TextCapitalization.words : TextCapitalization.sentences,
-        decoration: InputDecoration(
-          hintText: switch (widget.kind) {
-            OverlayKind.location => 'F.eks. Lofoten',
-            OverlayKind.message => 'Skriv meldingen',
-            _ => 'Skriv teksten her',
-          },
-          prefixIcon: switch (widget.kind) {
-            OverlayKind.location => const Icon(Icons.location_on),
-            OverlayKind.message => const Icon(Icons.chat_bubble_outline),
-            _ => null,
-          },
-        ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            maxLines: widget.kind == OverlayKind.message ? 4 : 1,
+            maxLength: switch (widget.kind) {
+              OverlayKind.location => 40,
+              OverlayKind.date || OverlayKind.time => 40,
+              OverlayKind.weather => 12,
+              _ => 80,
+            },
+            textCapitalization: switch (widget.kind) {
+              OverlayKind.location => TextCapitalization.words,
+              OverlayKind.date ||
+              OverlayKind.time ||
+              OverlayKind.weather =>
+                TextCapitalization.none,
+              _ => TextCapitalization.sentences,
+            },
+            keyboardType: widget.kind == OverlayKind.time
+                ? TextInputType.datetime
+                : TextInputType.text,
+            decoration: InputDecoration(
+              hintText: switch (widget.kind) {
+                OverlayKind.location => 'F.eks. Lofoten',
+                OverlayKind.message => 'Skriv meldingen',
+                OverlayKind.date => 'F.eks. 24. august 2026',
+                OverlayKind.time => 'F.eks. 19:45',
+                OverlayKind.weather => 'F.eks. 18°',
+                OverlayKind.text => 'Skriv teksten her',
+              },
+              prefixIcon: Icon(
+                _isWeather ? weatherIcon : overlayKindIcon(widget.kind),
+              ),
+            ),
+          ),
+          if (_isWeather) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final preset in overlayWeatherPresets)
+                  FilterChip(
+                    selected: _weatherId == preset.id,
+                    avatar: Icon(preset.icon, size: 18),
+                    label: Text(preset.temp),
+                    showCheckmark: false,
+                    onSelected: (_) {
+                      setState(() {
+                        _weatherId = preset.id;
+                        _controller.text = preset.temp;
+                        _controller.selection = TextSelection.collapsed(
+                          offset: preset.temp.length,
+                        );
+                      });
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ],
       ),
       actions: [
         TextButton(
@@ -76,7 +161,10 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
           child: const Text('Avbryt'),
         ),
         TextButton(
-          onPressed: () => Navigator.pop(context, _controller.text.trim()),
+          onPressed: () => Navigator.pop(
+            context,
+            _isWeather ? _weatherResult() : _controller.text.trim(),
+          ),
           child: const Text('Ferdig'),
         ),
       ],

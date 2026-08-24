@@ -27,6 +27,7 @@ class ImageSlot extends StatefulWidget {
     this.onPanChanged,
     this.onZoomChanged,
     this.onRotationChanged,
+    this.normalizePan = false,
     this.showAdjustToolbar = false,
     this.onDelete,
     this.onDuplicate,
@@ -48,6 +49,10 @@ class ImageSlot extends StatefulWidget {
   final ValueChanged<Offset>? onPanChanged;
   final ValueChanged<double>? onZoomChanged;
   final ValueChanged<double>? onRotationChanged;
+
+  /// When true, [pan] is stored as a fraction of the max pan (-1..1) so the
+  /// relative crop stays more stable when the slot aspect ratio changes.
+  final bool normalizePan;
   final bool showAdjustToolbar;
   final VoidCallback? onDelete;
   final VoidCallback? onDuplicate;
@@ -72,7 +77,7 @@ class _ImageSlotState extends State<ImageSlot>
 
   double get _zoom => widget.zoom ?? _localZoom;
 
-  Offset get _pan => widget.pan ?? _localPan;
+  Offset get _rawPan => widget.pan ?? _localPan;
 
   double get _rotation => widget.rotation ?? _localRotation;
 
@@ -129,7 +134,7 @@ class _ImageSlotState extends State<ImageSlot>
     return math.max(slot.width / image.width, slot.height / image.height);
   }
 
-  Offset _clampPan(Offset pan, Size slot) {
+  Offset _maxPan(Size slot) {
     final image = _imageSize;
     if (image == null) return Offset.zero;
 
@@ -142,14 +147,37 @@ class _ImageSlotState extends State<ImageSlot>
       maxX += extra;
       maxY += extra;
     }
+    return Offset(maxX, maxY);
+  }
 
+  Offset _clampPan(Offset pan, Size slot) {
+    final max = _maxPan(slot);
     return Offset(
-      pan.dx.clamp(-maxX, maxX),
-      pan.dy.clamp(-maxY, maxY),
+      pan.dx.clamp(-max.dx, max.dx),
+      pan.dy.clamp(-max.dy, max.dy),
     );
   }
 
+  Offset _resolvePan(Size slot) {
+    final raw = _rawPan;
+    if (_controlled && widget.normalizePan) {
+      final max = _maxPan(slot);
+      return Offset(
+        (raw.dx.clamp(-1.0, 1.0)) * max.dx,
+        (raw.dy.clamp(-1.0, 1.0)) * max.dy,
+      );
+    }
+    return _clampPan(raw, slot);
+  }
+
   void _setPan(Offset pan, Size slot) {
+    if (_controlled && widget.normalizePan) {
+      final max = _maxPan(slot);
+      final nx = max.dx <= 0.01 ? 0.0 : (pan.dx / max.dx).clamp(-1.0, 1.0);
+      final ny = max.dy <= 0.01 ? 0.0 : (pan.dy / max.dy).clamp(-1.0, 1.0);
+      widget.onPanChanged?.call(Offset(nx, ny));
+      return;
+    }
     final next = _clampPan(pan, slot);
     if (_controlled) {
       widget.onPanChanged?.call(next);
@@ -162,7 +190,9 @@ class _ImageSlotState extends State<ImageSlot>
     final next = zoom.clamp(_minZoom, _maxZoom).toDouble();
     if (_controlled) {
       widget.onZoomChanged?.call(next);
-      widget.onPanChanged?.call(_clampPan(_pan, slot));
+      if (!widget.normalizePan) {
+        widget.onPanChanged?.call(_clampPan(_rawPan, slot));
+      }
     } else {
       setState(() {
         _localZoom = next;
@@ -190,7 +220,7 @@ class _ImageSlotState extends State<ImageSlot>
 
   void _onScaleUpdate(ScaleUpdateDetails details, Size slot) {
     _setZoom(_gestureStartZoom * details.scale, slot);
-    _setPan(_pan + details.focalPointDelta, slot);
+    _setPan(_resolvePan(slot) + details.focalPointDelta, slot);
   }
 
   void _onScaleEnd(ScaleEndDetails details) {
@@ -232,7 +262,7 @@ class _ImageSlotState extends State<ImageSlot>
     required Size slot,
     required Size image,
   }) {
-    final pan = _clampPan(_pan, slot);
+    final pan = _resolvePan(slot);
     final scale = _coverScale(slot) * _zoom;
     final displayWidth = image.width * scale;
     final displayHeight = image.height * scale;
@@ -250,7 +280,7 @@ class _ImageSlotState extends State<ImageSlot>
           ? (_) => widget.onInteractionChanged?.call(true)
           : null,
       onPanUpdate: !gesturesEnabled && _handlesVisible
-          ? (details) => _setPan(_pan + details.delta, slot)
+          ? (details) => _setPan(_resolvePan(slot) + details.delta, slot)
           : null,
       onPanEnd: !gesturesEnabled && _handlesVisible
           ? (_) => widget.onInteractionChanged?.call(false)

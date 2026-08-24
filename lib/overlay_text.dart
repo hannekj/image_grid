@@ -143,12 +143,148 @@ const overlayPlatePresets = [
   OverlayPlateStyle(tone: OverlayPlateTone.dark, opacity: 0.75),
 ];
 
-enum OverlayKind { text, message, location }
+enum OverlayKind { text, message, location, date, time, weather }
 
 enum OverlayTextEffect { none, shadow, outline }
 
 Color overlayContrastColor(Color color) {
   return color.computeLuminance() > 0.55 ? const Color(0xFF111111) : Colors.white;
+}
+
+const _norwegianMonths = [
+  'januar',
+  'februar',
+  'mars',
+  'april',
+  'mai',
+  'juni',
+  'juli',
+  'august',
+  'september',
+  'oktober',
+  'november',
+  'desember',
+];
+
+String overlayDateLabel([DateTime? date]) {
+  final value = date ?? DateTime.now();
+  final month = _norwegianMonths[value.month - 1];
+  return '${value.day}. $month ${value.year}';
+}
+
+String overlayTimeLabel([DateTime? date]) {
+  final value = date ?? DateTime.now();
+  final h = value.hour.toString().padLeft(2, '0');
+  final m = value.minute.toString().padLeft(2, '0');
+  return '$h:$m';
+}
+
+class WeatherPreset {
+  const WeatherPreset({
+    required this.id,
+    required this.icon,
+    required this.temp,
+  });
+
+  final String id;
+  final IconData icon;
+  final String temp;
+
+  /// Stable storage — no emoji (avoids missing-glyph / overlap bugs).
+  String get value => '$id|$temp';
+}
+
+const overlayWeatherPresets = [
+  WeatherPreset(id: 'sun', icon: Icons.wb_sunny_outlined, temp: '22°'),
+  WeatherPreset(id: 'partly', icon: Icons.wb_cloudy_outlined, temp: '16°'),
+  WeatherPreset(id: 'cloud', icon: Icons.cloud_outlined, temp: '12°'),
+  WeatherPreset(id: 'rain', icon: Icons.water_drop_outlined, temp: '8°'),
+  WeatherPreset(id: 'snow', icon: Icons.ac_unit, temp: '−2°'),
+  WeatherPreset(id: 'fog', icon: Icons.foggy, temp: '6°'),
+];
+
+String overlayWeatherLabel() => overlayWeatherPresets.first.value;
+
+IconData overlayWeatherIconForId(String id) {
+  for (final preset in overlayWeatherPresets) {
+    if (preset.id == id) return preset.icon;
+  }
+  return Icons.wb_sunny_outlined;
+}
+
+/// Maps a weather sticker value to a Material icon + plain label (no emoji).
+(IconData icon, String label) overlayWeatherParts(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return (Icons.wb_sunny_outlined, 'Vær');
+  }
+
+  final pipe = trimmed.indexOf('|');
+  if (pipe > 0) {
+    final id = trimmed.substring(0, pipe);
+    final temp = trimmed.substring(pipe + 1).trim();
+    return (
+      overlayWeatherIconForId(id),
+      temp.isEmpty ? 'Vær' : temp,
+    );
+  }
+
+  // Legacy emoji values from older stickers.
+  const prefixes = <(String, IconData)>[
+    ('☀️', Icons.wb_sunny_outlined),
+    ('☀', Icons.wb_sunny_outlined),
+    ('⛅', Icons.wb_cloudy_outlined),
+    ('☁️', Icons.cloud_outlined),
+    ('☁', Icons.cloud_outlined),
+    ('🌧', Icons.water_drop_outlined),
+    ('⛈️', Icons.thunderstorm_outlined),
+    ('⛈', Icons.thunderstorm_outlined),
+    ('❄️', Icons.ac_unit),
+    ('❄', Icons.ac_unit),
+    ('🌫', Icons.foggy),
+  ];
+
+  for (final (prefix, icon) in prefixes) {
+    if (trimmed.startsWith(prefix)) {
+      final rest = trimmed.substring(prefix.length).trim();
+      return (icon, rest.isEmpty ? 'Vær' : rest);
+    }
+  }
+
+  return (Icons.wb_sunny_outlined, trimmed);
+}
+
+String overlayDefaultValue(OverlayKind kind) {
+  return switch (kind) {
+    OverlayKind.date => overlayDateLabel(),
+    OverlayKind.time => overlayTimeLabel(),
+    OverlayKind.weather => overlayWeatherLabel(),
+    OverlayKind.location => '',
+    OverlayKind.message => '',
+    OverlayKind.text => '',
+  };
+}
+
+IconData overlayKindIcon(OverlayKind kind) {
+  return switch (kind) {
+    OverlayKind.location => Icons.location_on,
+    OverlayKind.message => Icons.chat_bubble_outline,
+    OverlayKind.date => Icons.calendar_today_outlined,
+    OverlayKind.time => Icons.schedule,
+    OverlayKind.weather => Icons.wb_sunny_outlined,
+    OverlayKind.text => Icons.title,
+  };
+}
+
+String overlayKindLabel(OverlayKind kind) {
+  return switch (kind) {
+    OverlayKind.location => 'Sted',
+    OverlayKind.message => 'Melding',
+    OverlayKind.date => 'Dato',
+    OverlayKind.time => 'Klokke',
+    OverlayKind.weather => 'Vær',
+    OverlayKind.text => 'Tekst',
+  };
 }
 
 Alignment overlayTextDefaultAlignment(int index) {
@@ -230,6 +366,31 @@ class OverlayText {
       );
     }
 
+    if (kind == OverlayKind.date ||
+        kind == OverlayKind.time ||
+        kind == OverlayKind.weather) {
+      const bubble = locationPillColor;
+      final base = styleFrom != null && styleFrom.kind == kind ? styleFrom : null;
+      final bubbleColor = base?.bubbleColor ?? bubble;
+      final alignment = switch (kind) {
+        OverlayKind.date => const Alignment(-0.55, 0.78),
+        OverlayKind.time => const Alignment(0.55, 0.78),
+        _ => const Alignment(0.0, -0.72),
+      };
+      return OverlayText(
+        value: value,
+        kind: kind,
+        bubbleColor: bubbleColor,
+        color: base?.color ?? overlayContrastColor(bubbleColor),
+        fontSize: base?.fontSize ?? 15,
+        fontId: 'sans',
+        alignment: base?.alignment ?? alignment,
+        textAlign: TextAlign.left,
+        effect: OverlayTextEffect.none,
+        plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
+      );
+    }
+
     final base =
         styleFrom != null && styleFrom.kind == OverlayKind.text
             ? styleFrom
@@ -269,11 +430,21 @@ class OverlayText {
 
   bool get isMessage => kind == OverlayKind.message;
 
-  bool get isBubble => isMessage || isLocation;
+  bool get isDate => kind == OverlayKind.date;
+
+  bool get isTime => kind == OverlayKind.time;
+
+  bool get isWeather => kind == OverlayKind.weather;
+
+  bool get isPill => isLocation || isDate || isTime || isWeather;
+
+  bool get isBubble => isMessage || isPill;
+
+  bool get isWidgetOverlay => isBubble;
 
   Color get effectiveBubbleColor {
     if (bubbleColor != null) return bubbleColor!;
-    if (isLocation) return locationPillColor;
+    if (isPill) return locationPillColor;
     return tailSide == BubbleTailSide.left ? chatBubbleGray : chatBubbleBlue;
   }
 

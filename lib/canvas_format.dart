@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'editor_chrome.dart';
+
 class CanvasFormat {
   const CanvasFormat({
     required this.id,
@@ -56,75 +58,26 @@ class FormatChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (final format in canvasFormats) ...[
-          if (format != canvasFormats.first) const SizedBox(width: 8),
-          Expanded(
-            child: _FormatChip(
-              format: format,
-              selected: format.id == selected.id,
-              compact: compact,
-              onTap: () => onChanged(format),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _FormatChip extends StatelessWidget {
-  const _FormatChip({
-    required this.format,
-    required this.selected,
-    required this.compact,
-    required this.onTap,
-  });
-
-  final CanvasFormat format;
-  final bool selected;
-  final bool compact;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? Colors.black : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-        side: BorderSide(
-          color: selected ? Colors.black : const Color(0xFFCCCCCC),
-        ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: compact ? 8 : 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                format.label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: compact ? 13 : 14,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : Colors.black,
-                ),
-              ),
-              SizedBox(height: compact ? 1 : 2),
-              Text(
-                format.caption,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: selected ? Colors.white70 : const Color(0xFF6B6B6B),
+    return SizedBox(
+      height: EditorChrome.panelHeight,
+      child: Align(
+        alignment: Alignment.center,
+        child: Row(
+          children: [
+            for (final format in canvasFormats) ...[
+              if (format != canvasFormats.first)
+                const SizedBox(width: EditorChrome.spaceSm),
+              Expanded(
+                child: EditorChoiceTile(
+                  label: format.label,
+                  caption: format.caption,
+                  selected: format.id == selected.id,
+                  compact: compact,
+                  onTap: () => onChanged(format),
                 ),
               ),
             ],
-          ),
+          ],
         ),
       ),
     );

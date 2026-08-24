@@ -15,14 +15,12 @@ import 'discard_dialog.dart';
 import 'editor_tool_grid.dart';
 import 'image_corner_handles.dart';
 import 'image_slot.dart';
+import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
-import 'overlay_text_controls.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
-import 'overlay_text_templates.dart';
-import 'overlay_widget_controls.dart';
 
-enum _CarouselTool { slides, format, text, widget }
+enum _CarouselTool { slides, format, text }
 
 class CarouselPage extends StatefulWidget {
   const CarouselPage({super.key});
@@ -239,7 +237,7 @@ class _CarouselPageState extends State<CarouselPage> {
       context: context,
       builder: (context) {
         return OverlayTextDialog(
-          initialValue: '',
+          initialValue: overlayDefaultValue(kind),
           isNew: true,
           kind: kind,
         );
@@ -260,11 +258,7 @@ class _CarouselPageState extends State<CarouselPage> {
       ),
     );
     _setCurrentOverlays(overlays, selected: overlays.length - 1);
-    if (kind == OverlayKind.message || kind == OverlayKind.location) {
-      setState(() => _tool = _CarouselTool.widget);
-    } else if (kind == OverlayKind.text) {
-      setState(() => _tool = _CarouselTool.text);
-    }
+    setState(() => _tool = _CarouselTool.text);
   }
 
   Future<void> _addEditorial() async {
@@ -280,6 +274,7 @@ class _CarouselPageState extends State<CarouselPage> {
       overlays,
       selected: overlays.length - result.length,
     );
+    setState(() => _tool = _CarouselTool.text);
   }
 
   Future<void> _editOverlay(int index) async {
@@ -801,7 +796,6 @@ class _CarouselPageState extends State<CarouselPage> {
       _CarouselTool.slides => 'slides',
       _CarouselTool.format => 'format',
       _CarouselTool.text => 'text',
-      _CarouselTool.widget => 'widget',
       null => null,
     };
   }
@@ -817,17 +811,6 @@ class _CarouselPageState extends State<CarouselPage> {
           _tool = _CarouselTool.text;
           if (_current.overlays.isNotEmpty && _selectedOverlayIndex == null) {
             _selectedOverlayIndex = _current.overlays.length - 1;
-          }
-        });
-      case 'editorial':
-        _addEditorial();
-      case 'widget':
-        setState(() {
-          _tool = _CarouselTool.widget;
-          final bubbleIndex =
-              _current.overlays.indexWhere((overlay) => overlay.isBubble);
-          if (bubbleIndex >= 0) {
-            _selectedOverlayIndex = bubbleIndex;
           }
         });
     }
@@ -901,25 +884,25 @@ class _CarouselPageState extends State<CarouselPage> {
           onChanged: (format) => setState(() => _format = format),
         );
       case _CarouselTool.text:
-        return OverlayTextControls(
+        return OverlayComposePanel(
           overlays: _current.overlays,
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlay,
           onAddText: () => _addOverlay(OverlayKind.text),
-          onChanged: _updateSelectedOverlay,
-          onRemove: _removeSelectedOverlay,
-          onEdit: _editOverlay,
-        );
-      case _CarouselTool.widget:
-        return OverlayWidgetControls(
-          overlays: _current.overlays,
-          selectedIndex: _selectedOverlayIndex,
-          onSelect: _selectOverlay,
           onAddMessage: () => _addOverlay(OverlayKind.message),
           onAddLocation: () => _addOverlay(OverlayKind.location),
+          onAddDate: () => _addOverlay(OverlayKind.date),
+          onAddTime: () => _addOverlay(OverlayKind.time),
+          onAddWeather: () => _addOverlay(OverlayKind.weather),
+          onAddTemplate: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
           onEdit: _editOverlay,
+          initialTab: (_selectedOverlayIndex != null &&
+                  _selectedOverlayIndex! < _current.overlays.length &&
+                  _current.overlays[_selectedOverlayIndex!].isWidgetOverlay)
+              ? OverlayComposeTab.sticker
+              : OverlayComposeTab.text,
         );
       case null:
         return const SizedBox.shrink();
@@ -1048,7 +1031,7 @@ class _CarouselPageState extends State<CarouselPage> {
                   child: ColoredBox(
                     color: AppTheme.cream,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       child: _buildToolPanel(),
                     ),
                   ),

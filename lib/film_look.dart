@@ -268,35 +268,31 @@ class LookToggleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? Colors.black : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-        side: BorderSide(
-          color: selected ? Colors.black : const Color(0xFFCCCCCC),
+    final child = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: expand ? 0 : 12,
+        vertical: 10,
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          color: selected ? const Color(0xFF2C3028) : const Color(0xFF6F7668),
         ),
       ),
+    );
+
+    return Material(
+      color: selected
+          ? const Color(0xFF7E8F72).withValues(alpha: 0.14)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: SizedBox(
-          width: expand ? double.infinity : null,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: expand ? 0 : 14,
-              vertical: 10,
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: selected ? Colors.white : Colors.black,
-              ),
-            ),
-          ),
-        ),
+        borderRadius: BorderRadius.circular(10),
+        child: expand ? SizedBox(width: double.infinity, child: child) : child,
       ),
     );
   }

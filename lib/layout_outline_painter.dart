@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
@@ -27,6 +29,11 @@ class LayoutOutlinePainter extends CustomPainter {
 
     if (layout.isBooth) {
       _paintBooth(canvas, size);
+      return;
+    }
+
+    if (layout.isFilmStrip) {
+      _paintFilmStrip(canvas, size, layout.isFilmHorizontal);
       return;
     }
 
@@ -126,6 +133,130 @@ class LayoutOutlinePainter extends CustomPainter {
         Rect.fromLTRB(-width / 2 + insetX, y, width / 2 - insetX, y + cellHeight),
         cellPaint,
       );
+    }
+    canvas.restore();
+  }
+
+  void _paintFilmStrip(Canvas canvas, Size size, bool horizontal) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = AppTheme.cream);
+    final filmPaint = Paint()..color = const Color(0xFF1A1A1A);
+    final holePaint = Paint()..color = const Color(0xFFE8E4DC);
+    final cellPaint = Paint()..color = cellColor;
+
+    late Rect strip;
+    if (horizontal) {
+      final height = size.height * 0.34;
+      final width = math.min(size.width * 0.90, height * 3.2);
+      strip = Rect.fromCenter(
+        center: Offset(size.width / 2, size.height / 2),
+        width: width,
+        height: height,
+      );
+    } else {
+      final width = size.width * 0.34;
+      final height = math.min(size.height * 0.90, width * 3.2);
+      strip = Rect.fromCenter(
+        center: Offset(size.width / 2, size.height / 2),
+        width: width,
+        height: height,
+      );
+    }
+
+    canvas.save();
+    canvas.translate(strip.center.dx, strip.center.dy);
+    canvas.rotate(horizontal ? -0.03 : 0.035);
+    final local = Rect.fromCenter(
+      center: Offset.zero,
+      width: strip.width,
+      height: strip.height,
+    );
+    canvas.drawRect(local, filmPaint);
+
+    final holeCount = 8;
+    if (horizontal) {
+      final band = local.height * 0.16;
+      final holeW = local.height * 0.055;
+      final holeH = local.height * 0.07;
+      final spacing = local.width / (holeCount + 1);
+      for (var i = 1; i <= holeCount; i++) {
+        final x = local.left + spacing * i;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset(x, local.top + band / 2),
+              width: holeW,
+              height: holeH,
+            ),
+            const Radius.circular(0.6),
+          ),
+          holePaint,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset(x, local.bottom - band / 2),
+              width: holeW,
+              height: holeH,
+            ),
+            const Radius.circular(0.6),
+          ),
+          holePaint,
+        );
+      }
+      final insetY = local.height * 0.20;
+      final insetX = local.width * 0.05;
+      final gap = local.width * 0.025;
+      final cellW = (local.width - insetX * 2 - gap * 3) / 4;
+      final cellH = local.height - insetY * 2;
+      for (var i = 0; i < 4; i++) {
+        final x = local.left + insetX + i * (cellW + gap);
+        canvas.drawRect(
+          Rect.fromLTWH(x, local.top + insetY, cellW, cellH),
+          cellPaint,
+        );
+      }
+    } else {
+      final band = local.width * 0.16;
+      final holeW = local.width * 0.07;
+      final holeH = local.width * 0.055;
+      final spacing = local.height / (holeCount + 1);
+      for (var i = 1; i <= holeCount; i++) {
+        final y = local.top + spacing * i;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset(local.left + band / 2, y),
+              width: holeW,
+              height: holeH,
+            ),
+            const Radius.circular(0.6),
+          ),
+          holePaint,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset(local.right - band / 2, y),
+              width: holeW,
+              height: holeH,
+            ),
+            const Radius.circular(0.6),
+          ),
+          holePaint,
+        );
+      }
+      final insetX = local.width * 0.20;
+      final insetY = local.height * 0.05;
+      final gap = local.height * 0.025;
+      final cellW = local.width - insetX * 2;
+      final cellH = (local.height - insetY * 2 - gap * 3) / 4;
+      for (var i = 0; i < 4; i++) {
+        final y = local.top + insetY + i * (cellH + gap);
+        canvas.drawRect(
+          Rect.fromLTWH(local.left + insetX, y, cellW, cellH),
+          cellPaint,
+        );
+      }
     }
     canvas.restore();
   }
