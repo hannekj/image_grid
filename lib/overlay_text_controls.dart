@@ -66,10 +66,21 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
   @override
   Widget build(BuildContext context) {
     if (_textIndexes.isEmpty) {
-      return OutlinedButton.icon(
-        onPressed: widget.onAddText,
-        icon: const Icon(Icons.title),
-        label: const Text('Tekst'),
+      return GestureDetector(
+        onTap: widget.onAddText,
+        child: Row(
+          children: [
+            const Icon(Icons.title, size: 20, color: AppTheme.muted),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Legg til tekst',
+                style: TextStyle(fontSize: 13, color: AppTheme.muted),
+              ),
+            ),
+            Icon(Icons.add, size: 20, color: AppTheme.muted),
+          ],
+        ),
       );
     }
 

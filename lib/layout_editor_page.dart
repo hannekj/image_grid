@@ -24,7 +24,6 @@ import 'overlay_text.dart';
 import 'overlay_text_controls.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
-import 'overlay_text_templates.dart';
 import 'overlay_widget_controls.dart';
 
 class LayoutEditorPage extends StatefulWidget {
@@ -181,11 +180,6 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     _showMessage(
       'Hold inne et bilde og dra det til et annet felt for å bytte plass.',
     );
-  }
-
-  void _deselectOverlayText() {
-    if (_selectedOverlayIndex == null) return;
-    setState(() => _selectedOverlayIndex = null);
   }
 
   void _selectOverlayText(int index) {
@@ -518,10 +512,52 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildOverlayFrame() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        final frameWidth = width * 0.66;
+        final frameHeight = height * 0.68;
+        final border = math.max(10.0, math.min(frameWidth, frameHeight) * 0.035);
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            _slot(0),
+            Center(
+              child: SizedBox(
+                width: frameWidth,
+                height: frameHeight,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(border),
+                    child: _slot(1),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildBody(double strokeWidth) {
     if (_layout.isDump) return _buildDump();
     if (_layout.isBooth) return _buildBooth();
     if (_layout.isReaction) return _buildReaction();
+    if (_layout.isOverlayFrame) return _buildOverlayFrame();
     return _buildGrid(strokeWidth);
   }
 

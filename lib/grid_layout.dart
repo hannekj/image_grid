@@ -34,6 +34,8 @@ class GridLayout {
 
   bool get isBooth => id == 'booth';
 
+  bool get isOverlayFrame => id == 'overlay-frame';
+
   bool get usesCreamCanvas => isDump || isBooth;
 }
 
@@ -279,6 +281,13 @@ const gridLayouts = [
       LayoutRow(flex: 1, cells: [1, 2]),
       LayoutRow(flex: 1, cells: [2, 1]),
       LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
+  GridLayout(
+    id: 'overlay-frame',
+    label: 'Ramme over',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
     ],
   ),
   GridLayout(

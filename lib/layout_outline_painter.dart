@@ -35,6 +35,11 @@ class LayoutOutlinePainter extends CustomPainter {
       return;
     }
 
+    if (layout.isOverlayFrame) {
+      _paintOverlayFrame(canvas, size);
+      return;
+    }
+
     final cellPaint = Paint()..color = cellColor;
     final rowFlexTotal = layout.rowFlexTotal;
     final rowCount = layout.rows.length;
@@ -150,6 +155,33 @@ class LayoutOutlinePainter extends CustomPainter {
         rect.deflate(1.2),
         Radius.circular(radius * 0.85),
       ),
+      cellPaint,
+    );
+  }
+
+  void _paintOverlayFrame(Canvas canvas, Size size) {
+    final cellPaint = Paint()..color = cellColor;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(1.5)),
+      cellPaint,
+    );
+
+    final frameWidth = size.width * 0.62;
+    final frameHeight = size.height * 0.68;
+    final frame = Rect.fromCenter(
+      center: Offset(size.width * 0.5, size.height * 0.52),
+      width: frameWidth,
+      height: frameHeight,
+    );
+    final border = size.shortestSide * 0.045;
+
+    canvas.drawRect(frame, Paint()..color = Colors.white);
+    canvas.drawRect(
+      frame.deflate(border),
+      Paint()..color = gapColor,
+    );
+    canvas.drawRect(
+      frame.deflate(border * 1.35),
       cellPaint,
     );
   }
