@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_theme.dart';
 import 'canvas_format.dart';
 import 'carousel_page.dart';
-import 'crop_page.dart';
 import 'draft_storage.dart';
 import 'grid_layout.dart';
 import 'layout_editor_page.dart';
@@ -20,10 +19,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool _hasCarouselDraft = false;
   bool _hasLayoutDraft = false;
-  bool _hasCropDraft = false;
   DateTime? _carouselDraftSavedAt;
   DateTime? _layoutDraftSavedAt;
-  DateTime? _cropDraftSavedAt;
 
   @override
   void initState() {
@@ -34,20 +31,16 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadDraftFlags() async {
     final carousel = await DraftStorage.hasCarouselDraft();
     final layout = await DraftStorage.hasLayoutDraft();
-    final crop = await DraftStorage.hasCropDraft();
     final carouselSavedAt =
         carousel ? await DraftStorage.carouselDraftSavedAt() : null;
     final layoutSavedAt =
         layout ? await DraftStorage.layoutDraftSavedAt() : null;
-    final cropSavedAt = crop ? await DraftStorage.cropDraftSavedAt() : null;
     if (!mounted) return;
     setState(() {
       _hasCarouselDraft = carousel;
       _hasLayoutDraft = layout;
-      _hasCropDraft = crop;
       _carouselDraftSavedAt = carouselSavedAt;
       _layoutDraftSavedAt = layoutSavedAt;
-      _cropDraftSavedAt = cropSavedAt;
     });
   }
 
@@ -72,15 +65,6 @@ class _HomePageState extends State<HomePage> {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => const CarouselPage(),
-      ),
-    );
-    await _loadDraftFlags();
-  }
-
-  Future<void> _openCrop() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const CropPage(),
       ),
     );
     await _loadDraftFlags();
@@ -146,36 +130,16 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton(
-                    onPressed: _openCarousel,
-                    child: Text(
-                      _hasCarouselDraft
-                          ? _continueLabel(
-                              'Fortsett karusell',
-                              _carouselDraftSavedAt,
-                            )
-                          : 'Karusell',
-                    ),
-                  ),
-                  const Text(
-                    '·',
-                    style: TextStyle(color: AppTheme.muted, fontSize: 16),
-                  ),
-                  TextButton(
-                    onPressed: _openCrop,
-                    child: Text(
-                      _hasCropDraft
-                          ? _continueLabel(
-                              'Fortsett beskjær',
-                              _cropDraftSavedAt,
-                            )
-                          : 'Beskjær',
-                    ),
-                  ),
-                ],
+              TextButton(
+                onPressed: _openCarousel,
+                child: Text(
+                  _hasCarouselDraft
+                      ? _continueLabel(
+                          'Fortsett karusell',
+                          _carouselDraftSavedAt,
+                        )
+                      : 'Karusell',
+                ),
               ),
             ],
           ),

@@ -132,9 +132,7 @@ void main() {
     expect(find.text('Bildekarusell'), findsOneWidget);
   });
 
-  testWidgets('home Karusell and Beskjær open their tools', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('home Karusell opens its tools', (WidgetTester tester) async {
     await tester.pumpWidget(const ImageGridApp());
 
     await tester.tap(find.text('Karusell'));
@@ -150,20 +148,8 @@ void main() {
 
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Beskjær'));
-    await tester.pumpAndSettle();
-    expect(find.text('Beskjær'), findsWidgets);
-    expect(find.text('Del'), findsOneWidget);
-    expect(find.text('Format'), findsOneWidget);
-    expect(find.byTooltip('Forhåndsvis'), findsOneWidget);
-    expect(find.text('Velg et bilde'), findsOneWidget);
-    expect(find.text('Velg bilde'), findsOneWidget);
-
-    await tester.tap(find.text('Format'));
-    await tester.pumpAndSettle();
-    expect(find.text('4:5'), findsOneWidget);
-    expect(find.text('1:1'), findsOneWidget);
+    expect(find.text('Bildekarusell'), findsOneWidget);
+    expect(find.text('Beskjær'), findsNothing);
   });
 
   testWidgets('dump layout opens polaroid editor', (WidgetTester tester) async {

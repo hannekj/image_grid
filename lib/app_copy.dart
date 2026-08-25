@@ -19,8 +19,6 @@ class AppCopy {
   static const emptyCarouselAction = 'Velg bilder';
   static const emptyLayoutTitle = 'Velg bilder til rammen';
   static const emptyLayoutAction = 'Velg bilder';
-  static const emptyCropTitle = 'Velg et bilde';
-  static const emptyCropAction = 'Velg bilde';
 
   static String exportProgress(int current, int total) => '$current/$total…';
 

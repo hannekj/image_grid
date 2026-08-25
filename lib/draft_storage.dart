@@ -16,10 +16,8 @@ import 'overlay_text.dart';
 class DraftStorage {
   static const _carouselFile = 'carousel_draft.json';
   static const _layoutFile = 'layout_draft.json';
-  static const _cropFile = 'crop_draft.json';
   static const _carouselDir = 'carousel_draft';
   static const _layoutDir = 'layout_draft';
-  static const _cropDir = 'crop_draft';
 
   static Future<Directory> _root() async {
     final base = await getApplicationDocumentsDirectory();
@@ -38,16 +36,10 @@ class DraftStorage {
     return File('${(await _root()).path}/$_layoutFile').exists();
   }
 
-  static Future<bool> hasCropDraft() async {
-    return File('${(await _root()).path}/$_cropFile').exists();
-  }
-
   static Future<DateTime?> carouselDraftSavedAt() =>
       _draftSavedAt(_carouselFile);
 
   static Future<DateTime?> layoutDraftSavedAt() => _draftSavedAt(_layoutFile);
-
-  static Future<DateTime?> cropDraftSavedAt() => _draftSavedAt(_cropFile);
 
   static String formatSavedAt(DateTime savedAt) {
     final now = DateTime.now();
@@ -92,14 +84,6 @@ class DraftStorage {
     final file = File('${root.path}/$_layoutFile');
     if (await file.exists()) await file.delete();
     final images = Directory('${root.path}/$_layoutDir');
-    if (await images.exists()) await images.delete(recursive: true);
-  }
-
-  static Future<void> clearCropDraft() async {
-    final root = await _root();
-    final file = File('${root.path}/$_cropFile');
-    if (await file.exists()) await file.delete();
-    final images = Directory('${root.path}/$_cropDir');
     if (await images.exists()) await images.delete(recursive: true);
   }
 
@@ -347,66 +331,6 @@ class DraftStorage {
       slots: slots,
       slotViews: slotViews,
       overlays: overlays,
-    );
-  }
-
-  static Future<void> saveCropDraft(CropDraftData data) async {
-    final root = await _root();
-    final imageDir = Directory('${root.path}/$_cropDir');
-    if (await imageDir.exists()) {
-      await imageDir.delete(recursive: true);
-    }
-    await imageDir.create(recursive: true);
-
-    String? imageName;
-    if (data.imageBytes != null) {
-      imageName = 'crop.jpg';
-      await File('${imageDir.path}/$imageName').writeAsBytes(data.imageBytes!);
-    }
-
-    final payload = {
-      'version': 1,
-      'savedAt': DateTime.now().toIso8601String(),
-      'formatId': data.format.id,
-      'image': imageName,
-      'panX': data.pan.dx,
-      'panY': data.pan.dy,
-      'zoom': data.zoom,
-      'rotation': data.rotation,
-    };
-
-    await File('${root.path}/$_cropFile').writeAsString(jsonEncode(payload));
-  }
-
-  static Future<CropDraftData?> loadCropDraft() async {
-    final root = await _root();
-    final file = File('${root.path}/$_cropFile');
-    if (!await file.exists()) return null;
-
-    final map = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-    final format = canvasFormats.firstWhere(
-      (f) => f.id == map['formatId'],
-      orElse: () => canvasFormats.first,
-    );
-
-    Uint8List? bytes;
-    final imageName = map['image'] as String?;
-    if (imageName != null) {
-      final imageFile = File('${root.path}/$_cropDir/$imageName');
-      if (await imageFile.exists()) {
-        bytes = await imageFile.readAsBytes();
-      }
-    }
-
-    return CropDraftData(
-      format: format,
-      imageBytes: bytes,
-      pan: Offset(
-        (map['panX'] as num?)?.toDouble() ?? 0,
-        (map['panY'] as num?)?.toDouble() ?? 0,
-      ),
-      zoom: (map['zoom'] as num?)?.toDouble() ?? 1,
-      rotation: (map['rotation'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -666,22 +590,6 @@ class LayoutDraftSlotView {
     this.rotation = 0,
   });
 
-  final Offset pan;
-  final double zoom;
-  final double rotation;
-}
-
-class CropDraftData {
-  const CropDraftData({
-    required this.format,
-    this.imageBytes,
-    this.pan = Offset.zero,
-    this.zoom = 1,
-    this.rotation = 0,
-  });
-
-  final CanvasFormat format;
-  final Uint8List? imageBytes;
   final Offset pan;
   final double zoom;
   final double rotation;
