@@ -99,6 +99,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   EditorTool? _tool;
   final _history = EditorHistory<_LayoutSnapshot>();
   bool _slotInteracting = false;
+  bool _overlayInteracting = false;
 
   bool _swapHintShown = false;
 
@@ -123,43 +124,53 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   void _pushUndo() {
-    _history.push(
-      _LayoutSnapshot(
-        layout: _layout,
-        format: _format,
-        slots: List<Uint8List?>.from(_slots),
-        slotViews: List<_SlotView>.from(_slotViews),
-        overlays: [for (final overlay in _overlayTexts) overlay.copyWith()],
-        kind: _kind,
-        color: _color,
-        thickness: _thickness,
-        filter: _filter,
-        grain: _grain,
-      ),
+    _history.push(_captureSnapshot());
+  }
+
+  _LayoutSnapshot _captureSnapshot() {
+    return _LayoutSnapshot(
+      layout: _layout,
+      format: _format,
+      slots: List<Uint8List?>.from(_slots),
+      slotViews: List<_SlotView>.from(_slotViews),
+      overlays: [for (final overlay in _overlayTexts) overlay.copyWith()],
+      kind: _kind,
+      color: _color,
+      thickness: _thickness,
+      filter: _filter,
+      grain: _grain,
     );
   }
 
+  void _applySnapshot(_LayoutSnapshot snapshot) {
+    _layout = snapshot.layout;
+    _format = snapshot.format;
+    _slots = List<Uint8List?>.from(snapshot.slots);
+    _slotViews = List<_SlotView>.from(snapshot.slotViews);
+    _overlayTexts
+      ..clear()
+      ..addAll([
+        for (final overlay in snapshot.overlays) overlay.copyWith(),
+      ]);
+    _kind = snapshot.kind;
+    _color = snapshot.color;
+    _thickness = snapshot.thickness;
+    _filter = snapshot.filter;
+    _grain = snapshot.grain;
+    _selectedOverlayIndex = null;
+    _selectedSlotIndex = null;
+  }
+
   void _undo() {
-    final snapshot = _history.pop();
+    final snapshot = _history.undo(_captureSnapshot());
     if (snapshot == null) return;
-    setState(() {
-      _layout = snapshot.layout;
-      _format = snapshot.format;
-      _slots = List<Uint8List?>.from(snapshot.slots);
-      _slotViews = List<_SlotView>.from(snapshot.slotViews);
-      _overlayTexts
-        ..clear()
-        ..addAll([
-          for (final overlay in snapshot.overlays) overlay.copyWith(),
-        ]);
-      _kind = snapshot.kind;
-      _color = snapshot.color;
-      _thickness = snapshot.thickness;
-      _filter = snapshot.filter;
-      _grain = snapshot.grain;
-      _selectedOverlayIndex = null;
-      _selectedSlotIndex = null;
-    });
+    setState(() => _applySnapshot(snapshot));
+  }
+
+  void _redo() {
+    final snapshot = _history.redo(_captureSnapshot());
+    if (snapshot == null) return;
+    setState(() => _applySnapshot(snapshot));
   }
 
   Future<void> _saveDraft() async {
@@ -260,6 +271,13 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       _pushUndo();
     }
     _slotInteracting = active;
+  }
+
+  void _onOverlayInteractionChanged(bool active) {
+    if (active && !_overlayInteracting) {
+      _pushUndo();
+    }
+    _overlayInteracting = active;
   }
 
   double get _strokeWidth {
@@ -886,9 +904,13 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             ),
             PopupMenuButton<String>(
               tooltip: 'Mer',
-              enabled: _hasAnyImage && !_exporting && !_previewing,
+              enabled: !_exporting &&
+                  !_previewing &&
+                  (_hasAnyImage || _history.canRedo),
               onSelected: (value) async {
-                if (value == 'download') {
+                if (value == 'redo') {
+                  _redo();
+                } else if (value == 'download') {
                   await _downloadFrame();
                 } else if (value == 'save_draft') {
                   await _saveDraft();
@@ -896,15 +918,22 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                 }
               },
               itemBuilder: (context) {
-                return const [
+                return [
                   PopupMenuItem<String>(
-                    value: 'save_draft',
-                    child: Text('Lagre utkast'),
+                    value: 'redo',
+                    enabled: _history.canRedo,
+                    child: const Text('Gjør om'),
                   ),
-                  PopupMenuItem<String>(
-                    value: 'download',
-                    child: Text('Lagre i Bilder'),
-                  ),
+                  if (_hasAnyImage) ...[
+                    const PopupMenuItem<String>(
+                      value: 'save_draft',
+                      child: Text('Lagre utkast'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'download',
+                      child: Text('Lagre i Bilder'),
+                    ),
+                  ],
                 ];
               },
             ),
@@ -1015,6 +1044,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                         _selectedSlotIndex = null;
                                       });
                                     },
+                                    onInteractionChanged:
+                                        _onOverlayInteractionChanged,
                                   ),
                                   FilmLookLayer(
                                     grain: _grain,

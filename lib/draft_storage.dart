@@ -36,6 +36,41 @@ class DraftStorage {
     return File('${(await _root()).path}/$_layoutFile').exists();
   }
 
+  static Future<DateTime?> carouselDraftSavedAt() =>
+      _draftSavedAt(_carouselFile);
+
+  static Future<DateTime?> layoutDraftSavedAt() => _draftSavedAt(_layoutFile);
+
+  static String formatSavedAt(DateTime savedAt) {
+    final now = DateTime.now();
+    final local = savedAt.toLocal();
+    final today = DateTime(now.year, now.month, now.day);
+    final savedDay = DateTime(local.year, local.month, local.day);
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    final time = '$hour:$minute';
+
+    if (savedDay == today) return 'i dag $time';
+    if (savedDay == today.subtract(const Duration(days: 1))) {
+      return 'i går $time';
+    }
+    return '${local.day}.${local.month}. $time';
+  }
+
+  static Future<DateTime?> _draftSavedAt(String fileName) async {
+    final file = File('${(await _root()).path}/$fileName');
+    if (!await file.exists()) return null;
+
+    try {
+      final map = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final savedAt = map['savedAt'] as String?;
+      if (savedAt == null) return null;
+      return DateTime.parse(savedAt);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<void> clearCarouselDraft() async {
     final root = await _root();
     final file = File('${root.path}/$_carouselFile');

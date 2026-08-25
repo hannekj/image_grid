@@ -14,6 +14,7 @@ class OverlayTextsLayer extends StatelessWidget {
     required this.onAlignmentChanged,
     required this.onFontSizeChanged,
     required this.onRotationChanged,
+    this.onInteractionChanged,
   });
 
   final List<OverlayText> overlays;
@@ -24,6 +25,7 @@ class OverlayTextsLayer extends StatelessWidget {
   final void Function(int index, Alignment alignment) onAlignmentChanged;
   final void Function(int index, double fontSize) onFontSizeChanged;
   final void Function(int index, double rotation) onRotationChanged;
+  final ValueChanged<bool>? onInteractionChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +52,7 @@ class OverlayTextsLayer extends StatelessWidget {
                 onAlignmentChanged(i, alignment),
             onFontSizeChanged: (fontSize) => onFontSizeChanged(i, fontSize),
             onRotationChanged: (rotation) => onRotationChanged(i, rotation),
+            onInteractionChanged: onInteractionChanged,
           ),
       ],
     );
@@ -66,6 +69,7 @@ class OverlayTextLayer extends StatefulWidget {
     required this.onEdit,
     required this.onSelect,
     this.interactive = true,
+    this.onInteractionChanged,
   });
 
   final OverlayText overlay;
@@ -75,6 +79,7 @@ class OverlayTextLayer extends StatefulWidget {
   final VoidCallback onEdit;
   final VoidCallback onSelect;
   final bool interactive;
+  final ValueChanged<bool>? onInteractionChanged;
 
   static const _handleSize = 16.0;
   static const _snapThreshold = 0.07;
@@ -103,6 +108,11 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
       _snapX = false;
       _snapY = false;
     });
+    widget.onInteractionChanged?.call(false);
+  }
+
+  void _startInteraction() {
+    widget.onInteractionChanged?.call(true);
   }
 
   @override
@@ -166,7 +176,10 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                       onTap: interactive ? null : widget.onSelect,
                       onDoubleTap: widget.onEdit,
                       onPanStart: interactive
-                          ? (_) => setState(() => _dragging = true)
+                          ? (_) {
+                              _startInteraction();
+                              setState(() => _dragging = true);
+                            }
                           : null,
                       onPanUpdate: interactive
                           ? (details) {
@@ -212,6 +225,8 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                         right: 0,
                         child: Center(
                           child: _RotateHandle(
+                            onPanStart: _startInteraction,
+                            onPanEnd: () => widget.onInteractionChanged?.call(false),
                             onUpdate: (delta) {
                               widget.onRotationChanged(
                                 overlay.rotation + delta * 0.015,
@@ -236,6 +251,8 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                               ? null
                               : -OverlayTextLayer._handleSize / 2,
                           child: _ResizeHandle(
+                            onPanStart: _startInteraction,
+                            onPanEnd: () => widget.onInteractionChanged?.call(false),
                             onUpdate: (delta) {
                               final next = (overlay.fontSize +
                                       _sizeDelta(delta, corner))
@@ -428,15 +445,24 @@ extension on _Corner {
 }
 
 class _ResizeHandle extends StatelessWidget {
-  const _ResizeHandle({required this.onUpdate});
+  const _ResizeHandle({
+    required this.onUpdate,
+    this.onPanStart,
+    this.onPanEnd,
+  });
 
   final ValueChanged<Offset> onUpdate;
+  final VoidCallback? onPanStart;
+  final VoidCallback? onPanEnd;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onPanStart: (_) => onPanStart?.call(),
       onPanUpdate: (details) => onUpdate(details.delta),
+      onPanEnd: (_) => onPanEnd?.call(),
+      onPanCancel: () => onPanEnd?.call(),
       child: SizedBox(
         width: OverlayTextLayer._handleSize,
         height: OverlayTextLayer._handleSize,
@@ -463,15 +489,24 @@ class _ResizeHandle extends StatelessWidget {
 }
 
 class _RotateHandle extends StatelessWidget {
-  const _RotateHandle({required this.onUpdate});
+  const _RotateHandle({
+    required this.onUpdate,
+    this.onPanStart,
+    this.onPanEnd,
+  });
 
   final ValueChanged<double> onUpdate;
+  final VoidCallback? onPanStart;
+  final VoidCallback? onPanEnd;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onPanStart: (_) => onPanStart?.call(),
       onPanUpdate: (details) => onUpdate(details.delta.dx),
+      onPanEnd: (_) => onPanEnd?.call(),
+      onPanCancel: () => onPanEnd?.call(),
       child: SizedBox(
         width: 28,
         height: 28,

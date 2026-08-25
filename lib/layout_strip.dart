@@ -113,25 +113,29 @@ class _LayoutThumb extends StatelessWidget {
     final height = LayoutStrip.thumbHeight;
     final width = height * aspect;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected ? AppTheme.matcha : AppTheme.line,
-            width: selected ? 2 : 1,
+    return Semantics(
+      label: layout.label,
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected ? AppTheme.matcha : AppTheme.line,
+              width: selected ? 2 : 1,
+            ),
           ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(7),
-          child: ColoredBox(
-            color: AppTheme.cream,
-            child: CustomPaint(
-              painter: LayoutOutlinePainter(layout: layout),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(7),
+            child: ColoredBox(
+              color: AppTheme.cream,
+              child: CustomPaint(
+                painter: LayoutOutlinePainter(layout: layout),
+              ),
             ),
           ),
         ),

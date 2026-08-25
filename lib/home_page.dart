@@ -20,6 +20,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool _hasCarouselDraft = false;
   bool _hasLayoutDraft = false;
+  DateTime? _carouselDraftSavedAt;
+  DateTime? _layoutDraftSavedAt;
 
   @override
   void initState() {
@@ -30,11 +32,22 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadDraftFlags() async {
     final carousel = await DraftStorage.hasCarouselDraft();
     final layout = await DraftStorage.hasLayoutDraft();
+    final carouselSavedAt =
+        carousel ? await DraftStorage.carouselDraftSavedAt() : null;
+    final layoutSavedAt =
+        layout ? await DraftStorage.layoutDraftSavedAt() : null;
     if (!mounted) return;
     setState(() {
       _hasCarouselDraft = carousel;
       _hasLayoutDraft = layout;
+      _carouselDraftSavedAt = carouselSavedAt;
+      _layoutDraftSavedAt = layoutSavedAt;
     });
+  }
+
+  String _continueLabel(String base, DateTime? savedAt) {
+    if (savedAt == null) return base;
+    return '$base · ${DraftStorage.formatSavedAt(savedAt)}';
   }
 
   Future<void> _openGrid() async {
@@ -115,7 +128,9 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   child: Text(
-                    _hasLayoutDraft ? 'Fortsett innlegg' : 'Lag innlegg',
+                    _hasLayoutDraft
+                        ? _continueLabel('Fortsett innlegg', _layoutDraftSavedAt)
+                        : 'Lag innlegg',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -130,7 +145,12 @@ class _HomePageState extends State<HomePage> {
                   TextButton(
                     onPressed: _openCarousel,
                     child: Text(
-                      _hasCarouselDraft ? 'Fortsett karusell' : 'Karusell',
+                      _hasCarouselDraft
+                          ? _continueLabel(
+                              'Fortsett karusell',
+                              _carouselDraftSavedAt,
+                            )
+                          : 'Karusell',
                     ),
                   ),
                   const Text(

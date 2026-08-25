@@ -80,6 +80,7 @@ class _CarouselPageState extends State<CarouselPage> {
   bool _exporting = false;
   bool _previewing = false;
   bool _spanInteracting = false;
+  bool _overlayInteracting = false;
   bool _imageFocused = false;
   int _spanSeq = 0;
   int _slideSeq = 0;
@@ -142,37 +143,52 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   void _pushUndo() {
-    _history.push(
-      _CarouselSnapshot(
-        slides: _cloneSlides(_slides),
-        index: _index,
-        format: _format,
-        kind: _kind,
-        color: _color,
-        thickness: _thickness,
-        filter: _filter,
-        grain: _grain,
-      ),
+    _history.push(_captureSnapshot());
+  }
+
+  _CarouselSnapshot _captureSnapshot() {
+    return _CarouselSnapshot(
+      slides: _cloneSlides(_slides),
+      index: _index,
+      format: _format,
+      kind: _kind,
+      color: _color,
+      thickness: _thickness,
+      filter: _filter,
+      grain: _grain,
     );
   }
 
+  void _applySnapshot(_CarouselSnapshot snapshot) {
+    _slides
+      ..clear()
+      ..addAll(_cloneSlides(snapshot.slides));
+    _index = snapshot.index.clamp(0, _slides.length - 1);
+    _format = snapshot.format;
+    _kind = snapshot.kind;
+    _color = snapshot.color;
+    _thickness = snapshot.thickness;
+    _filter = snapshot.filter;
+    _grain = snapshot.grain;
+    _selectedOverlayIndex = null;
+    _imageFocused = false;
+  }
+
   void _undo() {
-    final snapshot = _history.pop();
+    final snapshot = _history.undo(_captureSnapshot());
     if (snapshot == null) return;
-    setState(() {
-      _slides
-        ..clear()
-        ..addAll(_cloneSlides(snapshot.slides));
-      _index = snapshot.index.clamp(0, _slides.length - 1);
-      _format = snapshot.format;
-      _kind = snapshot.kind;
-      _color = snapshot.color;
-      _thickness = snapshot.thickness;
-      _filter = snapshot.filter;
-      _grain = snapshot.grain;
-      _selectedOverlayIndex = null;
-      _imageFocused = false;
+    setState(() => _applySnapshot(snapshot));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(_index);
+      }
     });
+  }
+
+  void _redo() {
+    final snapshot = _history.redo(_captureSnapshot());
+    if (snapshot == null) return;
+    setState(() => _applySnapshot(snapshot));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_pageController.hasClients) {
         _pageController.jumpToPage(_index);
@@ -377,6 +393,13 @@ class _CarouselPageState extends State<CarouselPage> {
     }
     if (_spanInteracting == active) return;
     setState(() => _spanInteracting = active);
+  }
+
+  void _onOverlayInteractionChanged(bool active) {
+    if (active && !_overlayInteracting) {
+      _pushUndo();
+    }
+    _overlayInteracting = active;
   }
 
   void _togglePreview() {
@@ -1128,6 +1151,7 @@ class _CarouselPageState extends State<CarouselPage> {
             );
             _setCurrentOverlays(next, selected: overlayIndex);
           },
+          onInteractionChanged: _onOverlayInteractionChanged,
         ),
         FilmLookLayer(
           grain: _grain,
@@ -1345,9 +1369,13 @@ class _CarouselPageState extends State<CarouselPage> {
             ),
             PopupMenuButton<String>(
               tooltip: 'Mer',
-              enabled: _hasAnyImage && !_exporting && !_previewing,
+              enabled: !_exporting &&
+                  !_previewing &&
+                  (_hasAnyImage || _history.canRedo),
               onSelected: (value) async {
-                if (value == 'download') {
+                if (value == 'redo') {
+                  _redo();
+                } else if (value == 'download') {
                   await _downloadAll();
                 } else if (value == 'save_draft') {
                   await _saveDraft();
@@ -1355,15 +1383,22 @@ class _CarouselPageState extends State<CarouselPage> {
                 }
               },
               itemBuilder: (context) {
-                return const [
+                return [
                   PopupMenuItem<String>(
-                    value: 'save_draft',
-                    child: Text('Lagre utkast'),
+                    value: 'redo',
+                    enabled: _history.canRedo,
+                    child: const Text('Gjør om'),
                   ),
-                  PopupMenuItem<String>(
-                    value: 'download',
-                    child: Text('Lagre i Bilder'),
-                  ),
+                  if (_hasAnyImage) ...[
+                    const PopupMenuItem<String>(
+                      value: 'save_draft',
+                      child: Text('Lagre utkast'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'download',
+                      child: Text('Lagre i Bilder'),
+                    ),
+                  ],
                 ];
               },
             ),
