@@ -20,8 +20,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool _hasCarouselDraft = false;
   bool _hasLayoutDraft = false;
+  bool _hasCropDraft = false;
   DateTime? _carouselDraftSavedAt;
   DateTime? _layoutDraftSavedAt;
+  DateTime? _cropDraftSavedAt;
 
   @override
   void initState() {
@@ -32,16 +34,20 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadDraftFlags() async {
     final carousel = await DraftStorage.hasCarouselDraft();
     final layout = await DraftStorage.hasLayoutDraft();
+    final crop = await DraftStorage.hasCropDraft();
     final carouselSavedAt =
         carousel ? await DraftStorage.carouselDraftSavedAt() : null;
     final layoutSavedAt =
         layout ? await DraftStorage.layoutDraftSavedAt() : null;
+    final cropSavedAt = crop ? await DraftStorage.cropDraftSavedAt() : null;
     if (!mounted) return;
     setState(() {
       _hasCarouselDraft = carousel;
       _hasLayoutDraft = layout;
+      _hasCropDraft = crop;
       _carouselDraftSavedAt = carouselSavedAt;
       _layoutDraftSavedAt = layoutSavedAt;
+      _cropDraftSavedAt = cropSavedAt;
     });
   }
 
@@ -71,12 +77,13 @@ class _HomePageState extends State<HomePage> {
     await _loadDraftFlags();
   }
 
-  void _openCrop() {
-    Navigator.of(context).push(
+  Future<void> _openCrop() async {
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => const CropPage(),
       ),
     );
+    await _loadDraftFlags();
   }
 
   @override
@@ -159,7 +166,14 @@ class _HomePageState extends State<HomePage> {
                   ),
                   TextButton(
                     onPressed: _openCrop,
-                    child: const Text('Beskjær'),
+                    child: Text(
+                      _hasCropDraft
+                          ? _continueLabel(
+                              'Fortsett beskjær',
+                              _cropDraftSavedAt,
+                            )
+                          : 'Beskjær',
+                    ),
                   ),
                 ],
               ),

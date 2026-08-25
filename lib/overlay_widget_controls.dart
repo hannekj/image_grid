@@ -6,7 +6,7 @@ import 'editor_chrome.dart';
 import 'overlay_text.dart';
 import 'widget_picker.dart';
 
-enum _WidgetSection { color, font }
+enum _WidgetSection { color, format, font }
 
 class OverlayWidgetControls extends StatefulWidget {
   const OverlayWidgetControls({
@@ -63,6 +63,7 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
   List<_WidgetSection> _sectionsFor(OverlayText current) {
     return [
       _WidgetSection.color,
+      if (current.isDate) _WidgetSection.format,
       if (current.isMessage) _WidgetSection.font,
     ];
   }
@@ -155,6 +156,7 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
                       label: switch (section) {
                         _WidgetSection.color =>
                           current.isMessage ? 'Boble' : 'Farge',
+                        _WidgetSection.format => 'Format',
                         _WidgetSection.font => 'Font',
                       },
                       selected: _section == section,
@@ -202,6 +204,36 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
                   onChanged: (color) =>
                       widget.onChanged(current.withBubbleColor(color)),
                 ),
+              _WidgetSection.format => ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _DateFormatChip(
+                      label: overlayDateLabelNumeric(),
+                      selected: overlayDateLooksNumeric(current.value),
+                      onTap: () => widget.onChanged(
+                        current.copyWith(
+                          value: overlayDateReformat(
+                            current.value,
+                            numeric: true,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: EditorChrome.spaceSm),
+                    _DateFormatChip(
+                      label: overlayDateLabelLong(),
+                      selected: !overlayDateLooksNumeric(current.value),
+                      onTap: () => widget.onChanged(
+                        current.copyWith(
+                          value: overlayDateReformat(
+                            current.value,
+                            numeric: false,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               _WidgetSection.font => ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: overlayFonts.length,
@@ -222,6 +254,43 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DateFormatChip extends StatelessWidget {
+  const _DateFormatChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected
+          ? AppTheme.matcha.withValues(alpha: 0.14)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              color: selected ? AppTheme.ink : AppTheme.muted,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

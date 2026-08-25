@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'chat_bubble.dart';
+import 'flip_clock.dart';
 import 'overlay_text.dart';
 
 class OverlayTextsLayer extends StatelessWidget {
@@ -147,9 +148,16 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                 ),
         );
 
-        final selectionRadius = overlay.isBubble ? 18.0 : 4.0;
-        final showSelectionRing =
-            interactive && (overlay.isBubble || overlay.plateStyle.hasPlate);
+        final selectionRadius = overlay.isMessage
+            ? 18.0
+            : overlay.isPill
+                ? 18.0
+                : 4.0;
+        // Flip clock is a wide row of flaps — a pill ring draws semicircles
+        // on the sides. Corner handles already show selection.
+        final showSelectionRing = interactive &&
+            !overlay.isTime &&
+            (overlay.isBubble || overlay.plateStyle.hasPlate);
 
         return Stack(
           fit: StackFit.expand,
@@ -348,12 +356,37 @@ class _ChatBubbleContent extends StatelessWidget {
       );
     }
 
-    final iconSize = (overlay.fontSize * 1.05).clamp(12.0, 28.0);
+    if (overlay.isTime) {
+      return FlipClockDisplay(
+        time: overlay.value,
+        digitHeight: overlay.fontSize.clamp(22.0, 72.0),
+        flapColor: overlay.effectiveBubbleColor,
+        digitColor: overlay.color,
+      );
+    }
+
     final textStyle = overlayFontById('sans').style(
       color: overlay.color,
       fontSize: overlay.fontSize,
       height: 1.15,
     );
+
+    if (overlay.isDate) {
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: LocationPill(
+          color: overlay.effectiveBubbleColor,
+          child: Text(
+            overlay.value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: textStyle,
+          ),
+        ),
+      );
+    }
+
+    final iconSize = (overlay.fontSize * 1.05).clamp(12.0, 28.0);
 
     late final IconData icon;
     late final String label;

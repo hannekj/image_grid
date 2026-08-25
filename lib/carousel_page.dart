@@ -79,6 +79,8 @@ class _CarouselPageState extends State<CarouselPage> {
   int _index = 0;
   bool _exporting = false;
   bool _previewing = false;
+  int _exportCurrent = 0;
+  int _exportTotal = 0;
   bool _spanInteracting = false;
   bool _overlayInteracting = false;
   bool _imageFocused = false;
@@ -411,11 +413,6 @@ class _CarouselPageState extends State<CarouselPage> {
         _imageFocused = false;
       }
     });
-  }
-
-  void _exitPreview() {
-    if (!_previewing) return;
-    setState(() => _previewing = false);
   }
 
   void _updateSpanPan(String spanId, Offset pan) {
@@ -929,12 +926,28 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   Future<List<({String name, Uint8List bytes})>> _captureSlides() async {
+    final indexes = <int>[
+      for (var i = 0; i < _slides.length; i++)
+        if (!_slides[i].isEmpty) i,
+    ];
+    if (mounted) {
+      setState(() {
+        _exportTotal = indexes.length;
+        _exportCurrent = 0;
+      });
+    }
+
     final images = <({String name, Uint8List bytes})>[];
-    for (var i = 0; i < _slides.length; i++) {
-      if (_slides[i].isEmpty) continue;
+    for (var n = 0; n < indexes.length; n++) {
+      final i = indexes[n];
+      if (mounted) {
+        setState(() {
+          _exportCurrent = n + 1;
+          _index = i;
+        });
+      }
 
       _pageController.jumpToPage(i);
-      setState(() => _index = i);
       await WidgetsBinding.instance.endOfFrame;
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
@@ -956,6 +969,8 @@ class _CarouselPageState extends State<CarouselPage> {
       _exporting = true;
       _previewing = false;
       _selectedOverlayIndex = null;
+      _exportCurrent = 0;
+      _exportTotal = 0;
     });
     final current = _index;
 
@@ -980,6 +995,8 @@ class _CarouselPageState extends State<CarouselPage> {
       setState(() {
         _index = current;
         _exporting = false;
+        _exportCurrent = 0;
+        _exportTotal = 0;
       });
     }
   }
@@ -1365,7 +1382,13 @@ class _CarouselPageState extends State<CarouselPage> {
             TextButton(
               onPressed:
                   _hasAnyImage && !_exporting && !_previewing ? _shareAll : null,
-              child: Text(_exporting ? 'Vent…' : 'Del'),
+              child: Text(
+                _exporting
+                    ? (_exportTotal > 0
+                        ? '$_exportCurrent/$_exportTotal…'
+                        : 'Vent…')
+                    : 'Del',
+              ),
             ),
             PopupMenuButton<String>(
               tooltip: 'Mer',
@@ -1413,11 +1436,8 @@ class _CarouselPageState extends State<CarouselPage> {
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onTap: () {
-                      if (_previewing) {
-                        _exitPreview();
-                      } else {
-                        _clearFocus();
-                      }
+                      if (_previewing) return;
+                      _clearFocus();
                     },
                     child: Center(
                       child: Padding(
@@ -1442,6 +1462,7 @@ class _CarouselPageState extends State<CarouselPage> {
                               enabled: _previewing,
                               slideCount: _slides.length,
                               currentIndex: _index,
+                              onPageTap: _previewing ? _goTo : null,
                               child: RepaintBoundary(
                                 key: _frameKey,
                                 child: ColoredBox(

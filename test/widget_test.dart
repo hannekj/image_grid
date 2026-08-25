@@ -155,8 +155,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Beskjær'), findsWidgets);
     expect(find.text('Del'), findsOneWidget);
-    expect(find.text('Lagre'), findsOneWidget);
+    expect(find.text('Format'), findsOneWidget);
+    expect(find.byTooltip('Forhåndsvis'), findsOneWidget);
     expect(find.text('Trykk for å legge inn et bilde'), findsOneWidget);
+
+    await tester.tap(find.text('Format'));
+    await tester.pumpAndSettle();
+    expect(find.text('4:5'), findsOneWidget);
+    expect(find.text('1:1'), findsOneWidget);
   });
 
   testWidgets('dump layout opens polaroid editor', (WidgetTester tester) async {

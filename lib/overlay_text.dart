@@ -166,10 +166,58 @@ const _norwegianMonths = [
   'desember',
 ];
 
-String overlayDateLabel([DateTime? date]) {
+String overlayDateLabel([DateTime? date]) => overlayDateLabelLong(date);
+
+String overlayDateLabelLong([DateTime? date]) {
   final value = date ?? DateTime.now();
   final month = _norwegianMonths[value.month - 1];
   return '${value.day}. $month ${value.year}';
+}
+
+String overlayDateLabelNumeric([DateTime? date]) {
+  final value = date ?? DateTime.now();
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  return '$day.$month.${value.year}';
+}
+
+bool overlayDateLooksNumeric(String value) {
+  return RegExp(r'^\d{1,2}\.\d{1,2}\.\d{4}$').hasMatch(value.trim());
+}
+
+DateTime? tryParseOverlayDate(String raw) {
+  final value = raw.trim();
+  if (value.isEmpty) return null;
+
+  final numeric = RegExp(r'^(\d{1,2})\.(\d{1,2})\.(\d{4})$').firstMatch(value);
+  if (numeric != null) {
+    final day = int.parse(numeric.group(1)!);
+    final month = int.parse(numeric.group(2)!);
+    final year = int.parse(numeric.group(3)!);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return DateTime(year, month, day);
+  }
+
+  final long = RegExp(
+    r'^(\d{1,2})\.\s*([A-Za-zæøåÆØÅ]+)\s+(\d{4})$',
+  ).firstMatch(value);
+  if (long != null) {
+    final day = int.parse(long.group(1)!);
+    final monthName = long.group(2)!.toLowerCase();
+    final year = int.parse(long.group(3)!);
+    final monthIndex = _norwegianMonths.indexOf(monthName);
+    if (monthIndex < 0 || day < 1 || day > 31) return null;
+    return DateTime(year, monthIndex + 1, day);
+  }
+
+  return null;
+}
+
+String overlayDateReformat(String current, {required bool numeric}) {
+  final parsed = tryParseOverlayDate(current) ?? DateTime.now();
+  return numeric
+      ? overlayDateLabelNumeric(parsed)
+      : overlayDateLabelLong(parsed);
 }
 
 String overlayTimeLabel([DateTime? date]) {
@@ -375,8 +423,26 @@ class OverlayText {
       );
     }
 
+    if (kind == OverlayKind.time) {
+      const flap = Color(0xFFE5E5EA);
+      final base = styleFrom != null && styleFrom.kind == OverlayKind.time
+          ? styleFrom
+          : null;
+      return OverlayText(
+        value: value,
+        kind: OverlayKind.time,
+        bubbleColor: base?.bubbleColor ?? flap,
+        color: base?.color ?? const Color(0xFF1C1C1E),
+        fontSize: base?.fontSize ?? 36,
+        fontId: 'sans',
+        alignment: base?.alignment ?? const Alignment(0.0, 0.55),
+        textAlign: TextAlign.center,
+        effect: OverlayTextEffect.none,
+        plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
+      );
+    }
+
     if (kind == OverlayKind.date ||
-        kind == OverlayKind.time ||
         kind == OverlayKind.weather ||
         kind == OverlayKind.pageNumber) {
       const bubble = locationPillColor;
@@ -384,7 +450,6 @@ class OverlayText {
       final bubbleColor = base?.bubbleColor ?? bubble;
       final alignment = switch (kind) {
         OverlayKind.date => const Alignment(-0.55, 0.78),
-        OverlayKind.time => const Alignment(0.55, 0.78),
         OverlayKind.pageNumber => const Alignment(0.72, -0.78),
         _ => const Alignment(0.0, -0.72),
       };

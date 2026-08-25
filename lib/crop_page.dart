@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -9,8 +10,12 @@ import 'canvas_format.dart';
 import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'discard_dialog.dart';
-import 'export_bar.dart';
+import 'draft_storage.dart';
+import 'editor_tool_grid.dart';
 import 'image_slot.dart';
+import 'instagram_preview_chrome.dart';
+
+enum _CropTool { format }
 
 class CropPage extends StatefulWidget {
   const CropPage({super.key});
@@ -25,9 +30,89 @@ class _CropPageState extends State<CropPage> {
 
   CanvasFormat _format = canvasFormats.first;
   Uint8List? _image;
+  Offset _pan = Offset.zero;
+  double _zoom = 1;
+  double _rotation = 0;
   bool _exporting = false;
+  bool _previewing = false;
+  _CropTool? _tool;
 
   bool get _hasImage => _image != null;
+
+  bool get _cleanView => _exporting || _previewing;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _offerDraftRestore());
+  }
+
+  @override
+  void dispose() {
+    if (_hasImage) {
+      unawaited(_saveDraft());
+    }
+    super.dispose();
+  }
+
+  Future<void> _saveDraft() async {
+    if (!_hasImage) return;
+    await DraftStorage.saveCropDraft(
+      CropDraftData(
+        format: _format,
+        imageBytes: _image,
+        pan: _pan,
+        zoom: _zoom,
+        rotation: _rotation,
+      ),
+    );
+  }
+
+  void _applyDraft(CropDraftData draft) {
+    setState(() {
+      _format = draft.format;
+      _image = draft.imageBytes;
+      _pan = draft.pan;
+      _zoom = draft.zoom;
+      _rotation = draft.rotation;
+    });
+  }
+
+  Future<void> _offerDraftRestore() async {
+    if (!mounted || !await DraftStorage.hasCropDraft()) return;
+
+    final restore = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Fortsett beskjæring?'),
+          content: const Text(
+            'Du har et lagret utkast. Vil du fortsette der du slapp?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Start på nytt'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Fortsett'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted) return;
+
+    if (restore == true) {
+      final draft = await DraftStorage.loadCropDraft();
+      if (draft != null && mounted) {
+        _applyDraft(draft);
+      }
+    } else {
+      await DraftStorage.clearCropDraft();
+    }
+  }
 
   Future<void> _pickImage() async {
     final file = await _picker.pickImage(
@@ -38,7 +123,17 @@ class _CropPageState extends State<CropPage> {
 
     final bytes = await file.readAsBytes();
     if (!mounted) return;
-    setState(() => _image = bytes);
+    setState(() {
+      _image = bytes;
+      _pan = Offset.zero;
+      _zoom = 1;
+      _rotation = 0;
+    });
+  }
+
+  void _togglePreview() {
+    if (!_hasImage || _exporting) return;
+    setState(() => _previewing = !_previewing);
   }
 
   Future<void> _export(
@@ -47,7 +142,10 @@ class _CropPageState extends State<CropPage> {
   }) async {
     if (!_hasImage || _exporting) return;
 
-    setState(() => _exporting = true);
+    setState(() {
+      _exporting = true;
+      _previewing = false;
+    });
     await WidgetsBinding.instance.endOfFrame;
 
     try {
@@ -57,6 +155,7 @@ class _CropPageState extends State<CropPage> {
         return;
       }
       await save(pngBytes);
+      await DraftStorage.clearCropDraft();
       if (successMessage != null) _showMessage(successMessage);
     } catch (error) {
       _showMessage(
@@ -89,6 +188,20 @@ class _CropPageState extends State<CropPage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _onToolSelected(EditorToolDefinition definition) {
+    if (definition.id == 'format') {
+      setState(() => _tool = _CropTool.format);
+    }
+  }
+
+  Widget _buildToolPanel() {
+    return FormatChips(
+      selected: _format,
+      compact: true,
+      onChanged: (format) => setState(() => _format = format),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -96,7 +209,10 @@ class _CropPageState extends State<CropPage> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await confirmDiscard(context);
-        if (shouldPop && mounted) Navigator.of(context).pop();
+        if (shouldPop && mounted) {
+          await DraftStorage.clearCropDraft();
+          if (mounted) Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         backgroundColor: AppTheme.mist,
@@ -104,39 +220,91 @@ class _CropPageState extends State<CropPage> {
           backgroundColor: AppTheme.mist,
           title: const Text('Beskjær'),
           centerTitle: true,
+          actions: [
+            IconButton(
+              tooltip: _previewing ? 'Avslutt forhåndsvisning' : 'Forhåndsvis',
+              onPressed: _hasImage && !_exporting ? _togglePreview : null,
+              icon: Icon(
+                _previewing
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+              ),
+            ),
+            TextButton(
+              onPressed: _hasImage && !_exporting && !_previewing ? _share : null,
+              child: Text(_exporting ? 'Vent…' : 'Del'),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Mer',
+              enabled: _hasImage && !_exporting && !_previewing,
+              onSelected: (value) async {
+                if (value == 'download') {
+                  await _download();
+                } else if (value == 'save_draft') {
+                  await _saveDraft();
+                  if (mounted) _showMessage('Utkast lagret');
+                }
+              },
+              itemBuilder: (context) {
+                return const [
+                  PopupMenuItem<String>(
+                    value: 'save_draft',
+                    child: Text('Lagre utkast'),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'download',
+                    child: Text('Lagre i Bilder'),
+                  ),
+                ];
+              },
+            ),
+          ],
         ),
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            child: Column(
-              children: [
-                FormatChips(
-                  selected: _format,
-                  onChanged: (format) => setState(() => _format = format),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Center(
                     child: AspectRatio(
                       aspectRatio: _format.aspectRatio,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
+                          boxShadow: _previewing
+                              ? const []
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.12),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
                         ),
-                        child: RepaintBoundary(
-                          key: _frameKey,
-                          child: ColoredBox(
-                            color: Colors.white,
-                            child: ImageSlot(
-                              imageBytes: _image,
-                              onPick: _pickImage,
-                              showChrome: !_exporting,
+                        child: InstagramPreviewChrome(
+                          enabled: _previewing,
+                          slideCount: 1,
+                          currentIndex: 0,
+                          child: RepaintBoundary(
+                            key: _frameKey,
+                            child: ColoredBox(
+                              color: Colors.white,
+                              child: ImageSlot(
+                                imageBytes: _image,
+                                onPick: _pickImage,
+                                showChrome: !_cleanView,
+                                enableGestures: !_cleanView,
+                                pan: _pan,
+                                zoom: _zoom,
+                                rotation: _rotation,
+                                normalizePan: true,
+                                onPanChanged: (pan) =>
+                                    setState(() => _pan = pan),
+                                onZoomChanged: (zoom) =>
+                                    setState(() => _zoom = zoom),
+                                onRotationChanged: (rotation) =>
+                                    setState(() => _rotation = rotation),
+                              ),
                             ),
                           ),
                         ),
@@ -144,9 +312,11 @@ class _CropPageState extends State<CropPage> {
                     ),
                   ),
                 ),
-                if (!_hasImage) ...[
-                  const SizedBox(height: 12),
-                  const Text(
+              ),
+              if (!_hasImage && !_previewing)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
                     'Trykk for å legge inn et bilde',
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -154,16 +324,46 @@ class _CropPageState extends State<CropPage> {
                       color: AppTheme.muted,
                     ),
                   ),
-                ],
-                const SizedBox(height: 16),
-                ExportBar(
-                  enabled: _hasImage,
-                  busy: _exporting,
-                  onShare: _share,
-                  onDownload: _download,
                 ),
-              ],
-            ),
+              if (_tool != null)
+                Visibility(
+                  visible: !_previewing,
+                  maintainState: true,
+                  maintainAnimation: true,
+                  maintainSize: true,
+                  child: ColoredBox(
+                    color: AppTheme.cream,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: _buildToolPanel(),
+                    ),
+                  ),
+                ),
+              Visibility(
+                visible: !_previewing,
+                maintainState: true,
+                maintainAnimation: true,
+                maintainSize: true,
+                child: EditorToolBottomBar(
+                  tools: const [
+                    EditorToolDefinition(
+                      id: 'format',
+                      icon: Icons.aspect_ratio,
+                      label: 'Format',
+                    ),
+                  ],
+                  activeTool: _tool == _CropTool.format
+                      ? const EditorToolDefinition(
+                          id: 'format',
+                          icon: Icons.aspect_ratio,
+                          label: 'Format',
+                        )
+                      : null,
+                  onBack: () => setState(() => _tool = null),
+                  onToolSelected: _onToolSelected,
+                ),
+              ),
+            ],
           ),
         ),
       ),

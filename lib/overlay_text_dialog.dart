@@ -26,6 +26,7 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
   late String _weatherId;
 
   bool get _isWeather => widget.kind == OverlayKind.weather;
+  bool get _isDate => widget.kind == OverlayKind.date;
 
   @override
   void initState() {
@@ -62,6 +63,14 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
     return '$_weatherId|${temp.isEmpty ? 'Vær' : temp}';
   }
 
+  void _applyDateFormat({required bool numeric}) {
+    final next = overlayDateReformat(_controller.text, numeric: numeric);
+    setState(() {
+      _controller.text = next;
+      _controller.selection = TextSelection.collapsed(offset: next.length);
+    });
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -71,6 +80,7 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
   @override
   Widget build(BuildContext context) {
     final weatherIcon = overlayWeatherIconForId(_weatherId);
+    final dateIsNumeric = overlayDateLooksNumeric(_controller.text);
 
     return AlertDialog(
       title: Text(
@@ -124,17 +134,41 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
               hintText: switch (widget.kind) {
                 OverlayKind.location => 'F.eks. Lofoten',
                 OverlayKind.message => 'Skriv meldingen',
-                OverlayKind.date => 'F.eks. 24. august 2026',
+                OverlayKind.date => 'F.eks. 22.08.2026',
                 OverlayKind.time => 'F.eks. 19:45',
                 OverlayKind.weather => 'F.eks. 18°',
                 OverlayKind.pageNumber => 'F.eks. 1/7',
                 OverlayKind.text => 'Skriv teksten her',
               },
-              prefixIcon: Icon(
-                _isWeather ? weatherIcon : overlayKindIcon(widget.kind),
-              ),
+              prefixIcon: _isDate
+                  ? null
+                  : Icon(
+                      _isWeather ? weatherIcon : overlayKindIcon(widget.kind),
+                    ),
             ),
+            onChanged: _isDate ? (_) => setState(() {}) : null,
           ),
+          if (_isDate) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilterChip(
+                  selected: dateIsNumeric,
+                  label: Text(overlayDateLabelNumeric()),
+                  showCheckmark: false,
+                  onSelected: (_) => _applyDateFormat(numeric: true),
+                ),
+                FilterChip(
+                  selected: !dateIsNumeric,
+                  label: Text(overlayDateLabelLong()),
+                  showCheckmark: false,
+                  onSelected: (_) => _applyDateFormat(numeric: false),
+                ),
+              ],
+            ),
+          ],
           if (_isWeather) ...[
             const SizedBox(height: 12),
             Wrap(

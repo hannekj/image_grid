@@ -28,7 +28,7 @@ class WidgetPickerGrid extends StatelessWidget {
       ('Melding', Icons.chat_bubble_outline, onAddMessage),
       ('Sted', Icons.place_outlined, onAddLocation),
       ('Dato', Icons.calendar_today_outlined, onAddDate),
-      ('Klokke', Icons.schedule, onAddTime),
+      ('Klokke', Icons.more_time, onAddTime),
       ('Vær', Icons.wb_sunny_outlined, onAddWeather),
       if (onAddPageNumber != null)
         ('Side', Icons.tag, onAddPageNumber!),
