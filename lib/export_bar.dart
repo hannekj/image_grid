@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_copy.dart';
+
 class ExportBar extends StatelessWidget {
   const ExportBar({
     super.key,
@@ -7,8 +9,8 @@ class ExportBar extends StatelessWidget {
     required this.busy,
     required this.onShare,
     required this.onDownload,
-    this.downloadLabel = 'Lagre',
-    this.shareLabel = 'Del',
+    this.downloadLabel = AppCopy.saveToPhotos,
+    this.shareLabel = AppCopy.share,
   });
 
   final bool enabled;
@@ -32,7 +34,7 @@ class ExportBar extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.ios_share),
-            label: Text(busy ? 'Vent…' : shareLabel),
+            label: Text(busy ? AppCopy.wait : shareLabel),
           ),
         ),
         const SizedBox(width: 8),

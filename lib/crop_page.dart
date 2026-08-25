@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'app_theme.dart';
+import 'app_copy.dart';
+import 'app_feedback.dart';
 import 'canvas_export.dart';
 import 'canvas_format.dart';
 import 'canvas_gallery.dart';
@@ -12,6 +14,7 @@ import 'canvas_share.dart';
 import 'discard_dialog.dart';
 import 'draft_storage.dart';
 import 'editor_tool_grid.dart';
+import 'empty_canvas_hint.dart';
 import 'image_slot.dart';
 import 'instagram_preview_chrome.dart';
 
@@ -92,11 +95,11 @@ class _CropPageState extends State<CropPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Start på nytt'),
+              child: const Text(AppCopy.startOver),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Fortsett'),
+              child: const Text(AppCopy.continueLabel),
             ),
           ],
         );
@@ -133,6 +136,7 @@ class _CropPageState extends State<CropPage> {
 
   void _togglePreview() {
     if (!_hasImage || _exporting) return;
+    AppFeedback.selection();
     setState(() => _previewing = !_previewing);
   }
 
@@ -156,6 +160,7 @@ class _CropPageState extends State<CropPage> {
       }
       await save(pngBytes);
       await DraftStorage.clearCropDraft();
+      await AppFeedback.success();
       if (successMessage != null) _showMessage(successMessage);
     } catch (error) {
       _showMessage(
@@ -177,7 +182,7 @@ class _CropPageState extends State<CropPage> {
   Future<void> _download() {
     return _export(
       (bytes) => savePngToGallery(bytes, name: 'beskjaer'),
-      successMessage: 'Lagret i Bilder.',
+      successMessage: AppCopy.savedToPhotos,
     );
   }
 
@@ -232,7 +237,7 @@ class _CropPageState extends State<CropPage> {
             ),
             TextButton(
               onPressed: _hasImage && !_exporting && !_previewing ? _share : null,
-              child: Text(_exporting ? 'Vent…' : 'Del'),
+              child: Text(_exporting ? AppCopy.wait : AppCopy.share),
             ),
             PopupMenuButton<String>(
               tooltip: 'Mer',
@@ -242,18 +247,19 @@ class _CropPageState extends State<CropPage> {
                   await _download();
                 } else if (value == 'save_draft') {
                   await _saveDraft();
-                  if (mounted) _showMessage('Utkast lagret');
+                  await AppFeedback.success();
+                  if (mounted) _showMessage(AppCopy.draftSaved);
                 }
               },
               itemBuilder: (context) {
                 return const [
                   PopupMenuItem<String>(
                     value: 'save_draft',
-                    child: Text('Lagre utkast'),
+                    child: Text(AppCopy.saveDraft),
                   ),
                   PopupMenuItem<String>(
                     value: 'download',
-                    child: Text('Lagre i Bilder'),
+                    child: Text(AppCopy.saveToPhotos),
                   ),
                 ];
               },
@@ -314,54 +320,49 @@ class _CropPageState extends State<CropPage> {
                 ),
               ),
               if (!_hasImage && !_previewing)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(
-                    'Trykk for å legge inn et bilde',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.muted,
-                    ),
-                  ),
+                EmptyCanvasHint(
+                  title: AppCopy.emptyCropTitle,
+                  actionLabel: AppCopy.emptyCropAction,
+                  onAction: _pickImage,
                 ),
-              if (_tool != null)
-                Visibility(
-                  visible: !_previewing,
-                  maintainState: true,
-                  maintainAnimation: true,
-                  maintainSize: true,
-                  child: ColoredBox(
-                    color: AppTheme.cream,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                      child: _buildToolPanel(),
-                    ),
-                  ),
-                ),
-              Visibility(
-                visible: !_previewing,
-                maintainState: true,
-                maintainAnimation: true,
-                maintainSize: true,
-                child: EditorToolBottomBar(
-                  tools: const [
-                    EditorToolDefinition(
-                      id: 'format',
-                      icon: Icons.aspect_ratio,
-                      label: 'Format',
-                    ),
-                  ],
-                  activeTool: _tool == _CropTool.format
-                      ? const EditorToolDefinition(
-                          id: 'format',
-                          icon: Icons.aspect_ratio,
-                          label: 'Format',
-                        )
-                      : null,
-                  onBack: () => setState(() => _tool = null),
-                  onToolSelected: _onToolSelected,
-                ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: (!_previewing && _tool != null)
+                    ? ColoredBox(
+                        color: AppTheme.cream,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          child: _buildToolPanel(),
+                        ),
+                      )
+                    : const SizedBox(width: double.infinity),
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: _previewing
+                    ? const SizedBox(width: double.infinity)
+                    : EditorToolBottomBar(
+                        tools: const [
+                          EditorToolDefinition(
+                            id: 'format',
+                            icon: Icons.aspect_ratio,
+                            label: 'Format',
+                          ),
+                        ],
+                        activeTool: _tool == _CropTool.format
+                            ? const EditorToolDefinition(
+                                id: 'format',
+                                icon: Icons.aspect_ratio,
+                                label: 'Format',
+                              )
+                            : null,
+                        onBack: () => setState(() => _tool = null),
+                        onToolSelected: _onToolSelected,
+                      ),
               ),
             ],
           ),

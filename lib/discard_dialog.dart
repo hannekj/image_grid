@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 
+import 'app_copy.dart';
+
 Future<bool> confirmDiscard(BuildContext context) async {
   final shouldDiscard = await showDialog<bool>(
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: const Text('Forkast bildene?'),
-        content: const Text(
-          'Bildene er ikke lagret. Hvis du går tilbake, forsvinner de.',
-        ),
+        title: const Text(AppCopy.discardTitle),
+        content: const Text(AppCopy.discardBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Avbryt'),
+            child: const Text(AppCopy.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Forkast'),
+            child: const Text(AppCopy.discard),
           ),
         ],
       );

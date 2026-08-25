@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_feedback.dart';
 import 'app_theme.dart';
 import 'editor_chrome.dart';
 
@@ -151,24 +152,41 @@ class EditorToolBottomBar extends StatelessWidget {
         color: AppTheme.mist,
         border: Border(top: BorderSide(color: AppTheme.line)),
       ),
-      child: activeTool == null
-          ? EditorToolGrid(
-              tools: tools,
-              onToolSelected: onToolSelected,
-            )
-          : Padding(
-              padding: const EdgeInsets.fromLTRB(
-                EditorChrome.spaceSm,
-                EditorChrome.spaceMd,
-                EditorChrome.spaceMd,
-                EditorChrome.spaceSm,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 240),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        child: activeTool == null
+            ? KeyedSubtree(
+                key: const ValueKey('tool-grid'),
+                child: EditorToolGrid(
+                  tools: tools,
+                  onToolSelected: onToolSelected,
+                ),
+              )
+            : KeyedSubtree(
+                key: ValueKey('tool-header-${activeTool!.id}'),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    EditorChrome.spaceSm,
+                    EditorChrome.spaceMd,
+                    EditorChrome.spaceMd,
+                    EditorChrome.spaceSm,
+                  ),
+                  child: EditorToolPanelHeader(
+                    label: activeTool!.label,
+                    icon: activeTool!.icon,
+                    onBack: onBack ?? () {},
+                  ),
+                ),
               ),
-              child: EditorToolPanelHeader(
-                label: activeTool!.label,
-                icon: activeTool!.icon,
-                onBack: onBack ?? () {},
-              ),
-            ),
+      ),
     );
   }
 }
@@ -188,7 +206,10 @@ class _ToolGridTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected ? AppTheme.matcha : AppTheme.ink;
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        AppFeedback.selection();
+        onTap();
+      },
       borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),

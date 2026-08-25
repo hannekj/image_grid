@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_feedback.dart';
 import 'chat_bubble.dart';
 import 'flip_clock.dart';
 import 'overlay_text.dart';
@@ -95,10 +96,15 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
   bool _snapY = false;
 
   Alignment _snap(Alignment raw) {
-    final x = raw.x.abs() < OverlayTextLayer._snapThreshold ? 0.0 : raw.x;
-    final y = raw.y.abs() < OverlayTextLayer._snapThreshold ? 0.0 : raw.y;
-    _snapX = x == 0.0;
-    _snapY = y == 0.0;
+    final willSnapX = raw.x.abs() < OverlayTextLayer._snapThreshold;
+    final willSnapY = raw.y.abs() < OverlayTextLayer._snapThreshold;
+    if ((willSnapX && !_snapX) || (willSnapY && !_snapY)) {
+      AppFeedback.selection();
+    }
+    final x = willSnapX ? 0.0 : raw.x;
+    final y = willSnapY ? 0.0 : raw.y;
+    _snapX = willSnapX;
+    _snapY = willSnapY;
     return Alignment(x, y);
   }
 

@@ -8,14 +8,18 @@ import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'app_theme.dart';
+import 'app_copy.dart';
+import 'app_feedback.dart';
 import 'booth_layout.dart';
 import 'canvas_format.dart';
 import 'canvas_gallery.dart';
 import 'canvas_share.dart';
+import 'discard_dialog.dart';
 import 'dump_layout.dart';
 import 'draft_storage.dart';
 import 'editor_history.dart';
 import 'editor_tool_grid.dart';
+import 'empty_canvas_hint.dart';
 import 'film_strip.dart';
 import 'editor_toolbar.dart';
 import 'film_look.dart';
@@ -244,11 +248,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Start på nytt'),
+              child: const Text(AppCopy.startOver),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Fortsett'),
+              child: const Text(AppCopy.continueLabel),
             ),
           ],
         );
@@ -343,29 +347,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     _rememberSlotViews();
   }
 
-  Future<bool> _confirmDiscard() async {
-    final shouldDiscard = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Forkast bildene?'),
-          content: const Text(
-            'Bildene er ikke lagret. Hvis du går tilbake, forsvinner de.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Avbryt'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Forkast'),
-            ),
-          ],
-        );
-      },
-    );
-    return shouldDiscard ?? false;
+  Future<bool> _confirmDiscard() => confirmDiscard(context);
+
+  Future<void> _pickStarterImages() {
+    final start = _slots.indexWhere((bytes) => bytes == null);
+    return _pickImages(start < 0 ? 0 : start);
   }
 
   Future<void> _pickImage(int index) async {
@@ -578,6 +564,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       }
       await save(pngBytes);
       await DraftStorage.clearLayoutDraft();
+      await AppFeedback.success();
       if (successMessage != null) _showMessage(successMessage);
     } catch (error) {
       _showMessage(
@@ -599,7 +586,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   Future<void> _downloadFrame() {
     return _exportPng(
       (bytes) => savePngToGallery(bytes, name: 'bildekarusell'),
-      successMessage: 'Lagret i Bilder.',
+      successMessage: AppCopy.savedToPhotos,
     );
   }
 
@@ -710,6 +697,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   void _togglePreview() {
     if (!_hasAnyImage || _exporting) return;
+    AppFeedback.selection();
     setState(() {
       _previewing = !_previewing;
       if (_previewing) {
@@ -900,7 +888,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
               onPressed: _hasAnyImage && !_exporting && !_previewing
                   ? _shareFrame
                   : null,
-              child: Text(_exporting ? 'Vent…' : 'Del'),
+              child: Text(_exporting ? AppCopy.wait : AppCopy.share),
             ),
             PopupMenuButton<String>(
               tooltip: 'Mer',
@@ -914,7 +902,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                   await _downloadFrame();
                 } else if (value == 'save_draft') {
                   await _saveDraft();
-                  if (mounted) _showMessage('Utkast lagret');
+                  await AppFeedback.success();
+                  if (mounted) _showMessage(AppCopy.draftSaved);
                 }
               },
               itemBuilder: (context) {
@@ -927,11 +916,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                   if (_hasAnyImage) ...[
                     const PopupMenuItem<String>(
                       value: 'save_draft',
-                      child: Text('Lagre utkast'),
+                      child: Text(AppCopy.saveDraft),
                     ),
                     const PopupMenuItem<String>(
                       value: 'download',
-                      child: Text('Lagre i Bilder'),
+                      child: Text(AppCopy.saveToPhotos),
                     ),
                   ],
                 ];
@@ -1063,45 +1052,40 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                 ),
               ),
               if (!_hasAnyImage && !_previewing)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(
-                    'Trykk for å legge inn bilder',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.muted,
-                    ),
-                  ),
+                EmptyCanvasHint(
+                  title: AppCopy.emptyLayoutTitle,
+                  actionLabel: AppCopy.emptyLayoutAction,
+                  onAction: _pickStarterImages,
                 ),
-              if (_tool != null)
-                Visibility(
-                  visible: !_previewing,
-                  maintainState: true,
-                  maintainAnimation: true,
-                  maintainSize: true,
-                  child: ColoredBox(
-                    color: AppTheme.cream,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                      child: _buildToolPanel(),
-                    ),
-                  ),
-                ),
-              Visibility(
-                visible: !_previewing,
-                maintainState: true,
-                maintainAnimation: true,
-                maintainSize: true,
-                child: EditorToolBottomBar(
-                  tools: gridToolDefinitions,
-                  activeTool: toolDefinitionById(
-                    gridToolDefinitions,
-                    _activeToolId,
-                  ),
-                  onBack: () => setState(() => _tool = null),
-                  onToolSelected: _onGridToolSelected,
-                ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: (!_previewing && _tool != null)
+                    ? ColoredBox(
+                        color: AppTheme.cream,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          child: _buildToolPanel(),
+                        ),
+                      )
+                    : const SizedBox(width: double.infinity),
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: _previewing
+                    ? const SizedBox(width: double.infinity)
+                    : EditorToolBottomBar(
+                        tools: gridToolDefinitions,
+                        activeTool: toolDefinitionById(
+                          gridToolDefinitions,
+                          _activeToolId,
+                        ),
+                        onBack: () => setState(() => _tool = null),
+                        onToolSelected: _onGridToolSelected,
+                      ),
               ),
             ],
           ),

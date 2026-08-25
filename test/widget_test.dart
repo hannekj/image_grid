@@ -48,8 +48,8 @@ void main() {
     expect(find.text('Stil'), findsOneWidget);
     expect(find.text('Tekst'), findsOneWidget);
     expect(find.text('Del'), findsOneWidget);
-    expect(find.text('Trykk for å legge inn bilder'), findsOneWidget);
-    expect(find.text('Velg bilder'), findsNothing);
+    expect(find.text('Velg bilder til rammen'), findsOneWidget);
+    expect(find.text('Velg bilder'), findsOneWidget);
 
     await _openLayoutPanel(tester);
     expect(find.text('Klassisk'), findsOneWidget);
@@ -157,7 +157,8 @@ void main() {
     expect(find.text('Del'), findsOneWidget);
     expect(find.text('Format'), findsOneWidget);
     expect(find.byTooltip('Forhåndsvis'), findsOneWidget);
-    expect(find.text('Trykk for å legge inn et bilde'), findsOneWidget);
+    expect(find.text('Velg et bilde'), findsOneWidget);
+    expect(find.text('Velg bilde'), findsOneWidget);
 
     await tester.tap(find.text('Format'));
     await tester.pumpAndSettle();
@@ -170,7 +171,7 @@ void main() {
     await _tapLayout(tester, group: 'Film', layout: 'Dump');
 
     expect(find.text('Dump'), findsOneWidget);
-    expect(find.text('Trykk for å legge inn bilder'), findsOneWidget);
+    expect(find.text('Velg bilder til rammen'), findsOneWidget);
   });
 
   testWidgets('booth layout opens photobooth strip', (WidgetTester tester) async {
@@ -178,7 +179,7 @@ void main() {
     await _tapLayout(tester, group: 'Film', layout: 'Booth');
 
     expect(find.text('Booth'), findsOneWidget);
-    expect(find.text('Trykk for å legge inn bilder'), findsOneWidget);
+    expect(find.text('Velg bilder til rammen'), findsOneWidget);
   });
 
   testWidgets('reaction layout opens overlay editor', (WidgetTester tester) async {
@@ -186,7 +187,7 @@ void main() {
     await _tapLayout(tester, group: 'Spesial', layout: 'Reaksjon');
 
     expect(find.text('Reaksjon'), findsOneWidget);
-    expect(find.text('Trykk for å legge inn bilder'), findsOneWidget);
+    expect(find.text('Velg bilder til rammen'), findsOneWidget);
   });
 
   testWidgets('asymmetric mosaics are selectable', (WidgetTester tester) async {

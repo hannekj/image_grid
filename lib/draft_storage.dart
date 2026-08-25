@@ -119,7 +119,30 @@ class DraftStorage {
         imageName = 'slide_$i.jpg';
         await File('${imageDir.path}/$imageName').writeAsBytes(slide.imageBytes!);
       }
-      slidesJson.add(_slideToJson(slide, imageName));
+
+      List<Map<String, dynamic>?>? slotsJson;
+      if (slide.layoutId != null && slide.slots != null) {
+        final views = slide.slotViews ?? const <CarouselDraftSlotView>[];
+        slotsJson = <Map<String, dynamic>?>[];
+        for (var s = 0; s < slide.slots!.length; s++) {
+          final bytes = slide.slots![s];
+          if (bytes == null) {
+            slotsJson.add(null);
+            continue;
+          }
+          final name = 'slide_${i}_slot_$s.jpg';
+          await File('${imageDir.path}/$name').writeAsBytes(bytes);
+          final view = s < views.length
+              ? views[s]
+              : const CarouselDraftSlotView();
+          slotsJson.add({
+            'image': name,
+            'view': _carouselSlotViewToJson(view),
+          });
+        }
+      }
+
+      slidesJson.add(_slideToJson(slide, imageName, slotsJson));
     }
 
     final payload = {
@@ -175,7 +198,36 @@ class DraftStorage {
           bytes = await imageFile.readAsBytes();
         }
       }
-      slides.add(_slideFromJson(slideMap, bytes));
+
+      List<Uint8List?>? slots;
+      List<CarouselDraftSlotView>? slotViews;
+      final layoutId = slideMap['layoutId'] as String?;
+      final slotsJson = slideMap['slots'] as List<dynamic>?;
+      if (layoutId != null && slotsJson != null) {
+        slots = List<Uint8List?>.filled(slotsJson.length, null);
+        slotViews = List<CarouselDraftSlotView>.generate(
+          slotsJson.length,
+          (_) => const CarouselDraftSlotView(),
+        );
+        for (var s = 0; s < slotsJson.length; s++) {
+          final entry = slotsJson[s];
+          if (entry == null) continue;
+          final slotMap = entry as Map<String, dynamic>;
+          final slotImage = slotMap['image'] as String?;
+          if (slotImage != null) {
+            final imageFile = File('${imageDir.path}/$slotImage');
+            if (await imageFile.exists()) {
+              slots[s] = await imageFile.readAsBytes();
+            }
+          }
+          final viewMap = slotMap['view'] as Map<String, dynamic>?;
+          if (viewMap != null) {
+            slotViews[s] = _carouselSlotViewFromJson(viewMap);
+          }
+        }
+      }
+
+      slides.add(_slideFromJson(slideMap, bytes, slots, slotViews));
     }
 
     return CarouselDraftData(
@@ -361,6 +413,7 @@ class DraftStorage {
   static Map<String, dynamic> _slideToJson(
     CarouselDraftSlide slide,
     String? imageName,
+    List<Map<String, dynamic>?>? slotsJson,
   ) {
     return {
       'id': slide.id,
@@ -376,6 +429,8 @@ class DraftStorage {
       'imageZoom': slide.imageZoom,
       'imageRotation': slide.imageRotation,
       'imageLocked': slide.imageLocked,
+      'layoutId': slide.layoutId,
+      if (slotsJson != null) 'slots': slotsJson,
       'overlays': slide.overlays.map(_overlayToJson).toList(),
     };
   }
@@ -383,6 +438,8 @@ class DraftStorage {
   static CarouselDraftSlide _slideFromJson(
     Map<String, dynamic> map,
     Uint8List? bytes,
+    List<Uint8List?>? slots,
+    List<CarouselDraftSlotView>? slotViews,
   ) {
     return CarouselDraftSlide(
       id: map['id'] as String,
@@ -402,9 +459,36 @@ class DraftStorage {
       imageZoom: (map['imageZoom'] as num?)?.toDouble() ?? 1,
       imageRotation: (map['imageRotation'] as num?)?.toDouble() ?? 0,
       imageLocked: map['imageLocked'] as bool? ?? false,
+      layoutId: map['layoutId'] as String?,
+      slots: slots,
+      slotViews: slotViews,
       overlays: (map['overlays'] as List<dynamic>)
           .map((e) => _overlayFromJson(e as Map<String, dynamic>))
           .toList(),
+    );
+  }
+
+  static Map<String, dynamic> _carouselSlotViewToJson(
+    CarouselDraftSlotView view,
+  ) {
+    return {
+      'panX': view.pan.dx,
+      'panY': view.pan.dy,
+      'zoom': view.zoom,
+      'rotation': view.rotation,
+    };
+  }
+
+  static CarouselDraftSlotView _carouselSlotViewFromJson(
+    Map<String, dynamic> map,
+  ) {
+    return CarouselDraftSlotView(
+      pan: Offset(
+        (map['panX'] as num?)?.toDouble() ?? 0,
+        (map['panY'] as num?)?.toDouble() ?? 0,
+      ),
+      zoom: (map['zoom'] as num?)?.toDouble() ?? 1,
+      rotation: (map['rotation'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -514,6 +598,9 @@ class CarouselDraftSlide {
     this.imageZoom = 1,
     this.imageRotation = 0,
     this.imageLocked = false,
+    this.layoutId,
+    this.slots,
+    this.slotViews,
     this.overlays = const [],
   });
 
@@ -528,7 +615,22 @@ class CarouselDraftSlide {
   final double imageZoom;
   final double imageRotation;
   final bool imageLocked;
+  final String? layoutId;
+  final List<Uint8List?>? slots;
+  final List<CarouselDraftSlotView>? slotViews;
   final List<OverlayText> overlays;
+}
+
+class CarouselDraftSlotView {
+  const CarouselDraftSlotView({
+    this.pan = Offset.zero,
+    this.zoom = 1,
+    this.rotation = 0,
+  });
+
+  final Offset pan;
+  final double zoom;
+  final double rotation;
 }
 
 class LayoutDraftData {
