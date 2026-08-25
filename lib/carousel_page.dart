@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -10,8 +11,10 @@ import 'canvas_export.dart';
 import 'canvas_format.dart';
 import 'canvas_gallery.dart';
 import 'canvas_share.dart';
+import 'carousel_page_dots.dart';
 import 'carousel_slide.dart';
 import 'discard_dialog.dart';
+import 'draft_storage.dart';
 import 'editor_history.dart';
 import 'editor_tool_grid.dart';
 import 'film_look.dart';
@@ -102,7 +105,16 @@ class _CarouselPageState extends State<CarouselPage> {
       _kind == FrameKind.stroke ? _color.color : Colors.white;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _offerDraftRestore());
+  }
+
+  @override
   void dispose() {
+    if (_hasAnyImage) {
+      unawaited(_saveDraft());
+    }
     _pageController.dispose();
     _stripController.dispose();
     super.dispose();
@@ -210,7 +222,7 @@ class _CarouselPageState extends State<CarouselPage> {
     setState(() => _tool = _CarouselTool.text);
   }
 
-  void _applyStyleToAll() {
+  void _applyPageNumbersToAll() {
     if (!_hasAnyImage) return;
     _pushUndo();
     OverlayText? template;
@@ -241,7 +253,130 @@ class _CarouselPageState extends State<CarouselPage> {
         _slides[i] = _slides[i].copyWith(overlays: overlays);
       }
     });
-    _showMessage('Stil og sidetall oppdatert på alle sider');
+    _showMessage('Sidetall lagt til på alle sider');
+  }
+
+  Future<void> _saveDraft() async {
+    if (!_hasAnyImage) return;
+    final slides = <CarouselDraftSlide>[];
+    for (final slide in _slides) {
+      slides.add(
+        CarouselDraftSlide(
+          id: slide.id,
+          imageBytes: slide.imageBytes,
+          spanId: slide.spanId,
+          spanIndex: slide.spanIndex,
+          spanCount: slide.spanCount,
+          spanPan: slide.spanPan,
+          spanScale: slide.spanScale,
+          imagePan: slide.imagePan,
+          imageZoom: slide.imageZoom,
+          imageRotation: slide.imageRotation,
+          imageLocked: slide.imageLocked,
+          overlays: _cloneOverlays(slide.overlays),
+        ),
+      );
+    }
+    await DraftStorage.saveCarouselDraft(
+      CarouselDraftData(
+        format: _format,
+        index: _index,
+        kind: _kind,
+        color: _color,
+        thickness: _thickness,
+        filter: _filter,
+        grain: _grain,
+        slideSeq: _slideSeq,
+        spanSeq: _spanSeq,
+        slides: slides,
+      ),
+    );
+  }
+
+  void _applyDraft(CarouselDraftData draft) {
+    setState(() {
+      _format = draft.format;
+      _kind = draft.kind;
+      _color = draft.color;
+      _thickness = draft.thickness;
+      _filter = draft.filter;
+      _grain = draft.grain;
+      _slideSeq = draft.slideSeq;
+      _spanSeq = draft.spanSeq;
+      _slides
+        ..clear()
+        ..addAll([
+          for (final slide in draft.slides)
+            CarouselSlide(
+              id: slide.id,
+              imageBytes: slide.imageBytes,
+              spanId: slide.spanId,
+              spanIndex: slide.spanIndex,
+              spanCount: slide.spanCount,
+              spanPan: slide.spanPan,
+              spanScale: slide.spanScale,
+              imagePan: slide.imagePan,
+              imageZoom: slide.imageZoom,
+              imageRotation: slide.imageRotation,
+              imageLocked: slide.imageLocked,
+              overlays: _cloneOverlays(slide.overlays),
+            ),
+        ]);
+      _index = draft.index.clamp(0, _slides.length - 1);
+      _selectedOverlayIndex = null;
+      _imageFocused = false;
+      _history.clear();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(_index);
+      }
+      _scrollStripToCurrent();
+    });
+  }
+
+  Future<void> _offerDraftRestore() async {
+    if (!mounted || !await DraftStorage.hasCarouselDraft()) return;
+
+    final restore = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Fortsett karusell?'),
+          content: const Text(
+            'Du har et lagret utkast. Vil du fortsette der du slapp?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Start på nytt'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Fortsett'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted) return;
+
+    if (restore == true) {
+      final draft = await DraftStorage.loadCarouselDraft();
+      if (draft != null && mounted) {
+        _applyDraft(draft);
+      }
+    } else {
+      await DraftStorage.clearCarouselDraft();
+    }
+  }
+
+  void _onImageInteractionChanged(bool active) {
+    if (active && !_spanInteracting) {
+      _pushUndo();
+    }
+    if (_spanInteracting == active) return;
+    setState(() => _spanInteracting = active);
   }
 
   void _togglePreview() {
@@ -509,9 +644,27 @@ class _CarouselPageState extends State<CarouselPage> {
     return units;
   }
 
+  int get _currentUnitIndex {
+    final units = _buildUnits();
+    return units.indexWhere(
+      (unit) => unit.slides.any((slide) => slide.id == _current.id),
+    );
+  }
+
+  void _goToUnit(int unitIndex) {
+    if (_exporting || _previewing) return;
+    final units = _buildUnits();
+    if (unitIndex < 0 || unitIndex >= units.length) return;
+    final slideIndex = _slides.indexWhere(
+      (slide) => slide.id == units[unitIndex].slides.first.id,
+    );
+    if (slideIndex >= 0) _goTo(slideIndex);
+  }
+
   void _reorderUnits(int oldIndex, int newIndex) {
     if (_exporting || _previewing || oldIndex == newIndex) return;
     final currentId = _current.id;
+    _pushUndo();
     setState(() {
       final units = _buildUnits();
       final moved = units.removeAt(oldIndex);
@@ -522,6 +675,7 @@ class _CarouselPageState extends State<CarouselPage> {
       final next = _slides.indexWhere((slide) => slide.id == currentId);
       _index = next < 0 ? 0 : next;
       _selectedOverlayIndex = null;
+      _syncPageNumberLabels();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_pageController.hasClients) {
@@ -789,6 +943,7 @@ class _CarouselPageState extends State<CarouselPage> {
         return;
       }
       await action(images);
+      await DraftStorage.clearCarouselDraft();
       if (successMessage != null) _showMessage(successMessage);
     } catch (error) {
       _showMessage(
@@ -902,10 +1057,7 @@ class _CarouselPageState extends State<CarouselPage> {
         onReplace: () => _pickImage(index),
         onSpanPanChanged: (pan) => _updateSpanPan(slide.spanId!, pan),
         onSpanScaleChanged: (scale) => _updateSpanScale(slide.spanId!, scale),
-        onInteractionChanged: (active) {
-          if (_spanInteracting == active) return;
-          setState(() => _spanInteracting = active);
-        },
+        onInteractionChanged: _onImageInteractionChanged,
       );
     } else {
       image = ImageSlot(
@@ -933,10 +1085,7 @@ class _CarouselPageState extends State<CarouselPage> {
         onDelete: _clearCurrentImage,
         onDuplicate: _duplicateCurrentSlide,
         onLockToggle: _toggleImageLock,
-        onInteractionChanged: (active) {
-          if (_spanInteracting == active) return;
-          setState(() => _spanInteracting = active);
-        },
+        onInteractionChanged: _onImageInteractionChanged,
       );
     }
 
@@ -1121,7 +1270,8 @@ class _CarouselPageState extends State<CarouselPage> {
             _pushUndo();
             setState(() => _grain = value);
           },
-          onApplyToAll: _applyStyleToAll,
+          onApplyToAll: _applyPageNumbersToAll,
+          applyToAllLabel: 'Legg sidetall på alle',
         );
       case _CarouselTool.text:
         return OverlayComposePanel(
@@ -1152,12 +1302,19 @@ class _CarouselPageState extends State<CarouselPage> {
 
   @override
   Widget build(BuildContext context) {
+    final pageUnits = _buildUnits();
+    final pageUnitIndex =
+        pageUnits.isEmpty ? 0 : _currentUnitIndex.clamp(0, pageUnits.length - 1);
+
     return PopScope(
       canPop: !_hasAnyImage,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await confirmDiscard(context);
-        if (shouldPop && mounted) Navigator.of(context).pop();
+        if (shouldPop && mounted) {
+          await DraftStorage.clearCarouselDraft();
+          if (mounted) Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         backgroundColor: AppTheme.mist,
@@ -1189,11 +1346,20 @@ class _CarouselPageState extends State<CarouselPage> {
             PopupMenuButton<String>(
               tooltip: 'Mer',
               enabled: _hasAnyImage && !_exporting && !_previewing,
-              onSelected: (value) {
-                if (value == 'download') _downloadAll();
+              onSelected: (value) async {
+                if (value == 'download') {
+                  await _downloadAll();
+                } else if (value == 'save_draft') {
+                  await _saveDraft();
+                  if (mounted) _showMessage('Utkast lagret');
+                }
               },
               itemBuilder: (context) {
                 return const [
+                  PopupMenuItem<String>(
+                    value: 'save_draft',
+                    child: Text('Lagre utkast'),
+                  ),
                   PopupMenuItem<String>(
                     value: 'download',
                     child: Text('Lagre i Bilder'),
@@ -1239,6 +1405,8 @@ class _CarouselPageState extends State<CarouselPage> {
                             ),
                             child: InstagramPreviewChrome(
                               enabled: _previewing,
+                              slideCount: _slides.length,
+                              currentIndex: _index,
                               child: RepaintBoundary(
                                 key: _frameKey,
                                 child: ColoredBox(
@@ -1272,6 +1440,15 @@ class _CarouselPageState extends State<CarouselPage> {
                   ),
                 ),
               ),
+              if (!_previewing && pageUnits.length > 1)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  child: CarouselPageDots(
+                    count: pageUnits.length,
+                    currentIndex: pageUnitIndex,
+                    onTap: _goToUnit,
+                  ),
+                ),
               if (_tool != null)
                 Visibility(
                   visible: !_previewing,

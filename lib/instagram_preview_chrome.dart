@@ -8,10 +8,14 @@ class InstagramPreviewChrome extends StatelessWidget {
     super.key,
     required this.child,
     this.enabled = true,
+    this.slideCount = 1,
+    this.currentIndex = 0,
   });
 
   final Widget child;
   final bool enabled;
+  final int slideCount;
+  final int currentIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +25,11 @@ class InstagramPreviewChrome extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         child,
-        const IgnorePointer(
-          child: _ChromeOverlay(),
+        IgnorePointer(
+          child: _ChromeOverlay(
+            slideCount: slideCount,
+            currentIndex: currentIndex,
+          ),
         ),
       ],
     );
@@ -30,7 +37,13 @@ class InstagramPreviewChrome extends StatelessWidget {
 }
 
 class _ChromeOverlay extends StatelessWidget {
-  const _ChromeOverlay();
+  const _ChromeOverlay({
+    required this.slideCount,
+    required this.currentIndex,
+  });
+
+  final int slideCount;
+  final int currentIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -95,12 +108,12 @@ class _ChromeOverlay extends StatelessWidget {
                 ],
               ),
             ),
-            child: const Padding(
-              padding: EdgeInsets.fromLTRB(14, 28, 14, 14),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 28, 14, 14),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
+                  const Row(
                     children: [
                       Icon(Icons.favorite_border, color: Colors.white, size: 22),
                       SizedBox(width: 14),
@@ -111,22 +124,54 @@ class _ChromeOverlay extends StatelessWidget {
                       Icon(Icons.bookmark_border, color: Colors.white, size: 22),
                     ],
                   ),
-                  SizedBox(height: 10),
-                  Row(
-                    children: [
-                      _Dot(active: true),
-                      SizedBox(width: 5),
-                      _Dot(),
-                      SizedBox(width: 5),
-                      _Dot(),
-                    ],
-                  ),
+                  if (slideCount > 1) ...[
+                    const SizedBox(height: 10),
+                    _SlideDots(
+                      count: slideCount,
+                      currentIndex: currentIndex,
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SlideDots extends StatelessWidget {
+  const _SlideDots({
+    required this.count,
+    required this.currentIndex,
+  });
+
+  final int count;
+  final int currentIndex;
+
+  static const _maxDots = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= _maxDots) {
+      return Row(
+        children: [
+          for (var i = 0; i < count; i++) ...[
+            if (i > 0) const SizedBox(width: 5),
+            _Dot(active: i == currentIndex),
+          ],
+        ],
+      );
+    }
+
+    return Text(
+      '${currentIndex + 1}/$count',
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.85),
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+      ),
     );
   }
 }

@@ -22,6 +22,7 @@ class LookPanel extends StatefulWidget {
     required this.onFilterChanged,
     required this.onGrainChanged,
     this.onApplyToAll,
+    this.applyToAllLabel,
   });
 
   final FrameKind kind;
@@ -35,6 +36,7 @@ class LookPanel extends StatefulWidget {
   final ValueChanged<PhotoFilter> onFilterChanged;
   final ValueChanged<bool> onGrainChanged;
   final VoidCallback? onApplyToAll;
+  final String? applyToAllLabel;
 
   @override
   State<LookPanel> createState() => _LookPanelState();
@@ -147,7 +149,7 @@ class _LookPanelState extends State<LookPanel> {
                   visualDensity: VisualDensity.compact,
                   foregroundColor: AppTheme.matcha,
                 ),
-                child: const Text('Bruk stil på alle sider'),
+                child: Text(widget.applyToAllLabel ?? 'Bruk stil på alle sider'),
               ),
             ),
           ],

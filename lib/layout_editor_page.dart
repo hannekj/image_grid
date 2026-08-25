@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -12,6 +13,7 @@ import 'canvas_format.dart';
 import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'dump_layout.dart';
+import 'draft_storage.dart';
 import 'editor_history.dart';
 import 'editor_tool_grid.dart';
 import 'film_strip.dart';
@@ -96,6 +98,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   PhotoFilter _filter = PhotoFilter.original;
   EditorTool? _tool;
   final _history = EditorHistory<_LayoutSnapshot>();
+  bool _slotInteracting = false;
 
   bool _swapHintShown = false;
 
@@ -104,6 +107,20 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   bool get _cleanView => _exporting || _previewing;
 
   int get _imageCount => _slots.where((bytes) => bytes != null).length;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _offerDraftRestore());
+  }
+
+  @override
+  void dispose() {
+    if (_hasAnyImage) {
+      unawaited(_saveDraft());
+    }
+    super.dispose();
+  }
 
   void _pushUndo() {
     _history.push(
@@ -143,6 +160,106 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       _selectedOverlayIndex = null;
       _selectedSlotIndex = null;
     });
+  }
+
+  Future<void> _saveDraft() async {
+    if (!_hasAnyImage) return;
+    await DraftStorage.saveLayoutDraft(
+      LayoutDraftData(
+        layout: _layout,
+        format: _format,
+        kind: _kind,
+        color: _color,
+        thickness: _thickness,
+        filter: _filter,
+        grain: _grain,
+        slots: List<Uint8List?>.from(_slots),
+        slotViews: [
+          for (final view in _slotViews)
+            LayoutDraftSlotView(
+              pan: view.pan,
+              zoom: view.zoom,
+              rotation: view.rotation,
+            ),
+        ],
+        overlays: [for (final overlay in _overlayTexts) overlay.copyWith()],
+      ),
+    );
+  }
+
+  void _applyDraft(LayoutDraftData draft) {
+    setState(() {
+      _layout = draft.layout;
+      _format = draft.format;
+      _kind = draft.kind;
+      _color = draft.color;
+      _thickness = draft.thickness;
+      _filter = draft.filter;
+      _grain = draft.grain;
+      _slots = List<Uint8List?>.from(draft.slots);
+      _slotViews = [
+        for (final view in draft.slotViews)
+          _SlotView(pan: view.pan, zoom: view.zoom, rotation: view.rotation),
+      ];
+      _viewsByImage.clear();
+      for (var i = 0; i < _slots.length; i++) {
+        final bytes = _slots[i];
+        if (bytes != null) {
+          _viewsByImage[identityHashCode(bytes)] = _slotViews[i];
+        }
+      }
+      _overlayTexts
+        ..clear()
+        ..addAll([
+          for (final overlay in draft.overlays) overlay.copyWith(),
+        ]);
+      _selectedOverlayIndex = null;
+      _selectedSlotIndex = null;
+      _history.clear();
+    });
+  }
+
+  Future<void> _offerDraftRestore() async {
+    if (!mounted || !await DraftStorage.hasLayoutDraft()) return;
+
+    final restore = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Fortsett collage?'),
+          content: const Text(
+            'Du har et lagret utkast. Vil du fortsette der du slapp?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Start på nytt'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Fortsett'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted) return;
+
+    if (restore == true) {
+      final draft = await DraftStorage.loadLayoutDraft();
+      if (draft != null && mounted) {
+        _applyDraft(draft);
+      }
+    } else {
+      await DraftStorage.clearLayoutDraft();
+    }
+  }
+
+  void _onSlotInteractionChanged(bool active) {
+    if (active && !_slotInteracting) {
+      _pushUndo();
+    }
+    _slotInteracting = active;
   }
 
   double get _strokeWidth {
@@ -195,6 +312,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   void _swapSlots(int from, int to) {
     if (from == to) return;
+    _pushUndo();
     setState(() {
       final source = _slots[from];
       _slots[from] = _slots[to];
@@ -242,6 +360,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     final bytes = await file.readAsBytes();
     if (!mounted) return;
 
+    _pushUndo();
     setState(() {
       _slots[index] = bytes;
       _slotViews[index] = const _SlotView();
@@ -268,6 +387,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     final bytesList = await Future.wait(chosen.map((file) => file.readAsBytes()));
     if (!mounted) return;
 
+    _pushUndo();
     setState(() {
       for (var i = 0; i < bytesList.length; i++) {
         final slotIndex = emptyIndexes[i];
@@ -439,6 +559,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         return;
       }
       await save(pngBytes);
+      await DraftStorage.clearLayoutDraft();
       if (successMessage != null) _showMessage(successMessage);
     } catch (error) {
       _showMessage(
@@ -565,6 +686,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       onPanChanged: (pan) => _setSlotPan(index, pan),
       onZoomChanged: (zoom) => _setSlotZoom(index, zoom),
       onRotationChanged: (rotation) => _setSlotRotation(index, rotation),
+      onInteractionChanged: _onSlotInteractionChanged,
     );
   }
 
@@ -732,7 +854,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         if (didPop) return;
         final shouldPop = await _confirmDiscard();
         if (shouldPop && mounted) {
-          Navigator.of(context).pop();
+          await DraftStorage.clearLayoutDraft();
+          if (mounted) Navigator.of(context).pop();
         }
       },
       child: Scaffold(
@@ -764,11 +887,20 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             PopupMenuButton<String>(
               tooltip: 'Mer',
               enabled: _hasAnyImage && !_exporting && !_previewing,
-              onSelected: (value) {
-                if (value == 'download') _downloadFrame();
+              onSelected: (value) async {
+                if (value == 'download') {
+                  await _downloadFrame();
+                } else if (value == 'save_draft') {
+                  await _saveDraft();
+                  if (mounted) _showMessage('Utkast lagret');
+                }
               },
               itemBuilder: (context) {
                 return const [
+                  PopupMenuItem<String>(
+                    value: 'save_draft',
+                    child: Text('Lagre utkast'),
+                  ),
                   PopupMenuItem<String>(
                     value: 'download',
                     child: Text('Lagre i Bilder'),
@@ -818,6 +950,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                             ),
                             child: InstagramPreviewChrome(
                               enabled: _previewing,
+                              slideCount: 1,
+                              currentIndex: 0,
                               child: RepaintBoundary(
                               key: _frameKey,
                               child: Stack(
@@ -1084,6 +1218,7 @@ class _SwappableSlot extends StatelessWidget {
     required this.onPanChanged,
     required this.onZoomChanged,
     required this.onRotationChanged,
+    this.onInteractionChanged,
   });
 
   final int index;
@@ -1099,6 +1234,7 @@ class _SwappableSlot extends StatelessWidget {
   final ValueChanged<Offset> onPanChanged;
   final ValueChanged<double> onZoomChanged;
   final ValueChanged<double> onRotationChanged;
+  final ValueChanged<bool>? onInteractionChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1117,6 +1253,7 @@ class _SwappableSlot extends StatelessWidget {
       onPanChanged: onPanChanged,
       onZoomChanged: onZoomChanged,
       onRotationChanged: onRotationChanged,
+      onInteractionChanged: onInteractionChanged,
     );
 
     return DragTarget<int>(

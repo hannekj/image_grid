@@ -5,15 +5,40 @@ import 'app_theme.dart';
 import 'canvas_format.dart';
 import 'carousel_page.dart';
 import 'crop_page.dart';
+import 'draft_storage.dart';
 import 'grid_layout.dart';
 import 'layout_editor_page.dart';
 import 'layout_outline_painter.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
-  void _openGrid(BuildContext context) {
-    Navigator.of(context).push(
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  bool _hasCarouselDraft = false;
+  bool _hasLayoutDraft = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDraftFlags();
+  }
+
+  Future<void> _loadDraftFlags() async {
+    final carousel = await DraftStorage.hasCarouselDraft();
+    final layout = await DraftStorage.hasLayoutDraft();
+    if (!mounted) return;
+    setState(() {
+      _hasCarouselDraft = carousel;
+      _hasLayoutDraft = layout;
+    });
+  }
+
+  Future<void> _openGrid() async {
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LayoutEditorPage(
           layout: defaultGridLayout,
@@ -21,17 +46,19 @@ class HomePage extends StatelessWidget {
         ),
       ),
     );
+    await _loadDraftFlags();
   }
 
-  void _openCarousel(BuildContext context) {
-    Navigator.of(context).push(
+  Future<void> _openCarousel() async {
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => const CarouselPage(),
       ),
     );
+    await _loadDraftFlags();
   }
 
-  void _openCrop(BuildContext context) {
+  void _openCrop() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => const CropPage(),
@@ -71,7 +98,7 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 40),
               GestureDetector(
-                onTap: () => _openGrid(context),
+                onTap: _openGrid,
                 child: const _HomePreview(),
               ),
               const Spacer(flex: 3),
@@ -79,7 +106,7 @@ class HomePage extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: FilledButton(
-                  onPressed: () => _openGrid(context),
+                  onPressed: _openGrid,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppTheme.matcha,
                     foregroundColor: AppTheme.cream,
@@ -87,9 +114,9 @@ class HomePage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text(
-                    'Lag innlegg',
-                    style: TextStyle(
+                  child: Text(
+                    _hasLayoutDraft ? 'Fortsett innlegg' : 'Lag innlegg',
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -101,15 +128,17 @@ class HomePage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   TextButton(
-                    onPressed: () => _openCarousel(context),
-                    child: const Text('Karusell'),
+                    onPressed: _openCarousel,
+                    child: Text(
+                      _hasCarouselDraft ? 'Fortsett karusell' : 'Karusell',
+                    ),
                   ),
                   const Text(
                     '·',
                     style: TextStyle(color: AppTheme.muted, fontSize: 16),
                   ),
                   TextButton(
-                    onPressed: () => _openCrop(context),
+                    onPressed: _openCrop,
                     child: const Text('Beskjær'),
                   ),
                 ],

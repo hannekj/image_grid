@@ -1,0 +1,459 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+
+import 'canvas_format.dart';
+import 'chat_bubble.dart';
+import 'film_look.dart';
+import 'frame_style.dart';
+import 'grid_layout.dart';
+import 'overlay_text.dart';
+
+/// Persists in-progress carousel and collage work locally.
+class DraftStorage {
+  static const _carouselFile = 'carousel_draft.json';
+  static const _layoutFile = 'layout_draft.json';
+  static const _carouselDir = 'carousel_draft';
+  static const _layoutDir = 'layout_draft';
+
+  static Future<Directory> _root() async {
+    final base = await getApplicationDocumentsDirectory();
+    final dir = Directory('${base.path}/drafts');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dir;
+  }
+
+  static Future<bool> hasCarouselDraft() async {
+    return File('${(await _root()).path}/$_carouselFile').exists();
+  }
+
+  static Future<bool> hasLayoutDraft() async {
+    return File('${(await _root()).path}/$_layoutFile').exists();
+  }
+
+  static Future<void> clearCarouselDraft() async {
+    final root = await _root();
+    final file = File('${root.path}/$_carouselFile');
+    if (await file.exists()) await file.delete();
+    final images = Directory('${root.path}/$_carouselDir');
+    if (await images.exists()) await images.delete(recursive: true);
+  }
+
+  static Future<void> clearLayoutDraft() async {
+    final root = await _root();
+    final file = File('${root.path}/$_layoutFile');
+    if (await file.exists()) await file.delete();
+    final images = Directory('${root.path}/$_layoutDir');
+    if (await images.exists()) await images.delete(recursive: true);
+  }
+
+  static Future<void> saveCarouselDraft(CarouselDraftData data) async {
+    final root = await _root();
+    final imageDir = Directory('${root.path}/$_carouselDir');
+    if (await imageDir.exists()) {
+      await imageDir.delete(recursive: true);
+    }
+    await imageDir.create(recursive: true);
+
+    final slidesJson = <Map<String, dynamic>>[];
+    for (var i = 0; i < data.slides.length; i++) {
+      final slide = data.slides[i];
+      String? imageName;
+      if (slide.imageBytes != null) {
+        imageName = 'slide_$i.jpg';
+        await File('${imageDir.path}/$imageName').writeAsBytes(slide.imageBytes!);
+      }
+      slidesJson.add(_slideToJson(slide, imageName));
+    }
+
+    final payload = {
+      'version': 1,
+      'savedAt': DateTime.now().toIso8601String(),
+      'formatId': data.format.id,
+      'index': data.index,
+      'kind': data.kind.name,
+      'colorLabel': data.color.label,
+      'thicknessWidth': data.thickness.width,
+      'filter': data.filter.name,
+      'grain': data.grain,
+      'slideSeq': data.slideSeq,
+      'spanSeq': data.spanSeq,
+      'slides': slidesJson,
+    };
+
+    await File('${root.path}/$_carouselFile')
+        .writeAsString(jsonEncode(payload));
+  }
+
+  static Future<CarouselDraftData?> loadCarouselDraft() async {
+    final root = await _root();
+    final file = File('${root.path}/$_carouselFile');
+    if (!await file.exists()) return null;
+
+    final map = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final format = canvasFormats.firstWhere(
+      (f) => f.id == map['formatId'],
+      orElse: () => canvasFormats.first,
+    );
+    final kind = FrameKind.values.byName(map['kind'] as String);
+    final color = strokeColors.firstWhere(
+      (c) => c.label == map['colorLabel'],
+      orElse: () => strokeColors.first,
+    );
+    final thickness = strokeThicknesses.firstWhere(
+      (t) => t.width == (map['thicknessWidth'] as num).toDouble(),
+      orElse: () => strokeThicknesses[1],
+    );
+    final filter = PhotoFilter.values.byName(map['filter'] as String);
+
+    final imageDir = Directory('${root.path}/$_carouselDir');
+    final slidesJson = map['slides'] as List<dynamic>;
+    final slides = <CarouselDraftSlide>[];
+    for (var i = 0; i < slidesJson.length; i++) {
+      final slideMap = slidesJson[i] as Map<String, dynamic>;
+      Uint8List? bytes;
+      final imageName = slideMap['image'] as String?;
+      if (imageName != null) {
+        final imageFile = File('${imageDir.path}/$imageName');
+        if (await imageFile.exists()) {
+          bytes = await imageFile.readAsBytes();
+        }
+      }
+      slides.add(_slideFromJson(slideMap, bytes));
+    }
+
+    return CarouselDraftData(
+      format: format,
+      index: map['index'] as int? ?? 0,
+      kind: kind,
+      color: color,
+      thickness: thickness,
+      filter: filter,
+      grain: map['grain'] as bool? ?? false,
+      slideSeq: map['slideSeq'] as int? ?? slides.length,
+      spanSeq: map['spanSeq'] as int? ?? 0,
+      slides: slides,
+    );
+  }
+
+  static Future<void> saveLayoutDraft(LayoutDraftData data) async {
+    final root = await _root();
+    final imageDir = Directory('${root.path}/$_layoutDir');
+    if (await imageDir.exists()) {
+      await imageDir.delete(recursive: true);
+    }
+    await imageDir.create(recursive: true);
+
+    final slotsJson = <Map<String, dynamic>?>[];
+    for (var i = 0; i < data.slots.length; i++) {
+      final bytes = data.slots[i];
+      if (bytes == null) {
+        slotsJson.add(null);
+        continue;
+      }
+      final name = 'slot_$i.jpg';
+      await File('${imageDir.path}/$name').writeAsBytes(bytes);
+      slotsJson.add({'image': name, 'view': _slotViewToJson(data.slotViews[i])});
+    }
+
+    final payload = {
+      'version': 1,
+      'savedAt': DateTime.now().toIso8601String(),
+      'layoutId': data.layout.id,
+      'formatId': data.format.id,
+      'kind': data.kind.name,
+      'colorLabel': data.color.label,
+      'thicknessWidth': data.thickness.width,
+      'filter': data.filter.name,
+      'grain': data.grain,
+      'slots': slotsJson,
+      'overlays': data.overlays.map(_overlayToJson).toList(),
+    };
+
+    await File('${root.path}/$_layoutFile').writeAsString(jsonEncode(payload));
+  }
+
+  static Future<LayoutDraftData?> loadLayoutDraft() async {
+    final root = await _root();
+    final file = File('${root.path}/$_layoutFile');
+    if (!await file.exists()) return null;
+
+    final map = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final layout = gridLayouts.firstWhere(
+      (l) => l.id == map['layoutId'],
+      orElse: () => defaultGridLayout,
+    );
+    final format = canvasFormats.firstWhere(
+      (f) => f.id == map['formatId'],
+      orElse: () => canvasFormats.first,
+    );
+    final kind = FrameKind.values.byName(map['kind'] as String);
+    final color = strokeColors.firstWhere(
+      (c) => c.label == map['colorLabel'],
+      orElse: () => strokeColors.first,
+    );
+    final thickness = strokeThicknesses.firstWhere(
+      (t) => t.width == (map['thicknessWidth'] as num).toDouble(),
+      orElse: () => strokeThicknesses[1],
+    );
+    final filter = PhotoFilter.values.byName(map['filter'] as String);
+
+    final imageDir = Directory('${root.path}/$_layoutDir');
+    final slotsJson = map['slots'] as List<dynamic>;
+    final slots = List<Uint8List?>.filled(layout.slotCount, null);
+    final slotViews = List<LayoutDraftSlotView>.generate(
+      layout.slotCount,
+      (_) => const LayoutDraftSlotView(),
+    );
+
+    for (var i = 0; i < slotsJson.length && i < layout.slotCount; i++) {
+      final entry = slotsJson[i];
+      if (entry == null) continue;
+      final slotMap = entry as Map<String, dynamic>;
+      final imageName = slotMap['image'] as String?;
+      if (imageName != null) {
+        final imageFile = File('${imageDir.path}/$imageName');
+        if (await imageFile.exists()) {
+          slots[i] = await imageFile.readAsBytes();
+        }
+      }
+      final viewMap = slotMap['view'] as Map<String, dynamic>?;
+      if (viewMap != null) {
+        slotViews[i] = _slotViewFromJson(viewMap);
+      }
+    }
+
+    final overlaysJson = map['overlays'] as List<dynamic>? ?? [];
+    final overlays = overlaysJson
+        .map((e) => _overlayFromJson(e as Map<String, dynamic>))
+        .toList();
+
+    return LayoutDraftData(
+      layout: layout,
+      format: format,
+      kind: kind,
+      color: color,
+      thickness: thickness,
+      filter: filter,
+      grain: map['grain'] as bool? ?? false,
+      slots: slots,
+      slotViews: slotViews,
+      overlays: overlays,
+    );
+  }
+
+  static Map<String, dynamic> _slideToJson(
+    CarouselDraftSlide slide,
+    String? imageName,
+  ) {
+    return {
+      'id': slide.id,
+      'image': imageName,
+      'spanId': slide.spanId,
+      'spanIndex': slide.spanIndex,
+      'spanCount': slide.spanCount,
+      'spanPanX': slide.spanPan.dx,
+      'spanPanY': slide.spanPan.dy,
+      'spanScale': slide.spanScale,
+      'imagePanX': slide.imagePan.dx,
+      'imagePanY': slide.imagePan.dy,
+      'imageZoom': slide.imageZoom,
+      'imageRotation': slide.imageRotation,
+      'imageLocked': slide.imageLocked,
+      'overlays': slide.overlays.map(_overlayToJson).toList(),
+    };
+  }
+
+  static CarouselDraftSlide _slideFromJson(
+    Map<String, dynamic> map,
+    Uint8List? bytes,
+  ) {
+    return CarouselDraftSlide(
+      id: map['id'] as String,
+      imageBytes: bytes,
+      spanId: map['spanId'] as String?,
+      spanIndex: map['spanIndex'] as int? ?? 0,
+      spanCount: map['spanCount'] as int? ?? 1,
+      spanPan: Offset(
+        (map['spanPanX'] as num?)?.toDouble() ?? 0,
+        (map['spanPanY'] as num?)?.toDouble() ?? 0,
+      ),
+      spanScale: (map['spanScale'] as num?)?.toDouble() ?? 1,
+      imagePan: Offset(
+        (map['imagePanX'] as num?)?.toDouble() ?? 0,
+        (map['imagePanY'] as num?)?.toDouble() ?? 0,
+      ),
+      imageZoom: (map['imageZoom'] as num?)?.toDouble() ?? 1,
+      imageRotation: (map['imageRotation'] as num?)?.toDouble() ?? 0,
+      imageLocked: map['imageLocked'] as bool? ?? false,
+      overlays: (map['overlays'] as List<dynamic>)
+          .map((e) => _overlayFromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  static Map<String, dynamic> _overlayToJson(OverlayText overlay) {
+    return {
+      'value': overlay.value,
+      'kind': overlay.kind.name,
+      'color': overlay.color.toARGB32(),
+      'fontSize': overlay.fontSize,
+      'fontId': overlay.fontId,
+      'alignmentX': overlay.alignment.x,
+      'alignmentY': overlay.alignment.y,
+      'textAlign': overlay.textAlign.name,
+      'rotation': overlay.rotation,
+      'letterSpacing': overlay.letterSpacing,
+      'effect': overlay.effect.name,
+      'plateTone': overlay.plateStyle.tone.name,
+      'plateOpacity': overlay.plateStyle.opacity,
+      'bubbleColor': overlay.bubbleColor?.toARGB32(),
+      'tailSide': overlay.tailSide.name,
+    };
+  }
+
+  static OverlayText _overlayFromJson(Map<String, dynamic> map) {
+    return OverlayText(
+      value: map['value'] as String,
+      kind: OverlayKind.values.byName(map['kind'] as String),
+      color: Color(map['color'] as int),
+      fontSize: (map['fontSize'] as num).toDouble(),
+      fontId: map['fontId'] as String,
+      alignment: Alignment(
+        (map['alignmentX'] as num).toDouble(),
+        (map['alignmentY'] as num).toDouble(),
+      ),
+      textAlign: TextAlign.values.byName(map['textAlign'] as String),
+      rotation: (map['rotation'] as num?)?.toDouble() ?? 0,
+      letterSpacing: (map['letterSpacing'] as num?)?.toDouble() ?? 0,
+      effect: OverlayTextEffect.values.byName(map['effect'] as String),
+      plateStyle: OverlayPlateStyle(
+        tone: OverlayPlateTone.values.byName(map['plateTone'] as String),
+        opacity: (map['plateOpacity'] as num?)?.toDouble() ?? 0.55,
+      ),
+      bubbleColor: map['bubbleColor'] == null
+          ? null
+          : Color(map['bubbleColor'] as int),
+      tailSide: BubbleTailSide.values.byName(map['tailSide'] as String),
+    );
+  }
+
+  static Map<String, dynamic> _slotViewToJson(LayoutDraftSlotView view) {
+    return {
+      'panX': view.pan.dx,
+      'panY': view.pan.dy,
+      'zoom': view.zoom,
+      'rotation': view.rotation,
+    };
+  }
+
+  static LayoutDraftSlotView _slotViewFromJson(Map<String, dynamic> map) {
+    return LayoutDraftSlotView(
+      pan: Offset(
+        (map['panX'] as num?)?.toDouble() ?? 0,
+        (map['panY'] as num?)?.toDouble() ?? 0,
+      ),
+      zoom: (map['zoom'] as num?)?.toDouble() ?? 1,
+      rotation: (map['rotation'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class CarouselDraftData {
+  const CarouselDraftData({
+    required this.format,
+    required this.index,
+    required this.kind,
+    required this.color,
+    required this.thickness,
+    required this.filter,
+    required this.grain,
+    required this.slideSeq,
+    required this.spanSeq,
+    required this.slides,
+  });
+
+  final CanvasFormat format;
+  final int index;
+  final FrameKind kind;
+  final StrokeColor color;
+  final StrokeThickness thickness;
+  final PhotoFilter filter;
+  final bool grain;
+  final int slideSeq;
+  final int spanSeq;
+  final List<CarouselDraftSlide> slides;
+}
+
+class CarouselDraftSlide {
+  const CarouselDraftSlide({
+    required this.id,
+    this.imageBytes,
+    this.spanId,
+    this.spanIndex = 0,
+    this.spanCount = 1,
+    this.spanPan = Offset.zero,
+    this.spanScale = 1,
+    this.imagePan = Offset.zero,
+    this.imageZoom = 1,
+    this.imageRotation = 0,
+    this.imageLocked = false,
+    this.overlays = const [],
+  });
+
+  final String id;
+  final Uint8List? imageBytes;
+  final String? spanId;
+  final int spanIndex;
+  final int spanCount;
+  final Offset spanPan;
+  final double spanScale;
+  final Offset imagePan;
+  final double imageZoom;
+  final double imageRotation;
+  final bool imageLocked;
+  final List<OverlayText> overlays;
+}
+
+class LayoutDraftData {
+  const LayoutDraftData({
+    required this.layout,
+    required this.format,
+    required this.kind,
+    required this.color,
+    required this.thickness,
+    required this.filter,
+    required this.grain,
+    required this.slots,
+    required this.slotViews,
+    required this.overlays,
+  });
+
+  final GridLayout layout;
+  final CanvasFormat format;
+  final FrameKind kind;
+  final StrokeColor color;
+  final StrokeThickness thickness;
+  final PhotoFilter filter;
+  final bool grain;
+  final List<Uint8List?> slots;
+  final List<LayoutDraftSlotView> slotViews;
+  final List<OverlayText> overlays;
+}
+
+class LayoutDraftSlotView {
+  const LayoutDraftSlotView({
+    this.pan = Offset.zero,
+    this.zoom = 1,
+    this.rotation = 0,
+  });
+
+  final Offset pan;
+  final double zoom;
+  final double rotation;
+}
