@@ -4,6 +4,7 @@ import 'app_feedback.dart';
 import 'chat_bubble.dart';
 import 'flip_clock.dart';
 import 'overlay_text.dart';
+import 'path_text_overlay.dart';
 
 class OverlayTextsLayer extends StatelessWidget {
   const OverlayTextsLayer({
@@ -16,6 +17,7 @@ class OverlayTextsLayer extends StatelessWidget {
     required this.onAlignmentChanged,
     required this.onFontSizeChanged,
     required this.onRotationChanged,
+    this.onPathChanged,
     this.onInteractionChanged,
   });
 
@@ -27,6 +29,7 @@ class OverlayTextsLayer extends StatelessWidget {
   final void Function(int index, Alignment alignment) onAlignmentChanged;
   final void Function(int index, double fontSize) onFontSizeChanged;
   final void Function(int index, double rotation) onRotationChanged;
+  final void Function(int index, List<Offset> path)? onPathChanged;
   final ValueChanged<bool>? onInteractionChanged;
 
   @override
@@ -44,18 +47,29 @@ class OverlayTextsLayer extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         for (final i in order)
-          OverlayTextLayer(
-            key: ValueKey('overlay-text-$i'),
-            overlay: overlays[i],
-            interactive: !exporting && selected == i,
-            onSelect: () => onSelect(i),
-            onEdit: () => onEdit(i),
-            onAlignmentChanged: (alignment) =>
-                onAlignmentChanged(i, alignment),
-            onFontSizeChanged: (fontSize) => onFontSizeChanged(i, fontSize),
-            onRotationChanged: (rotation) => onRotationChanged(i, rotation),
-            onInteractionChanged: onInteractionChanged,
-          ),
+          if (overlays[i].isPathText)
+            PathTextOverlay(
+              key: ValueKey('overlay-path-$i'),
+              overlay: overlays[i],
+              interactive: !exporting && selected == i,
+              onSelect: () => onSelect(i),
+              onEdit: () => onEdit(i),
+              onPathChanged: (path) => onPathChanged?.call(i, path),
+              onInteractionChanged: onInteractionChanged,
+            )
+          else
+            OverlayTextLayer(
+              key: ValueKey('overlay-text-$i'),
+              overlay: overlays[i],
+              interactive: !exporting && selected == i,
+              onSelect: () => onSelect(i),
+              onEdit: () => onEdit(i),
+              onAlignmentChanged: (alignment) =>
+                  onAlignmentChanged(i, alignment),
+              onFontSizeChanged: (fontSize) => onFontSizeChanged(i, fontSize),
+              onRotationChanged: (rotation) => onRotationChanged(i, rotation),
+              onInteractionChanged: onInteractionChanged,
+            ),
       ],
     );
   }

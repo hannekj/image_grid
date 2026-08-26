@@ -18,12 +18,14 @@ class OverlayTextControls extends StatefulWidget {
     required this.onChanged,
     required this.onRemove,
     required this.onEdit,
+    this.onAddPathText,
   });
 
   final List<OverlayText> overlays;
   final int? selectedIndex;
   final ValueChanged<int> onSelect;
   final VoidCallback onAddText;
+  final VoidCallback? onAddPathText;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
   final ValueChanged<int> onEdit;
@@ -37,7 +39,7 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
 
   List<int> get _textIndexes => [
         for (var i = 0; i < widget.overlays.length; i++)
-          if (widget.overlays[i].kind == OverlayKind.text) i,
+          if (widget.overlays[i].isPlainText) i,
       ];
 
   OverlayText? get _current {
@@ -46,7 +48,7 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
       return null;
     }
     final overlay = widget.overlays[index];
-    return overlay.kind == OverlayKind.text ? overlay : null;
+    return overlay.isPlainText ? overlay : null;
   }
 
   @override
@@ -67,21 +69,32 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
   @override
   Widget build(BuildContext context) {
     if (_textIndexes.isEmpty) {
-      return GestureDetector(
-        onTap: widget.onAddText,
-        child: const Row(
-          children: [
-            Icon(Icons.title, size: 20, color: AppTheme.muted),
-            SizedBox(width: EditorChrome.spaceSm),
-            Expanded(
-              child: Text(
-                'Legg til tekst',
-                style: TextStyle(fontSize: 13, color: AppTheme.muted),
+      return Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: widget.onAddText,
+              child: const Row(
+                children: [
+                  Icon(Icons.title, size: 20, color: AppTheme.muted),
+                  SizedBox(width: EditorChrome.spaceSm),
+                  Expanded(
+                    child: Text(
+                      'Legg til tekst',
+                      style: TextStyle(fontSize: 13, color: AppTheme.muted),
+                    ),
+                  ),
+                ],
               ),
             ),
-            Icon(Icons.add, size: 20, color: AppTheme.muted),
-          ],
-        ),
+          ),
+          if (widget.onAddPathText != null)
+            TextButton.icon(
+              onPressed: widget.onAddPathText,
+              icon: const Icon(Icons.gesture, size: 18),
+              label: const Text('Tegn'),
+            ),
+        ],
       );
     }
 
@@ -100,6 +113,12 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
             onPressed: widget.onAddText,
             icon: const Icon(Icons.add),
           ),
+          if (widget.onAddPathText != null)
+            IconButton(
+              tooltip: 'Tegn tekst',
+              onPressed: widget.onAddPathText,
+              icon: const Icon(Icons.gesture),
+            ),
         ],
       );
     }
@@ -143,11 +162,18 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
               icon: Icons.add,
               onPressed: widget.onAddText,
             ),
-            _ActionIcon(
-              tooltip: 'Roter tekst',
-              icon: Icons.rotate_right,
-              onPressed: _rotateSelected,
-            ),
+            if (widget.onAddPathText != null)
+              _ActionIcon(
+                tooltip: 'Tegn tekst',
+                icon: Icons.gesture,
+                onPressed: widget.onAddPathText!,
+              ),
+            if (!current.isPathText)
+              _ActionIcon(
+                tooltip: 'Roter tekst',
+                icon: Icons.rotate_right,
+                onPressed: _rotateSelected,
+              ),
             _ActionIcon(
               tooltip: 'Fjern',
               icon: Icons.close,

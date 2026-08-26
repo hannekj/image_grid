@@ -143,7 +143,16 @@ const overlayPlatePresets = [
   OverlayPlateStyle(tone: OverlayPlateTone.dark, opacity: 0.75),
 ];
 
-enum OverlayKind { text, message, location, date, time, weather, pageNumber }
+enum OverlayKind {
+  text,
+  pathText,
+  message,
+  location,
+  date,
+  time,
+  weather,
+  pageNumber,
+}
 
 enum OverlayTextEffect { none, shadow, outline }
 
@@ -316,7 +325,7 @@ String overlayDefaultValue(OverlayKind kind) {
     OverlayKind.pageNumber => '1/1',
     OverlayKind.location => '',
     OverlayKind.message => '',
-    OverlayKind.text => '',
+    OverlayKind.text || OverlayKind.pathText => '',
   };
 }
 
@@ -328,6 +337,7 @@ IconData overlayKindIcon(OverlayKind kind) {
     OverlayKind.time => Icons.schedule,
     OverlayKind.weather => Icons.wb_sunny_outlined,
     OverlayKind.pageNumber => Icons.tag,
+    OverlayKind.pathText => Icons.gesture,
     OverlayKind.text => Icons.title,
   };
 }
@@ -340,6 +350,7 @@ String overlayKindLabel(OverlayKind kind) {
     OverlayKind.time => 'Klokke',
     OverlayKind.weather => 'Vær',
     OverlayKind.pageNumber => 'Side',
+    OverlayKind.pathText => 'Tegn tekst',
     OverlayKind.text => 'Tekst',
   };
 }
@@ -373,6 +384,7 @@ class OverlayText {
     ),
     this.bubbleColor,
     this.tailSide = BubbleTailSide.right,
+    this.pathPoints,
   });
 
   factory OverlayText.create({
@@ -380,7 +392,25 @@ class OverlayText {
     required int index,
     OverlayKind kind = OverlayKind.text,
     OverlayText? styleFrom,
+    List<Offset>? pathPoints,
   }) {
+    if (kind == OverlayKind.pathText) {
+      final base = styleFrom != null && styleFrom.isPathText ? styleFrom : null;
+      return OverlayText(
+        value: value.trim().isEmpty ? '•' : value,
+        kind: OverlayKind.pathText,
+        color: base?.color ?? Colors.white,
+        fontSize: base?.fontSize ?? 22,
+        fontId: base?.fontId ?? 'hand',
+        alignment: Alignment.center,
+        textAlign: TextAlign.center,
+        letterSpacing: base?.letterSpacing ?? 2,
+        effect: base?.effect ?? OverlayTextEffect.shadow,
+        plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
+        pathPoints: pathPoints ?? const [],
+      );
+    }
+
     if (kind == OverlayKind.location) {
       const bubble = locationPillColor;
       final base = styleFrom != null && styleFrom.kind == OverlayKind.location
@@ -502,6 +532,9 @@ class OverlayText {
   Color? bubbleColor;
   BubbleTailSide tailSide;
 
+  /// Normalized (0–1) polyline for [OverlayKind.pathText].
+  List<Offset>? pathPoints;
+
   bool get isLocation => kind == OverlayKind.location;
 
   bool get isMessage => kind == OverlayKind.message;
@@ -513,6 +546,10 @@ class OverlayText {
   bool get isWeather => kind == OverlayKind.weather;
 
   bool get isPageNumber => kind == OverlayKind.pageNumber;
+
+  bool get isPathText => kind == OverlayKind.pathText;
+
+  bool get isPlainText => kind == OverlayKind.text || isPathText;
 
   bool get isPill =>
       isLocation || isDate || isTime || isWeather || isPageNumber;
@@ -583,6 +620,7 @@ class OverlayText {
     OverlayPlateStyle? plateStyle,
     Color? bubbleColor,
     BubbleTailSide? tailSide,
+    List<Offset>? pathPoints,
   }) {
     return OverlayText(
       value: value ?? this.value,
@@ -598,6 +636,7 @@ class OverlayText {
       plateStyle: plateStyle ?? this.plateStyle,
       bubbleColor: bubbleColor ?? this.bubbleColor,
       tailSide: tailSide ?? this.tailSide,
+      pathPoints: pathPoints ?? this.pathPoints,
     );
   }
 

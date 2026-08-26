@@ -97,6 +97,8 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
             widget.isNew ? 'Legg til vær' : 'Rediger vær',
           OverlayKind.pageNumber =>
             widget.isNew ? 'Legg til sidetall' : 'Rediger sidetall',
+          OverlayKind.pathText =>
+            widget.isNew ? 'Tekst å tegne' : 'Rediger tegnet tekst',
           OverlayKind.text =>
             widget.isNew ? 'Legg til tekst' : 'Rediger tekst',
         },
@@ -138,8 +140,12 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
                 OverlayKind.time => 'F.eks. 19:45',
                 OverlayKind.weather => 'F.eks. 18°',
                 OverlayKind.pageNumber => 'F.eks. 1/7',
+                OverlayKind.pathText => 'F.eks. xo · eller et ord',
                 OverlayKind.text => 'Skriv teksten her',
               },
+              helperText: widget.kind == OverlayKind.pathText
+                  ? 'Teksten gjentar seg langs streken du tegner'
+                  : null,
               prefixIcon: _isDate
                   ? null
                   : Icon(

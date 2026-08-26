@@ -33,6 +33,8 @@ import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
+import 'path_text_draw_layer.dart';
+import 'path_text_paint.dart';
 import 'swappable_slot.dart';
 
 class _LayoutSnapshot {
@@ -105,6 +107,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   final _history = EditorHistory<_LayoutSnapshot>();
   bool _slotInteracting = false;
   bool _overlayInteracting = false;
+  bool _drawingPathText = false;
+  String _pathTextDraft = '•';
 
   bool _swapHintShown = false;
 
@@ -128,6 +132,17 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     super.dispose();
   }
 
+  List<OverlayText> _cloneOverlays(List<OverlayText> overlays) {
+    return [
+      for (final overlay in overlays)
+        overlay.copyWith(
+          pathPoints: overlay.pathPoints == null
+              ? null
+              : List<Offset>.from(overlay.pathPoints!),
+        ),
+    ];
+  }
+
   void _pushUndo() {
     _history.push(_captureSnapshot());
   }
@@ -138,7 +153,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       format: _format,
       slots: List<Uint8List?>.from(_slots),
       slotViews: List<_SlotView>.from(_slotViews),
-      overlays: [for (final overlay in _overlayTexts) overlay.copyWith()],
+      overlays: _cloneOverlays(_overlayTexts),
       kind: _kind,
       color: _color,
       thickness: _thickness,
@@ -154,9 +169,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     _slotViews = List<_SlotView>.from(snapshot.slotViews);
     _overlayTexts
       ..clear()
-      ..addAll([
-        for (final overlay in snapshot.overlays) overlay.copyWith(),
-      ]);
+      ..addAll(_cloneOverlays(snapshot.overlays));
     _kind = snapshot.kind;
     _color = snapshot.color;
     _thickness = snapshot.thickness;
@@ -198,7 +211,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
               rotation: view.rotation,
             ),
         ],
-        overlays: [for (final overlay in _overlayTexts) overlay.copyWith()],
+        overlays: _cloneOverlays(_overlayTexts),
       ),
     );
   }
@@ -226,9 +239,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       }
       _overlayTexts
         ..clear()
-        ..addAll([
-          for (final overlay in draft.overlays) overlay.copyWith(),
-        ]);
+        ..addAll(_cloneOverlays(draft.overlays));
       _selectedOverlayIndex = null;
       _selectedSlotIndex = null;
       _history.clear();
@@ -471,6 +482,59 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   Future<void> _addOverlayWeather() => _addOverlay(OverlayKind.weather);
 
+  Future<void> _addPathText() async {
+    if (_exporting || _previewing) return;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return const OverlayTextDialog(
+          initialValue: 'xo ',
+          isNew: true,
+          kind: OverlayKind.pathText,
+        );
+      },
+    );
+    if (!mounted || result == null) return;
+    setState(() {
+      _drawingPathText = true;
+      _pathTextDraft = result.trim().isEmpty ? '•' : result;
+      _selectedSlotIndex = null;
+      _selectedOverlayIndex = null;
+      _tool = EditorTool.text;
+    });
+  }
+
+  void _cancelPathTextDraw() {
+    if (!_drawingPathText) return;
+    setState(() => _drawingPathText = false);
+  }
+
+  void _completePathTextDraw(List<Offset> points) {
+    _pushUndo();
+    AppFeedback.selection();
+    setState(() {
+      _drawingPathText = false;
+      OverlayText? styleFrom;
+      for (final overlay in _overlayTexts.reversed) {
+        if (overlay.isPathText) {
+          styleFrom = overlay;
+          break;
+        }
+      }
+      _overlayTexts.add(
+        OverlayText.create(
+          value: _pathTextDraft,
+          index: _overlayTexts.length,
+          kind: OverlayKind.pathText,
+          styleFrom: styleFrom,
+          pathPoints: points,
+        ),
+      );
+      _selectedOverlayIndex = _overlayTexts.length - 1;
+      _tool = EditorTool.text;
+    });
+  }
+
   Future<void> _addOverlay(OverlayKind kind) async {
     final result = await showDialog<String>(
       context: context,
@@ -482,7 +546,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         );
       },
     );
-    if (!mounted || result == null || result.isEmpty) return;
+    if (!mounted || result == null) return;
+    if (result.isEmpty && kind != OverlayKind.pathText) return;
 
     _pushUndo();
     setState(() {
@@ -534,7 +599,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (!mounted || result == null) return;
 
     setState(() {
-      if (result.isEmpty) {
+      if (result.isEmpty && !existing.isPathText) {
         _overlayTexts.removeAt(index);
         if (_overlayTexts.isEmpty) {
           _selectedOverlayIndex = null;
@@ -542,7 +607,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           _selectedOverlayIndex = index.clamp(0, _overlayTexts.length - 1);
         }
       } else {
-        _overlayTexts[index] = existing.copyWith(value: result);
+        _overlayTexts[index] = existing.copyWith(
+          value: result.trim().isEmpty ? '•' : result,
+        );
         _selectedOverlayIndex = index;
       }
     });
@@ -1040,9 +1107,33 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                         _selectedSlotIndex = null;
                                       });
                                     },
+                                    onPathChanged: (index, path) {
+                                      setState(() {
+                                        _overlayTexts[index] =
+                                            _overlayTexts[index].copyWith(
+                                          pathPoints: path,
+                                        );
+                                        _selectedOverlayIndex = index;
+                                        _selectedSlotIndex = null;
+                                      });
+                                    },
                                     onInteractionChanged:
                                         _onOverlayInteractionChanged,
                                   ),
+                                  if (_drawingPathText)
+                                    PathTextDrawLayer(
+                                      text: _pathTextDraft,
+                                      style: PathTextPaint.styleFor(
+                                        OverlayText.create(
+                                          value: _pathTextDraft,
+                                          index: 0,
+                                          kind: OverlayKind.pathText,
+                                        ),
+                                      ),
+                                      letterSpacing: 2,
+                                      onComplete: _completePathTextDraw,
+                                      onCancel: _cancelPathTextDraw,
+                                    ),
                                   FilmLookLayer(
                                     grain: _grain,
                                     dateStamp: false,
@@ -1180,6 +1271,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlayText,
           onAddText: _addOverlayText,
+          onAddPathText: _addPathText,
           onAddMessage: _addOverlayMessage,
           onAddLocation: _addOverlayLocation,
           onAddDate: _addOverlayDate,

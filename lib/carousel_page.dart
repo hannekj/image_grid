@@ -37,6 +37,8 @@ import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
+import 'path_text_draw_layer.dart';
+import 'path_text_paint.dart';
 import 'swappable_slot.dart';
 
 enum _CarouselTool { slides, format, look, text }
@@ -97,6 +99,8 @@ class _CarouselPageState extends State<CarouselPage> {
   bool _imageFocused = false;
   bool _pickingGridLayout = false;
   bool _pickingTemplate = false;
+  bool _drawingPathText = false;
+  String _pathTextDraft = '•';
   int _spanSeq = 0;
   int _slideSeq = 0;
   int? _selectedOverlayIndex;
@@ -163,7 +167,14 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   List<OverlayText> _cloneOverlays(List<OverlayText> overlays) {
-    return [for (final overlay in overlays) overlay.copyWith()];
+    return [
+      for (final overlay in overlays)
+        overlay.copyWith(
+          pathPoints: overlay.pathPoints == null
+              ? null
+              : List<Offset>.from(overlay.pathPoints!),
+        ),
+    ];
   }
 
   List<CarouselSlide> _cloneSlides(List<CarouselSlide> slides) {
@@ -684,6 +695,59 @@ class _CarouselPageState extends State<CarouselPage> {
     );
   }
 
+  Future<void> _addPathText() async {
+    if (_exporting || _previewing) return;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return const OverlayTextDialog(
+          initialValue: 'xo ',
+          isNew: true,
+          kind: OverlayKind.pathText,
+        );
+      },
+    );
+    if (!mounted || result == null) return;
+    setState(() {
+      _drawingPathText = true;
+      _pathTextDraft = result.trim().isEmpty ? '•' : result;
+      _selectedOverlayIndex = null;
+      _imageFocused = false;
+      _selectedSlotIndex = null;
+      _tool = _CarouselTool.text;
+    });
+  }
+
+  void _cancelPathTextDraw() {
+    if (!_drawingPathText) return;
+    setState(() => _drawingPathText = false);
+  }
+
+  void _completePathTextDraw(List<Offset> points) {
+    _pushUndo();
+    AppFeedback.selection();
+    OverlayText? styleFrom;
+    for (final overlay in _current.overlays.reversed) {
+      if (overlay.isPathText) {
+        styleFrom = overlay;
+        break;
+      }
+    }
+    final overlays = List<OverlayText>.from(_current.overlays);
+    overlays.add(
+      OverlayText.create(
+        value: _pathTextDraft,
+        index: overlays.length,
+        kind: OverlayKind.pathText,
+        styleFrom: styleFrom,
+        pathPoints: points,
+      ),
+    );
+    setState(() => _drawingPathText = false);
+    _setCurrentOverlays(overlays, selected: overlays.length - 1);
+    setState(() => _tool = _CarouselTool.text);
+  }
+
   Future<void> _addOverlay(OverlayKind kind) async {
     if (_current.isEmpty) {
       _showMessage('Legg inn bilde først.');
@@ -755,14 +819,16 @@ class _CarouselPageState extends State<CarouselPage> {
     if (!mounted || result == null) return;
 
     final next = List<OverlayText>.from(overlays);
-    if (result.isEmpty) {
+    if (result.isEmpty && !existing.isPathText) {
       next.removeAt(index);
       _setCurrentOverlays(
         next,
         selected: next.isEmpty ? null : index.clamp(0, next.length - 1),
       );
     } else {
-      next[index] = existing.copyWith(value: result);
+      next[index] = existing.copyWith(
+        value: result.trim().isEmpty ? '•' : result,
+      );
       _setCurrentOverlays(next, selected: index);
     }
   }
@@ -1602,8 +1668,30 @@ class _CarouselPageState extends State<CarouselPage> {
             );
             _setCurrentOverlays(next, selected: overlayIndex);
           },
+          onPathChanged: (overlayIndex, path) {
+            if (index != _index) return;
+            final next = List<OverlayText>.from(slide.overlays);
+            next[overlayIndex] = next[overlayIndex].copyWith(
+              pathPoints: path,
+            );
+            _setCurrentOverlays(next, selected: overlayIndex);
+          },
           onInteractionChanged: _onOverlayInteractionChanged,
         ),
+        if (_drawingPathText && index == _index)
+          PathTextDrawLayer(
+            text: _pathTextDraft,
+            style: PathTextPaint.styleFor(
+              OverlayText.create(
+                value: _pathTextDraft,
+                index: 0,
+                kind: OverlayKind.pathText,
+              ),
+            ),
+            letterSpacing: 2,
+            onComplete: _completePathTextDraw,
+            onCancel: _cancelPathTextDraw,
+          ),
         FilmLookLayer(
           grain: _grain,
           dateStamp: false,
@@ -2062,6 +2150,7 @@ class _CarouselPageState extends State<CarouselPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlay,
           onAddText: () => _addOverlay(OverlayKind.text),
+          onAddPathText: _addPathText,
           onAddMessage: () => _addOverlay(OverlayKind.message),
           onAddLocation: () => _addOverlay(OverlayKind.location),
           onAddDate: () => _addOverlay(OverlayKind.date),
@@ -2215,7 +2304,9 @@ class _CarouselPageState extends State<CarouselPage> {
                                   child: PageView.builder(
                                     clipBehavior: Clip.none,
                                     controller: _pageController,
-                                    physics: _exporting || _spanInteracting
+                                    physics: _exporting ||
+                                            _spanInteracting ||
+                                            _drawingPathText
                                         ? const NeverScrollableScrollPhysics()
                                         : const PageScrollPhysics(),
                                     itemCount: _slides.length,

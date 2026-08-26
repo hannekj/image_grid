@@ -433,10 +433,27 @@ class DraftStorage {
       'plateOpacity': overlay.plateStyle.opacity,
       'bubbleColor': overlay.bubbleColor?.toARGB32(),
       'tailSide': overlay.tailSide.name,
+      if (overlay.pathPoints != null)
+        'pathPoints': [
+          for (final point in overlay.pathPoints!)
+            {'x': point.dx, 'y': point.dy},
+        ],
     };
   }
 
   static OverlayText _overlayFromJson(Map<String, dynamic> map) {
+    List<Offset>? pathPoints;
+    final pathJson = map['pathPoints'] as List<dynamic>?;
+    if (pathJson != null) {
+      pathPoints = [
+        for (final entry in pathJson)
+          Offset(
+            ((entry as Map<String, dynamic>)['x'] as num).toDouble(),
+            (entry['y'] as num).toDouble(),
+          ),
+      ];
+    }
+
     return OverlayText(
       value: map['value'] as String,
       kind: OverlayKind.values.byName(map['kind'] as String),
@@ -459,6 +476,7 @@ class DraftStorage {
           ? null
           : Color(map['bubbleColor'] as int),
       tailSide: BubbleTailSide.values.byName(map['tailSide'] as String),
+      pathPoints: pathPoints,
     );
   }
 
