@@ -761,6 +761,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         zoom: view.zoom,
         rotation: view.rotation,
         normalizePan: true,
+        filter: _filter,
         onPanChanged: (pan) => _setSlotPan(index, pan),
         onZoomChanged: (zoom) => _setSlotZoom(index, zoom),
         onRotationChanged: (rotation) => _setSlotRotation(index, rotation),
@@ -1066,10 +1067,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                           ? 12
                                           : strokeWidth,
                                     ),
-                                    child: applyPhotoFilter(
-                                      _filter,
-                                      _buildBody(strokeWidth),
-                                    ),
+                                    child: _buildBody(strokeWidth),
                                   ),
                                   OverlayTextsLayer(
                                     overlays: _overlayTexts,

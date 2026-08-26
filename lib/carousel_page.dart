@@ -1593,6 +1593,7 @@ class _CarouselPageState extends State<CarouselPage> {
         spanScale: slide.spanScale,
         showChrome: showChrome,
         selected: imageSelected,
+        filter: _filter,
         onSelect: _selectImage,
         onReplace: () => _pickImage(index),
         onSpanPanChanged: (pan) => _updateSpanPan(slide.spanId!, pan),
@@ -1612,6 +1613,7 @@ class _CarouselPageState extends State<CarouselPage> {
         zoom: slide.imageZoom,
         rotation: slide.imageRotation,
         locked: slide.imageLocked,
+        filter: _filter,
         onPanChanged: slide.imageBytes == null
             ? null
             : (pan) => _updateSlideImagePan(index, pan),
@@ -1636,7 +1638,7 @@ class _CarouselPageState extends State<CarouselPage> {
         ColoredBox(color: canvasColor),
         Padding(
           padding: EdgeInsets.all(strokeWidth),
-          child: applyPhotoFilter(_filter, image),
+          child: image,
         ),
         OverlayTextsLayer(
           overlays: slide.overlays,
@@ -1890,6 +1892,7 @@ class _CarouselPageState extends State<CarouselPage> {
         zoom: view.zoom,
         rotation: view.rotation,
         normalizePan: true,
+        filter: _filter,
         onPanChanged: bytes == null
             ? null
             : (pan) => _updateSlotPan(slideIndex, slotIndex, pan),
@@ -2480,6 +2483,7 @@ class _SpanImagePage extends StatefulWidget {
     required this.spanScale,
     required this.showChrome,
     required this.selected,
+    required this.filter,
     required this.onSelect,
     required this.onReplace,
     required this.onSpanPanChanged,
@@ -2494,6 +2498,7 @@ class _SpanImagePage extends StatefulWidget {
   final double spanScale;
   final bool showChrome;
   final bool selected;
+  final PhotoFilter filter;
   final VoidCallback onSelect;
   final VoidCallback onReplace;
   final ValueChanged<Offset> onSpanPanChanged;
@@ -2622,12 +2627,15 @@ class _SpanImagePageState extends State<_SpanImagePage> {
                       top: (wide.height - displayH) / 2 + pan.dy,
                       width: displayW,
                       height: displayH,
-                      child: Image.memory(
-                        widget.imageBytes,
-                        fit: BoxFit.fill,
-                        width: displayW,
-                        height: displayH,
-                        gaplessPlayback: true,
+                      child: applyPhotoFilter(
+                        widget.filter,
+                        Image.memory(
+                          widget.imageBytes,
+                          fit: BoxFit.fill,
+                          width: displayW,
+                          height: displayH,
+                          gaplessPlayback: true,
+                        ),
                       ),
                     ),
                   ],

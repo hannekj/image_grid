@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
+import 'film_look.dart';
 import 'image_adjust_handles.dart';
 import 'image_adjust_toolbar.dart';
 import 'slot_inset_shadow.dart';
@@ -32,6 +33,7 @@ class ImageSlot extends StatefulWidget {
     this.onDelete,
     this.onDuplicate,
     this.onLockToggle,
+    this.filter = PhotoFilter.original,
   });
 
   final Uint8List? imageBytes;
@@ -57,6 +59,9 @@ class ImageSlot extends StatefulWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onDuplicate;
   final VoidCallback? onLockToggle;
+
+  /// Applied only to photo pixels — not the empty slot / chrome background.
+  final PhotoFilter filter;
 
   @override
   State<ImageSlot> createState() => _ImageSlotState();
@@ -300,12 +305,15 @@ class _ImageSlotState extends State<ImageSlot>
                   child: SizedBox(
                     width: displayWidth,
                     height: displayHeight,
-                    child: Image.memory(
-                      bytes,
-                      fit: BoxFit.fill,
-                      width: displayWidth,
-                      height: displayHeight,
-                      gaplessPlayback: true,
+                    child: applyPhotoFilter(
+                      widget.filter,
+                      Image.memory(
+                        bytes,
+                        fit: BoxFit.fill,
+                        width: displayWidth,
+                        height: displayHeight,
+                        gaplessPlayback: true,
+                      ),
                     ),
                   ),
                 ),
@@ -361,12 +369,15 @@ class _ImageSlotState extends State<ImageSlot>
                   behavior: HitTestBehavior.opaque,
                   onTap: _handleTap,
                   child: ClipRect(
-                    child: Image.memory(
-                      bytes,
-                      fit: BoxFit.cover,
-                      width: slot.width,
-                      height: slot.height,
-                      gaplessPlayback: true,
+                    child: applyPhotoFilter(
+                      widget.filter,
+                      Image.memory(
+                        bytes,
+                        fit: BoxFit.cover,
+                        width: slot.width,
+                        height: slot.height,
+                        gaplessPlayback: true,
+                      ),
                     ),
                   ),
                 ),
