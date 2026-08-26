@@ -33,6 +33,7 @@ import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
+import 'swappable_slot.dart';
 
 class _LayoutSnapshot {
   const _LayoutSnapshot({
@@ -675,23 +676,29 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   Widget _slot(int index) {
     final view = _slotViews[index];
-    return _SwappableSlot(
+    return SwappableSlot(
       index: index,
       imageBytes: _slots[index],
       showChrome: !_cleanView,
-      selected: !_cleanView && _selectedSlotIndex == index,
-      onSelect: () => _selectSlot(index),
-      onPick: _slots[index] == null
-          ? () => _pickImages(index)
-          : () => _pickImage(index),
       onSwap: _swapSlots,
-      pan: view.pan,
-      zoom: view.zoom,
-      rotation: view.rotation,
-      onPanChanged: (pan) => _setSlotPan(index, pan),
-      onZoomChanged: (zoom) => _setSlotZoom(index, zoom),
-      onRotationChanged: (rotation) => _setSlotRotation(index, rotation),
-      onInteractionChanged: _onSlotInteractionChanged,
+      child: ImageSlot(
+        key: ObjectKey(_slots[index] ?? index),
+        imageBytes: _slots[index],
+        showChrome: !_cleanView,
+        selected: !_cleanView && _selectedSlotIndex == index,
+        onSelect: () => _selectSlot(index),
+        onPick: _slots[index] == null
+            ? () => _pickImages(index)
+            : () => _pickImage(index),
+        pan: view.pan,
+        zoom: view.zoom,
+        rotation: view.rotation,
+        normalizePan: true,
+        onPanChanged: (pan) => _setSlotPan(index, pan),
+        onZoomChanged: (zoom) => _setSlotZoom(index, zoom),
+        onRotationChanged: (rotation) => _setSlotRotation(index, rotation),
+        onInteractionChanged: _onSlotInteractionChanged,
+      ),
     );
   }
 
@@ -1214,90 +1221,6 @@ class _SlotView {
       pan: pan ?? this.pan,
       zoom: zoom ?? this.zoom,
       rotation: rotation ?? this.rotation,
-    );
-  }
-}
-
-class _SwappableSlot extends StatelessWidget {
-  const _SwappableSlot({
-    required this.index,
-    required this.imageBytes,
-    required this.showChrome,
-    required this.selected,
-    required this.onSelect,
-    required this.onPick,
-    required this.onSwap,
-    required this.pan,
-    required this.zoom,
-    required this.rotation,
-    required this.onPanChanged,
-    required this.onZoomChanged,
-    required this.onRotationChanged,
-    this.onInteractionChanged,
-  });
-
-  final int index;
-  final Uint8List? imageBytes;
-  final bool showChrome;
-  final bool selected;
-  final VoidCallback onSelect;
-  final VoidCallback onPick;
-  final void Function(int from, int to) onSwap;
-  final Offset pan;
-  final double zoom;
-  final double rotation;
-  final ValueChanged<Offset> onPanChanged;
-  final ValueChanged<double> onZoomChanged;
-  final ValueChanged<double> onRotationChanged;
-  final ValueChanged<bool>? onInteractionChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final bytes = imageBytes;
-    final slot = ImageSlot(
-      key: ObjectKey(bytes ?? index),
-      imageBytes: bytes,
-      onPick: onPick,
-      showChrome: showChrome,
-      selected: selected,
-      onSelect: onSelect,
-      pan: pan,
-      zoom: zoom,
-      rotation: rotation,
-      normalizePan: true,
-      onPanChanged: onPanChanged,
-      onZoomChanged: onZoomChanged,
-      onRotationChanged: onRotationChanged,
-      onInteractionChanged: onInteractionChanged,
-    );
-
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != index,
-      onAcceptWithDetails: (details) => onSwap(details.data, index),
-      builder: (context, candidate, rejected) {
-        final hovering = candidate.isNotEmpty;
-        final child = ColoredBox(
-          color: hovering ? const Color(0x22000000) : Colors.transparent,
-          child: slot,
-        );
-
-        if (bytes == null) return child;
-
-        return LongPressDraggable<int>(
-          data: index,
-          maxSimultaneousDrags: showChrome ? 1 : 0,
-          feedback: Material(
-            elevation: 6,
-            child: SizedBox(
-              width: 96,
-              height: 96,
-              child: Image.memory(bytes, fit: BoxFit.cover),
-            ),
-          ),
-          childWhenDragging: Opacity(opacity: 0.35, child: child),
-          child: child,
-        );
-      },
     );
   }
 }

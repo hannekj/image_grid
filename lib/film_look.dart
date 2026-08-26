@@ -45,6 +45,15 @@ const _contrastMatrix = <double>[
   0, 0, 0, 1, 0,
 ];
 
+/// Identity matrix — keeps [ColorFiltered] in the tree for every filter so
+/// image slots are not remounted (and pan/zoom reset) when switching looks.
+const _identityMatrix = <double>[
+  1, 0, 0, 0, 0,
+  0, 1, 0, 0, 0,
+  0, 0, 1, 0, 0,
+  0, 0, 0, 1, 0,
+];
+
 extension PhotoFilterX on PhotoFilter {
   String get label => switch (this) {
         PhotoFilter.original => 'Original',
@@ -55,8 +64,9 @@ extension PhotoFilterX on PhotoFilter {
         PhotoFilter.contrast => 'Kontrast',
       };
 
-  ColorFilter? get colorFilter => switch (this) {
-        PhotoFilter.original => null,
+  ColorFilter get colorFilter => switch (this) {
+        PhotoFilter.original =>
+          const ColorFilter.matrix(_identityMatrix),
         PhotoFilter.blackAndWhite =>
           const ColorFilter.matrix(_blackAndWhiteMatrix),
         PhotoFilter.fade => const ColorFilter.matrix(_fadeMatrix),
@@ -67,9 +77,7 @@ extension PhotoFilterX on PhotoFilter {
 }
 
 Widget applyPhotoFilter(PhotoFilter filter, Widget child) {
-  final colorFilter = filter.colorFilter;
-  if (colorFilter == null) return child;
-  return ColorFiltered(colorFilter: colorFilter, child: child);
+  return ColorFiltered(colorFilter: filter.colorFilter, child: child);
 }
 
 const _norwegianMonths = [

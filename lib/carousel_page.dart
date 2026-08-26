@@ -9,18 +9,22 @@ import 'package:image_picker/image_picker.dart';
 import 'app_theme.dart';
 import 'app_copy.dart';
 import 'app_feedback.dart';
+import 'booth_layout.dart';
 import 'canvas_export.dart';
 import 'canvas_format.dart';
 import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'carousel_page_dots.dart';
 import 'carousel_slide.dart';
+import 'carousel_templates.dart';
 import 'discard_dialog.dart';
 import 'draft_storage.dart';
+import 'dump_layout.dart';
 import 'editor_history.dart';
 import 'editor_tool_grid.dart';
 import 'empty_canvas_hint.dart';
 import 'film_look.dart';
+import 'film_strip.dart';
 import 'frame_style.dart';
 import 'grid_layout.dart';
 import 'image_corner_handles.dart';
@@ -33,6 +37,7 @@ import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
+import 'swappable_slot.dart';
 
 enum _CarouselTool { slides, format, look, text }
 
@@ -91,6 +96,7 @@ class _CarouselPageState extends State<CarouselPage> {
   bool _overlayInteracting = false;
   bool _imageFocused = false;
   bool _pickingGridLayout = false;
+  bool _pickingTemplate = false;
   int _spanSeq = 0;
   int _slideSeq = 0;
   int? _selectedOverlayIndex;
@@ -114,6 +120,21 @@ class _CarouselPageState extends State<CarouselPage> {
 
   Color get _canvasColor =>
       _kind == FrameKind.stroke ? _color.color : Colors.white;
+
+  Color _slideCanvasColor(CarouselSlide slide) {
+    final layout = slide.layout;
+    if (layout == null) return _canvasColor;
+    if (layout.isFilmStrip) return AppTheme.cream;
+    if (layout.usesCreamCanvas) {
+      return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
+    }
+    return _canvasColor;
+  }
+
+  double _slideStrokeWidth(CarouselSlide slide) {
+    if (slide.layout?.usesCreamCanvas == true) return 0;
+    return _strokeWidth;
+  }
 
   @override
   void initState() {
@@ -194,6 +215,7 @@ class _CarouselPageState extends State<CarouselPage> {
     _imageFocused = false;
     _selectedSlotIndex = null;
     _pickingGridLayout = false;
+    _pickingTemplate = false;
   }
 
   void _undo() {
@@ -996,6 +1018,7 @@ class _CarouselPageState extends State<CarouselPage> {
       _imageFocused = false;
       _selectedSlotIndex = null;
       if (!_current.isGrid) _pickingGridLayout = false;
+      _pickingTemplate = false;
     });
     if (!_pageController.hasClients) return;
     if (animate) {
@@ -1077,6 +1100,103 @@ class _CarouselPageState extends State<CarouselPage> {
     setState(() {
       _tool = _CarouselTool.slides;
       _pickingGridLayout = !_pickingGridLayout;
+      if (_pickingGridLayout) _pickingTemplate = false;
+    });
+  }
+
+  void _toggleTemplatePicker() {
+    setState(() {
+      _tool = _CarouselTool.slides;
+      _pickingTemplate = !_pickingTemplate;
+      if (_pickingTemplate) _pickingGridLayout = false;
+    });
+  }
+
+  Future<void> _applyTemplate(CarouselTemplate template) async {
+    if (_hasAnyImage) {
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Bytt til mal?'),
+          content: const Text(
+            'Bildene i karusellen erstattes av den valgte malen.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text(AppCopy.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Bytt'),
+            ),
+          ],
+        ),
+      );
+      if (replace != true || !mounted) return;
+    }
+
+    _pushUndo();
+    AppFeedback.selection();
+    setState(() {
+      _slides
+        ..clear()
+        ..addAll([
+          for (final step in template.steps)
+            if (step == null)
+              CarouselSlide(id: _nextSlideId())
+            else
+              CarouselSlide.grid(
+                id: _nextSlideId(),
+                layout: carouselTemplateLayout(step),
+              ),
+        ]);
+      _index = 0;
+      _selectedOverlayIndex = null;
+      _selectedSlotIndex = null;
+      _imageFocused = false;
+      _pickingTemplate = false;
+      _pickingGridLayout = false;
+      _syncPageNumberLabels();
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
+      _scrollStripToCurrent();
+    });
+  }
+
+  void _swapGridSlots(int slideIndex, int from, int to) {
+    if (from == to) return;
+    final slide = _slides[slideIndex];
+    if (!slide.isGrid || slide.slots == null) return;
+
+    _pushUndo();
+    setState(() {
+      final slots = List<Uint8List?>.from(slide.slots!);
+      final views = List<CarouselSlotView>.from(
+        slide.slotViews ??
+            List.generate(slots.length, (_) => const CarouselSlotView()),
+      );
+      if (from < 0 ||
+          to < 0 ||
+          from >= slots.length ||
+          to >= slots.length) {
+        return;
+      }
+      final sourceBytes = slots[from];
+      slots[from] = slots[to];
+      slots[to] = sourceBytes;
+      final sourceView = views[from];
+      views[from] = views[to];
+      views[to] = sourceView;
+      _slides[slideIndex] = slide.copyWith(slots: slots, slotViews: views);
+      if (slideIndex == _index) {
+        _selectedSlotIndex = to;
+        _imageFocused = true;
+      }
     });
   }
 
@@ -1392,6 +1512,8 @@ class _CarouselPageState extends State<CarouselPage> {
     final slide = _slides[index];
     final showChrome = !_cleanView;
     final imageSelected = showChrome && _imageFocused && index == _index;
+    final canvasColor = _slideCanvasColor(slide);
+    final strokeWidth = _slideStrokeWidth(slide);
 
     Widget image;
     if (slide.isGrid && slide.layout != null) {
@@ -1445,9 +1567,9 @@ class _CarouselPageState extends State<CarouselPage> {
       fit: StackFit.expand,
       clipBehavior: Clip.none,
       children: [
-        ColoredBox(color: _canvasColor),
+        ColoredBox(color: canvasColor),
         Padding(
-          padding: EdgeInsets.all(_strokeWidth),
+          padding: EdgeInsets.all(strokeWidth),
           child: applyPhotoFilter(_filter, image),
         ),
         OverlayTextsLayer(
@@ -1497,50 +1619,203 @@ class _CarouselPageState extends State<CarouselPage> {
     bool imageSelected,
   ) {
     final layout = slide.layout!;
-    final slots = slide.slots ?? const <Uint8List?>[];
-    final views = slide.slotViews ?? const <CarouselSlotView>[];
-    final gap = math.max(_strokeWidth, 2.0);
+    Widget slot(int slotIndex) => _gridSlot(
+          slideIndex,
+          slide,
+          slotIndex,
+          showChrome,
+          imageSelected,
+        );
 
+    if (layout.isDump) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final maxWidth = constraints.maxWidth * 0.84;
+          final maxHeight = constraints.maxHeight * 0.84;
+          final width = math.min(maxWidth, maxHeight / 1.22);
+          final height = width * 1.22;
+          return Center(
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: PolaroidFrame(child: slot(0)),
+            ),
+          );
+        },
+      );
+    }
+
+    if (layout.isBooth) {
+      return PhotoboothStrip(slots: [slot(0), slot(1), slot(2)]);
+    }
+
+    if (layout.isFilmHorizontal) {
+      return FilmStrip(
+        axis: FilmStripAxis.horizontal,
+        color: _kind == FrameKind.stroke ? _color.color : const Color(0xFF141414),
+        slots: [
+          for (var i = 0; i < filmStripSlotCount; i++) slot(i),
+        ],
+      );
+    }
+
+    if (layout.isFilmVertical) {
+      return FilmStrip(
+        axis: FilmStripAxis.vertical,
+        color: _kind == FrameKind.stroke ? _color.color : const Color(0xFF141414),
+        slots: [
+          for (var i = 0; i < filmStripSlotCount; i++) slot(i),
+        ],
+      );
+    }
+
+    if (layout.isReaction) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final shortest =
+              math.min(constraints.maxWidth, constraints.maxHeight);
+          final insetSize = shortest * 0.30;
+          final margin = shortest * 0.045;
+          final radius = insetSize * 0.18;
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              slot(0),
+              Positioned(
+                right: margin,
+                bottom: margin,
+                width: insetSize,
+                height: insetSize,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(radius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.28),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2.5),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(
+                        math.max(0, radius - 2),
+                      ),
+                      child: slot(1),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    if (layout.isOverlayFrame) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final height = constraints.maxHeight;
+          final frameWidth = width * 0.66;
+          final frameHeight = height * 0.68;
+          final border =
+              math.max(10.0, math.min(frameWidth, frameHeight) * 0.035);
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              slot(0),
+              Center(
+                child: SizedBox(
+                  width: frameWidth,
+                  height: frameHeight,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(border),
+                      child: slot(1),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    final gap = math.max(_strokeWidth, 2.0);
     return LayoutGridBody(
       layout: layout,
       gap: gap,
-      slotBuilder: (slotIndex) {
-        final bytes =
-            slotIndex < slots.length ? slots[slotIndex] : null;
-        final view = slotIndex < views.length
-            ? views[slotIndex]
-            : const CarouselSlotView();
-        final selected = imageSelected &&
-            showChrome &&
-            slideIndex == _index &&
-            _selectedSlotIndex == slotIndex;
+      slotBuilder: (slotIndex) => slot(slotIndex),
+    );
+  }
 
-        return ImageSlot(
-          imageBytes: bytes,
-          onPick: () => _pickSlotImage(slideIndex, slotIndex),
-          showChrome: showChrome,
-          enableGestures: true,
-          showResizeHandles: true,
-          selected: selected,
-          onSelect: () => _selectSlot(slotIndex),
-          pan: view.pan,
-          zoom: view.zoom,
-          rotation: view.rotation,
-          onPanChanged: bytes == null
-              ? null
-              : (pan) => _updateSlotPan(slideIndex, slotIndex, pan),
-          onZoomChanged: bytes == null
-              ? null
-              : (zoom) => _updateSlotZoom(slideIndex, slotIndex, zoom),
-          onRotationChanged: bytes == null
-              ? null
-              : (rotation) =>
-                  _updateSlotRotation(slideIndex, slotIndex, rotation),
-          showAdjustToolbar: selected && showChrome && slideIndex == _index,
-          onDelete: slideIndex == _index ? _clearCurrentImage : null,
-          onInteractionChanged: _onImageInteractionChanged,
-        );
-      },
+  Widget _gridSlot(
+    int slideIndex,
+    CarouselSlide slide,
+    int slotIndex,
+    bool showChrome,
+    bool imageSelected,
+  ) {
+    final slots = slide.slots ?? const <Uint8List?>[];
+    final views = slide.slotViews ?? const <CarouselSlotView>[];
+    final bytes = slotIndex < slots.length ? slots[slotIndex] : null;
+    final view = slotIndex < views.length
+        ? views[slotIndex]
+        : const CarouselSlotView();
+    final selected = imageSelected &&
+        showChrome &&
+        slideIndex == _index &&
+        _selectedSlotIndex == slotIndex;
+
+    return SwappableSlot(
+      index: slotIndex,
+      imageBytes: bytes,
+      showChrome: showChrome,
+      onSwap: (from, to) => _swapGridSlots(slideIndex, from, to),
+      child: ImageSlot(
+        key: ObjectKey(bytes ?? slotIndex),
+        imageBytes: bytes,
+        onPick: () => _pickSlotImage(slideIndex, slotIndex),
+        showChrome: showChrome,
+        enableGestures: true,
+        showResizeHandles: true,
+        selected: selected,
+        onSelect: () => _selectSlot(slotIndex),
+        pan: view.pan,
+        zoom: view.zoom,
+        rotation: view.rotation,
+        normalizePan: true,
+        onPanChanged: bytes == null
+            ? null
+            : (pan) => _updateSlotPan(slideIndex, slotIndex, pan),
+        onZoomChanged: bytes == null
+            ? null
+            : (zoom) => _updateSlotZoom(slideIndex, slotIndex, zoom),
+        onRotationChanged: bytes == null
+            ? null
+            : (rotation) =>
+                _updateSlotRotation(slideIndex, slotIndex, rotation),
+        showAdjustToolbar: selected && showChrome && slideIndex == _index,
+        onDelete: slideIndex == _index ? _clearCurrentImage : null,
+        onInteractionChanged: _onImageInteractionChanged,
+      ),
     );
   }
 
@@ -1559,17 +1834,74 @@ class _CarouselPageState extends State<CarouselPage> {
       case 'slides':
         setState(() => _tool = _CarouselTool.slides);
       case 'format':
-        setState(() => _tool = _CarouselTool.format);
+        setState(() {
+          _tool = _CarouselTool.format;
+          _pickingTemplate = false;
+          _pickingGridLayout = false;
+        });
       case 'look':
-        setState(() => _tool = _CarouselTool.look);
+        setState(() {
+          _tool = _CarouselTool.look;
+          _pickingTemplate = false;
+          _pickingGridLayout = false;
+        });
       case 'text':
         setState(() {
           _tool = _CarouselTool.text;
+          _pickingTemplate = false;
+          _pickingGridLayout = false;
           if (_current.overlays.isNotEmpty && _selectedOverlayIndex == null) {
             _selectedOverlayIndex = _current.overlays.length - 1;
           }
         });
     }
+  }
+
+  Widget _buildTemplatePicker() {
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: carouselTemplates.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final template = carouselTemplates[index];
+          return OutlinedButton(
+            onPressed: () => _applyTemplate(template),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.ink,
+              side: const BorderSide(color: AppTheme.line),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  template.label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  template.subtitle,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildToolPanel() {
@@ -1647,14 +1979,33 @@ class _CarouselPageState extends State<CarouselPage> {
               ],
             ),
             const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: _exporting ||
-                      _current.isGrid ||
-                      (_room < 1 && !_canConvertCurrentToSpan())
-                  ? null
-                  : _pickDoubleWide,
-              child: const Text('Over 2 sider'),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _exporting ||
+                            _current.isGrid ||
+                            (_room < 1 && !_canConvertCurrentToSpan())
+                        ? null
+                        : _pickDoubleWide,
+                    child: const Text('Over 2 sider'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _exporting ? null : _toggleTemplatePicker,
+                    child: Text(
+                      _pickingTemplate ? 'Lukk maler' : 'Maler',
+                    ),
+                  ),
+                ),
+              ],
             ),
+            if (_pickingTemplate) ...[
+              const SizedBox(height: 10),
+              _buildTemplatePicker(),
+            ],
             if (_pickingGridLayout) ...[
               const SizedBox(height: 10),
               LayoutStrip(
@@ -1878,6 +2229,7 @@ class _CarouselPageState extends State<CarouselPage> {
                                         if (!_slides[index].isGrid) {
                                           _pickingGridLayout = false;
                                         }
+                                        _pickingTemplate = false;
                                       });
                                       _scrollStripToCurrent();
                                     },
@@ -1900,6 +2252,8 @@ class _CarouselPageState extends State<CarouselPage> {
                   title: AppCopy.emptyCarouselTitle,
                   actionLabel: AppCopy.emptyCarouselAction,
                   onAction: _pickImages,
+                  secondaryLabel: AppCopy.emptyCarouselTemplate,
+                  onSecondary: _toggleTemplatePicker,
                 ),
               if (!_previewing && pageUnits.length > 1)
                 Padding(

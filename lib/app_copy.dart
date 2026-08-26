@@ -15,8 +15,9 @@ class AppCopy {
   static const startOver = 'Start på nytt';
   static const wait = 'Vent…';
 
-  static const emptyCarouselTitle = 'Velg 3–5 bilder';
+  static const emptyCarouselTitle = 'Velg bilder eller start med en mal';
   static const emptyCarouselAction = 'Velg bilder';
+  static const emptyCarouselTemplate = 'Velg mal';
   static const emptyLayoutTitle = 'Velg bilder til rammen';
   static const emptyLayoutAction = 'Velg bilder';
 
