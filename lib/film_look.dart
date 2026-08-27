@@ -3,7 +3,17 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-enum PhotoFilter { original, blackAndWhite, fade, warm, cool, contrast }
+enum PhotoFilter {
+  original,
+  goldenHour,
+  flash,
+  g7x,
+  blackAndWhite,
+  fade,
+  warm,
+  cool,
+  contrast,
+}
 
 /// Luminance grayscale.
 const _blackAndWhiteMatrix = <double>[
@@ -45,6 +55,30 @@ const _contrastMatrix = <double>[
   0, 0, 0, 1, 0,
 ];
 
+/// Soft sunset warmth — gentle amber lift without flooding yellow.
+const _goldenHourMatrix = <double>[
+  1.12, 0.06, 0.0, 0, 10,
+  0.04, 1.02, 0.02, 0, 6,
+  0.0, 0.02, 0.88, 0, -2,
+  0, 0, 0, 1, 0,
+];
+
+/// Direct-flash look — bright cool midtones, crushed shadows, high contrast.
+const _flashMatrix = <double>[
+  1.48, -0.06, 0.06, 0, -8,
+  -0.04, 1.42, 0.08, 0, -4,
+  0.02, 0.04, 1.55, 0, 10,
+  0, 0, 0, 1, 0,
+];
+
+/// Canon G7X-style — punchy, slightly matte blacks, warm skin, vivid landscape.
+const _g7xMatrix = <double>[
+  1.18, 0.06, -0.06, 0, 10,
+  -0.02, 1.20, 0.04, 0, 12,
+  -0.06, 0.02, 1.22, 0, 16,
+  0, 0, 0, 1, 0,
+];
+
 /// Identity matrix — keeps [ColorFiltered] in the tree for every filter so
 /// image slots are not remounted (and pan/zoom reset) when switching looks.
 const _identityMatrix = <double>[
@@ -57,6 +91,9 @@ const _identityMatrix = <double>[
 extension PhotoFilterX on PhotoFilter {
   String get label => switch (this) {
         PhotoFilter.original => 'Original',
+        PhotoFilter.goldenHour => 'Golden',
+        PhotoFilter.flash => 'Flash',
+        PhotoFilter.g7x => 'G7X',
         PhotoFilter.blackAndWhite => 'S/H',
         PhotoFilter.fade => 'Fade',
         PhotoFilter.warm => 'Varm',
@@ -67,6 +104,10 @@ extension PhotoFilterX on PhotoFilter {
   ColorFilter get colorFilter => switch (this) {
         PhotoFilter.original =>
           const ColorFilter.matrix(_identityMatrix),
+        PhotoFilter.goldenHour =>
+          const ColorFilter.matrix(_goldenHourMatrix),
+        PhotoFilter.flash => const ColorFilter.matrix(_flashMatrix),
+        PhotoFilter.g7x => const ColorFilter.matrix(_g7xMatrix),
         PhotoFilter.blackAndWhite =>
           const ColorFilter.matrix(_blackAndWhiteMatrix),
         PhotoFilter.fade => const ColorFilter.matrix(_fadeMatrix),
@@ -213,11 +254,16 @@ class FilterLookControls extends StatelessWidget {
       ),
     ];
 
-    return ListView.separated(
+    return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      itemCount: chips.length,
-      separatorBuilder: (context, index) => const SizedBox(width: 8),
-      itemBuilder: (context, index) => chips[index],
+      child: Row(
+        children: [
+          for (var i = 0; i < chips.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            chips[i],
+          ],
+        ],
+      ),
     );
   }
 }

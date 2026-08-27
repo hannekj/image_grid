@@ -85,6 +85,9 @@ void main() {
     await tester.tap(find.text('Filter'));
     await tester.pumpAndSettle();
     expect(find.text('Korn'), findsOneWidget);
+    expect(find.text('Golden'), findsOneWidget);
+    expect(find.text('Flash'), findsOneWidget);
+    expect(find.text('G7X'), findsOneWidget);
   });
 
   testWidgets('editor adds and edits text overlays', (
