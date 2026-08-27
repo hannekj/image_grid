@@ -381,11 +381,20 @@ class _ImageSlotState extends State<ImageSlot>
                     ),
                   ),
                 ),
-                if (widget.showChrome && !widget.showAdjustToolbar)
+                if (widget.showAdjustToolbar)
                   Positioned(
-                    top: 6,
-                    right: 6,
-                    child: _ReplaceButton(onTap: widget.onPick),
+                    top: 8,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: ImageAdjustToolbar(
+                        locked: widget.locked,
+                        onDelete: widget.onDelete,
+                        onDuplicate: widget.onDuplicate,
+                        onLockToggle: widget.onLockToggle,
+                        onReplace: widget.onPick,
+                      ),
+                    ),
                   ),
                 _insetShadowOverlay(empty: false),
               ],
@@ -426,10 +435,7 @@ class _ImageSlotState extends State<ImageSlot>
                   ),
                 ),
               ],
-              if (widget.showAdjustToolbar &&
-                  widget.onDelete != null &&
-                  widget.onDuplicate != null &&
-                  widget.onLockToggle != null)
+              if (widget.showAdjustToolbar)
                 Positioned(
                   top: 8,
                   left: 0,
@@ -437,18 +443,12 @@ class _ImageSlotState extends State<ImageSlot>
                   child: Center(
                     child: ImageAdjustToolbar(
                       locked: widget.locked,
-                      onDelete: widget.onDelete!,
-                      onDuplicate: widget.onDuplicate!,
-                      onLockToggle: widget.onLockToggle!,
+                      onDelete: widget.onDelete,
+                      onDuplicate: widget.onDuplicate,
+                      onLockToggle: widget.onLockToggle,
                       onReplace: widget.onPick,
                     ),
                   ),
-                )
-              else if (widget.showChrome && !widget.showAdjustToolbar)
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: _ReplaceButton(onTap: widget.onPick),
                 ),
               if (widget.locked && widget.selected)
                 Positioned(
@@ -496,34 +496,6 @@ class _AddMark extends StatelessWidget {
           Icons.add,
           size: compact ? 18 : 22,
           color: AppTheme.cream,
-        ),
-      ),
-    );
-  }
-}
-
-class _ReplaceButton extends StatelessWidget {
-  const _ReplaceButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Bytt bilde',
-      child: Material(
-        color: Colors.white,
-        elevation: 1,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: const SizedBox(
-            width: 32,
-            height: 32,
-            child: Icon(Icons.add_photo_alternate_outlined, size: 18),
-          ),
         ),
       ),
     );

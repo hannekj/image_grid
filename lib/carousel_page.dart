@@ -28,6 +28,7 @@ import 'film_look.dart';
 import 'film_strip.dart';
 import 'frame_style.dart';
 import 'grid_layout.dart';
+import 'image_adjust_toolbar.dart';
 import 'image_corner_handles.dart';
 import 'image_slot.dart';
 import 'instagram_preview_chrome.dart';
@@ -1597,6 +1598,7 @@ class _CarouselPageState extends State<CarouselPage> {
         filter: _filter,
         onSelect: _selectImage,
         onReplace: () => _pickImage(index),
+        onDelete: _clearCurrentImage,
         onSpanPanChanged: (pan) => _updateSpanPan(slide.spanId!, pan),
         onSpanScaleChanged: (scale) => _updateSpanScale(slide.spanId!, scale),
         onInteractionChanged: _onImageInteractionChanged,
@@ -2455,6 +2457,7 @@ class _SpanImagePage extends StatefulWidget {
     required this.filter,
     required this.onSelect,
     required this.onReplace,
+    required this.onDelete,
     required this.onSpanPanChanged,
     required this.onSpanScaleChanged,
     required this.onInteractionChanged,
@@ -2470,6 +2473,7 @@ class _SpanImagePage extends StatefulWidget {
   final PhotoFilter filter;
   final VoidCallback onSelect;
   final VoidCallback onReplace;
+  final VoidCallback onDelete;
   final ValueChanged<Offset> onSpanPanChanged;
   final ValueChanged<double> onSpanScaleChanged;
   final ValueChanged<bool> onInteractionChanged;
@@ -2662,24 +2666,18 @@ class _SpanImagePageState extends State<_SpanImagePage> {
                   ),
                 ),
               ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Material(
-                  color: Colors.white,
-                  elevation: 1,
-                  borderRadius: BorderRadius.circular(18),
-                  child: InkWell(
-                    onTap: widget.onReplace,
-                    borderRadius: BorderRadius.circular(18),
-                    child: const SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: Icon(Icons.photo_camera_outlined, size: 18),
+              if (widget.selected)
+                Positioned(
+                  top: 8,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ImageAdjustToolbar(
+                      onDelete: widget.onDelete,
+                      onReplace: widget.onReplace,
                     ),
                   ),
                 ),
-              ),
             ],
           ],
         );

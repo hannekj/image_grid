@@ -440,6 +440,22 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     });
   }
 
+  void _clearSelectedSlot() {
+    final index = _selectedSlotIndex;
+    if (index == null || index < 0 || index >= _slots.length) return;
+    if (_slots[index] == null) return;
+    _pushUndo();
+    setState(() {
+      final bytes = _slots[index];
+      _slots[index] = null;
+      _slotViews[index] = const _SlotView();
+      if (bytes != null) {
+        _viewsByImage.remove(identityHashCode(bytes));
+      }
+      _selectedSlotIndex = null;
+    });
+  }
+
   void _clearFocus() {
     if (_selectedOverlayIndex == null && _selectedSlotIndex == null) return;
     setState(() {
@@ -744,20 +760,22 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   Widget _slot(int index) {
     final view = _slotViews[index];
+    final bytes = _slots[index];
+    final selected = !_cleanView && _selectedSlotIndex == index;
     return SwappableSlot(
       index: index,
-      imageBytes: _slots[index],
+      imageBytes: bytes,
       showChrome: !_cleanView,
       onSwap: _swapSlots,
       child: ImageSlot(
-        key: ObjectKey(_slots[index] ?? index),
-        imageBytes: _slots[index],
+        key: ObjectKey(bytes ?? index),
+        imageBytes: bytes,
         showChrome: !_cleanView,
-        selected: !_cleanView && _selectedSlotIndex == index,
+        enableGestures: true,
+        showResizeHandles: true,
+        selected: selected,
         onSelect: () => _selectSlot(index),
-        onPick: _slots[index] == null
-            ? () => _pickImages(index)
-            : () => _pickImage(index),
+        onPick: bytes == null ? () => _pickImages(index) : () => _pickImage(index),
         pan: view.pan,
         zoom: view.zoom,
         rotation: view.rotation,
@@ -767,6 +785,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         onZoomChanged: (zoom) => _setSlotZoom(index, zoom),
         onRotationChanged: (rotation) => _setSlotRotation(index, rotation),
         onInteractionChanged: _onSlotInteractionChanged,
+        showAdjustToolbar: selected && bytes != null && !_cleanView,
+        onDelete: selected && bytes != null ? _clearSelectedSlot : null,
       ),
     );
   }

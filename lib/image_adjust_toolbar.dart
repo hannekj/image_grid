@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 
-/// Floating toolbar for adjusting a selected image (carousel).
+/// Floating toolbar for a selected image — replace, and optional actions.
 class ImageAdjustToolbar extends StatelessWidget {
   const ImageAdjustToolbar({
     super.key,
     required this.onReplace,
-    required this.onDuplicate,
-    required this.onDelete,
-    required this.onLockToggle,
-    required this.locked,
+    this.onDuplicate,
+    this.onDelete,
+    this.onLockToggle,
+    this.locked = false,
   });
 
   final VoidCallback onReplace;
-  final VoidCallback onDuplicate;
-  final VoidCallback onDelete;
-  final VoidCallback onLockToggle;
+  final VoidCallback? onDuplicate;
+  final VoidCallback? onDelete;
+  final VoidCallback? onLockToggle;
   final bool locked;
 
   @override
@@ -29,21 +29,24 @@ class ImageAdjustToolbar extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _ToolbarIcon(
-              icon: Icons.delete_outline,
-              tooltip: 'Fjern bilde',
-              onTap: onDelete,
-            ),
-            _ToolbarIcon(
-              icon: Icons.control_point_duplicate,
-              tooltip: 'Dupliser slide',
-              onTap: onDuplicate,
-            ),
-            _ToolbarIcon(
-              icon: locked ? Icons.lock : Icons.lock_open_outlined,
-              tooltip: locked ? 'Lås opp' : 'Lås',
-              onTap: onLockToggle,
-            ),
+            if (onDelete != null)
+              _ToolbarIcon(
+                icon: Icons.delete_outline,
+                tooltip: 'Fjern bilde',
+                onTap: onDelete!,
+              ),
+            if (onDuplicate != null)
+              _ToolbarIcon(
+                icon: Icons.control_point_duplicate,
+                tooltip: 'Dupliser slide',
+                onTap: onDuplicate!,
+              ),
+            if (onLockToggle != null)
+              _ToolbarIcon(
+                icon: locked ? Icons.lock : Icons.lock_open_outlined,
+                tooltip: locked ? 'Lås opp' : 'Lås',
+                onTap: onLockToggle!,
+              ),
             _ToolbarIcon(
               icon: Icons.add_photo_alternate_outlined,
               tooltip: 'Bytt bilde',
