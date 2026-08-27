@@ -52,8 +52,8 @@ class OverlayFont {
   }
 }
 
-const overlayTextMinSize = 12.0;
-const overlayTextMaxSize = 72.0;
+const overlayTextMinSize = 10.0;
+const overlayTextMaxSize = 120.0;
 
 List<Color> get overlayTextColors => editorSwatchColors;
 

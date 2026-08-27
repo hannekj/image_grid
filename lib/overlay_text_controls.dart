@@ -4,9 +4,10 @@ import 'app_theme.dart';
 import 'color_scrub_strip.dart';
 import 'editor_chrome.dart';
 import 'overlay_text.dart';
+import 'overlay_size_controls.dart';
 import 'plate_scrub_strip.dart';
 
-enum _TextSection { color, plate, font, style }
+enum _TextSection { color, plate, font, size, style }
 
 class OverlayTextControls extends StatefulWidget {
   const OverlayTextControls({
@@ -51,12 +52,29 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
     return overlay.isPlainText ? overlay : null;
   }
 
+  List<_TextSection> get _sections {
+    final current = _current;
+    if (current != null && current.isPathText) {
+      return const [
+        _TextSection.color,
+        _TextSection.font,
+        _TextSection.size,
+        _TextSection.style,
+      ];
+    }
+    return _TextSection.values;
+  }
+
   @override
   void didUpdateWidget(covariant OverlayTextControls oldWidget) {
     super.didUpdateWidget(oldWidget);
     final current = _current;
     if (current == null && _section != _TextSection.color) {
       _section = _TextSection.color;
+    } else if (current != null &&
+        current.isPathText &&
+        _section == _TextSection.plate) {
+      _section = _TextSection.size;
     }
   }
 
@@ -133,16 +151,17 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                 height: EditorChrome.tabRowHeight,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _TextSection.values.length,
+                  itemCount: _sections.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(width: EditorChrome.spaceSm),
                   itemBuilder: (context, index) {
-                    final section = _TextSection.values[index];
+                    final section = _sections[index];
                     return EditorSegmentTab(
                       label: switch (section) {
                         _TextSection.color => 'Farge',
                         _TextSection.plate => 'Plate',
                         _TextSection.font => 'Font',
+                        _TextSection.size => 'Størrelse',
                         _TextSection.style => 'Stil',
                       },
                       selected: _section == section,
@@ -215,6 +234,11 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                           widget.onChanged(current.copyWith(fontId: font.id)),
                     );
                   },
+                ),
+              _TextSection.size => OverlaySizeControls(
+                  fontSize: current.fontSize,
+                  onChanged: (size) =>
+                      widget.onChanged(current.copyWith(fontSize: size)),
                 ),
               _TextSection.style => Row(
                   children: [

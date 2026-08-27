@@ -4,9 +4,10 @@ import 'app_theme.dart';
 import 'color_scrub_strip.dart';
 import 'editor_chrome.dart';
 import 'overlay_text.dart';
+import 'overlay_size_controls.dart';
 import 'widget_picker.dart';
 
-enum _WidgetSection { color, format, font }
+enum _WidgetSection { color, format, font, size }
 
 class OverlayWidgetControls extends StatefulWidget {
   const OverlayWidgetControls({
@@ -65,6 +66,7 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
       _WidgetSection.color,
       if (current.isDate) _WidgetSection.format,
       if (current.isMessage) _WidgetSection.font,
+      _WidgetSection.size,
     ];
   }
 
@@ -158,6 +160,7 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
                           current.isMessage ? 'Boble' : 'Farge',
                         _WidgetSection.format => 'Format',
                         _WidgetSection.font => 'Font',
+                        _WidgetSection.size => 'Størrelse',
                       },
                       selected: _section == section,
                       onTap: () => setState(() => _section = section),
@@ -249,6 +252,11 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
                           widget.onChanged(current.copyWith(fontId: font.id)),
                     );
                   },
+                ),
+              _WidgetSection.size => OverlaySizeControls(
+                  fontSize: current.fontSize,
+                  onChanged: (size) =>
+                      widget.onChanged(current.copyWith(fontSize: size)),
                 ),
             },
           ),

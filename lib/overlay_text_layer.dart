@@ -55,6 +55,7 @@ class OverlayTextsLayer extends StatelessWidget {
               onSelect: () => onSelect(i),
               onEdit: () => onEdit(i),
               onPathChanged: (path) => onPathChanged?.call(i, path),
+              onFontSizeChanged: (fontSize) => onFontSizeChanged(i, fontSize),
               onInteractionChanged: onInteractionChanged,
             )
           else
