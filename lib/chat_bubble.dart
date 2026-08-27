@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 enum BubbleTailSide { left, right }
@@ -26,8 +28,8 @@ class ChatBubble extends StatelessWidget {
   final Widget child;
   final bool showTail;
 
-  static const _tailExtent = 8.0;
-  static const _tailDrop = 3.0;
+  /// Horizontal room reserved outside the body for the tail nub.
+  static const _tailExtent = 5.0;
 
   @override
   Widget build(BuildContext context) {
@@ -42,12 +44,10 @@ class ChatBubble extends StatelessWidget {
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          14,
+          tailLeft ? 15 + _tailExtent : 15,
           9,
-          tailRight ? 14 + _tailExtent : 14,
-          10 + (showTail ? _tailDrop : 0),
-        ).copyWith(
-          left: tailLeft ? 14 + _tailExtent : 14,
+          tailRight ? 15 + _tailExtent : 15,
+          10,
         ),
         child: child,
       ),
@@ -66,25 +66,26 @@ class _ChatBubblePainter extends CustomPainter {
   final BubbleTailSide tailSide;
   final bool showTail;
 
-  static const _radius = 18.0;
-  static const _tailCorner = 4.0;
-  static const _tailExtent = 8.0;
-  static const _tailDrop = 3.0;
+  static const _maxRadius = 18.0;
+  static const _tailExtent = ChatBubble._tailExtent;
 
   @override
   void paint(Canvas canvas, Size size) {
     final path = !showTail
         ? _roundRectPath(size)
-        : tailSide == BubbleTailSide.right
-            ? _outgoingPath(size)
-            : _incomingPath(size);
+        : _tailedPath(size, mirrored: tailSide == BubbleTailSide.left);
 
     canvas.drawPath(
       path,
       Paint()
         ..color = color
+        ..isAntiAlias = true
         ..style = PaintingStyle.fill,
     );
+  }
+
+  static double _radiusFor(double bodyHeight) {
+    return math.min(_maxRadius, bodyHeight * 0.4);
   }
 
   static Path _roundRectPath(Size size) {
@@ -92,64 +93,70 @@ class _ChatBubblePainter extends CustomPainter {
       ..addRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(0, 0, size.width, size.height),
-          const Radius.circular(_radius),
+          Radius.circular(_radiusFor(size.height)),
         ),
       );
   }
 
-  /// Outgoing — small tail at bottom-right, drawn in reserved padding.
-  static Path _outgoingPath(Size size) {
+  /// Body plus the small iMessage tail nub that hooks off the bottom-right
+  /// corner, leaving a shallow notch above the corner. Mirrored for incoming.
+  static Path _tailedPath(Size size, {required bool mirrored}) {
     final w = size.width;
     final h = size.height;
-    const r = _radius;
-    const rt = _tailCorner;
-    const tail = _tailExtent;
-    const drop = _tailDrop;
-    final bodyRight = w - tail;
+    final bw = w - _tailExtent;
+    final r = _radiusFor(h);
+    // Tail geometry scales with the corner radius so it stays constant once
+    // the bubble grows past a single line, the way iMessage draws it.
+    final t = math.min(_tailExtent, r * 0.25);
 
-    return Path()
-      ..moveTo(r, 0)
-      ..lineTo(bodyRight - r, 0)
-      ..arcToPoint(Offset(bodyRight, r), radius: const Radius.circular(r))
-      ..lineTo(bodyRight, h - drop - rt - 5)
-      ..arcToPoint(
-        Offset(bodyRight - rt, h - drop - 5),
-        radius: const Radius.circular(rt),
+    final body = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, bw, h),
+          Radius.circular(r),
+        ),
+      );
+
+    final tail = Path()
+      ..moveTo(bw - r * 0.10, h - r * 1.05)
+      ..cubicTo(
+        bw + r * 0.06,
+        h - r * 0.62,
+        bw + r * 0.16,
+        h - r * 0.36,
+        bw + t,
+        h - r * 0.19,
       )
-      ..quadraticBezierTo(w, h, bodyRight - 1, h - drop - 4)
-      ..lineTo(r, h - drop)
-      ..arcToPoint(Offset(0, h - drop - r), radius: const Radius.circular(r))
-      ..lineTo(0, r)
-      ..arcToPoint(Offset(r, 0), radius: const Radius.circular(r))
-      ..close();
-  }
-
-  /// Incoming — small tail at bottom-left.
-  static Path _incomingPath(Size size) {
-    final w = size.width;
-    final h = size.height;
-    const r = _radius;
-    const rt = _tailCorner;
-    const tail = _tailExtent;
-    const drop = _tailDrop;
-    final bodyLeft = tail;
-
-    return Path()
-      ..moveTo(bodyLeft + r, 0)
-      ..lineTo(w - r, 0)
-      ..arcToPoint(Offset(w, r), radius: const Radius.circular(r))
-      ..lineTo(w, h - drop - r)
-      ..arcToPoint(Offset(w - r, h - drop), radius: const Radius.circular(r))
-      ..lineTo(bodyLeft + rt + 2, h - drop)
-      ..quadraticBezierTo(0, h, bodyLeft + rt, h - drop - 4)
-      ..lineTo(bodyLeft + rt, h - drop - rt - 5)
-      ..arcToPoint(
-        Offset(bodyLeft, h - drop - rt - 5),
-        radius: const Radius.circular(rt),
+      // Rounded outer tip.
+      ..cubicTo(
+        bw + t * 1.02,
+        h - r * 0.08,
+        bw + t * 0.78,
+        h - r * 0.10,
+        bw + t * 0.42,
+        h - r * 0.13,
       )
-      ..lineTo(bodyLeft, r)
-      ..arcToPoint(Offset(bodyLeft + r, 0), radius: const Radius.circular(r))
+      // Concave underside carving the notch above the corner.
+      ..cubicTo(
+        bw - r * 0.06,
+        h - r * 0.18,
+        bw - r * 0.28,
+        h - r * 0.30,
+        bw - r * 0.45,
+        h - r * 0.42,
+      )
       ..close();
+
+    final path = Path.combine(PathOperation.union, body, tail);
+
+    if (!mirrored) return path;
+
+    return path.transform(
+      (Matrix4.identity()
+            ..translateByDouble(w, 0, 0, 1)
+            ..scaleByDouble(-1, 1, 1, 1))
+          .storage,
+    );
   }
 
   @override
