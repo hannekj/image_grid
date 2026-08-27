@@ -42,12 +42,14 @@ void main() {
   ) async {
     await _openEditor(tester);
 
-    expect(find.text('2 × 2'), findsOneWidget);
     expect(find.text('Oppsett'), findsOneWidget);
     expect(find.text('Format'), findsOneWidget);
     expect(find.text('Stil'), findsOneWidget);
     expect(find.text('Tekst'), findsOneWidget);
-    expect(find.text('Del'), findsOneWidget);
+    expect(find.byTooltip('Del'), findsOneWidget);
+    expect(find.byTooltip('Angre'), findsOneWidget);
+    expect(find.byTooltip('Gjør om'), findsOneWidget);
+    expect(find.byTooltip('Mer'), findsOneWidget);
     expect(find.text('Velg bilder til rammen'), findsOneWidget);
     expect(find.text('Velg bilder'), findsOneWidget);
 
@@ -125,7 +127,7 @@ void main() {
   ) async {
     await _openEditor(tester);
 
-    await tester.tap(find.byType(BackButton));
+    await tester.tap(find.byTooltip('Tilbake'));
     await tester.pumpAndSettle();
 
     expect(find.text('Forkast bildene?'), findsNothing);
@@ -137,16 +139,16 @@ void main() {
 
     await tester.tap(find.text('Karusell'));
     await tester.pumpAndSettle();
-    expect(find.text('Karusell'), findsOneWidget);
-    expect(find.text('Del'), findsOneWidget);
+    expect(find.byTooltip('Del'), findsOneWidget);
     expect(find.byTooltip('Angre'), findsOneWidget);
+    expect(find.byTooltip('Gjør om'), findsOneWidget);
     expect(find.byTooltip('Mer'), findsOneWidget);
 
     await tester.tap(find.text('Sider'));
     await tester.pumpAndSettle();
     expect(find.text('1 / 2'), findsOneWidget);
 
-    await tester.tap(find.byType(BackButton));
+    await tester.tap(find.byTooltip('Tilbake'));
     await tester.pumpAndSettle();
     expect(find.text('Bildekarusell'), findsOneWidget);
     expect(find.text('Beskjær'), findsNothing);
@@ -156,7 +158,7 @@ void main() {
     await _openEditor(tester);
     await _tapLayout(tester, group: 'Film', layout: 'Dump');
 
-    expect(find.text('Dump'), findsOneWidget);
+    expect(find.bySemanticsLabel('Dump'), findsOneWidget);
     expect(find.text('Velg bilder til rammen'), findsOneWidget);
   });
 
@@ -164,7 +166,7 @@ void main() {
     await _openEditor(tester);
     await _tapLayout(tester, group: 'Film', layout: 'Booth');
 
-    expect(find.text('Booth'), findsOneWidget);
+    expect(find.bySemanticsLabel('Booth'), findsOneWidget);
     expect(find.text('Velg bilder til rammen'), findsOneWidget);
   });
 
@@ -172,7 +174,7 @@ void main() {
     await _openEditor(tester);
     await _tapLayout(tester, group: 'Spesial', layout: 'Reaksjon');
 
-    expect(find.text('Reaksjon'), findsOneWidget);
+    expect(find.bySemanticsLabel('Reaksjon'), findsOneWidget);
     expect(find.text('Velg bilder til rammen'), findsOneWidget);
   });
 
@@ -180,13 +182,13 @@ void main() {
     await _openEditor(tester);
 
     await _tapLayout(tester, layout: '1 + 3');
-    expect(find.text('1 + 3'), findsOneWidget);
+    expect(find.bySemanticsLabel('1 + 3'), findsOneWidget);
 
     await _tapLayout(tester, layout: '1 + 2 + 2');
-    expect(find.text('1 + 2 + 2'), findsOneWidget);
+    expect(find.bySemanticsLabel('1 + 2 + 2'), findsOneWidget);
 
     await _tapLayout(tester, layout: 'L-stor');
-    expect(find.text('L-stor'), findsOneWidget);
+    expect(find.bySemanticsLabel('L-stor'), findsOneWidget);
   });
 
   testWidgets('format tab shows size chips', (WidgetTester tester) async {

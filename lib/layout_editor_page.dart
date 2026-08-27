@@ -17,6 +17,7 @@ import 'canvas_share.dart';
 import 'discard_dialog.dart';
 import 'dump_layout.dart';
 import 'draft_storage.dart';
+import 'editor_app_bar.dart';
 import 'editor_history.dart';
 import 'editor_tool_grid.dart';
 import 'empty_canvas_hint.dart';
@@ -941,67 +942,38 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       },
       child: Scaffold(
         backgroundColor: AppTheme.mist,
-        appBar: AppBar(
-          backgroundColor: AppTheme.mist,
-          title: Text(_layout.label),
-          centerTitle: true,
-          actions: [
-            IconButton(
-              tooltip: 'Angre',
-              onPressed:
-                  _history.canUndo && !_exporting && !_previewing ? _undo : null,
-              icon: const Icon(Icons.undo),
+        appBar: EditorAppBar(
+          canUndo: _history.canUndo && !_exporting && !_previewing,
+          canRedo: _history.canRedo && !_exporting && !_previewing,
+          onUndo: _undo,
+          onRedo: _redo,
+          sharing: _exporting,
+          shareEnabled: _hasAnyImage && !_exporting && !_previewing,
+          shareLabel: _exporting ? AppCopy.wait : AppCopy.share,
+          onShare: _shareFrame,
+          previewing: _previewing,
+          previewEnabled: _hasAnyImage && !_exporting,
+          onTogglePreview: _togglePreview,
+          moreEnabled: !_exporting && !_previewing && _hasAnyImage,
+          moreItems: const [
+            PopupMenuItem<String>(
+              value: 'save_draft',
+              child: Text(AppCopy.saveDraft),
             ),
-            IconButton(
-              tooltip: _previewing ? 'Avslutt forhåndsvisning' : 'Forhåndsvis',
-              onPressed: _hasAnyImage && !_exporting ? _togglePreview : null,
-              icon: Icon(
-                _previewing ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-              ),
-            ),
-            TextButton(
-              onPressed: _hasAnyImage && !_exporting && !_previewing
-                  ? _shareFrame
-                  : null,
-              child: Text(_exporting ? AppCopy.wait : AppCopy.share),
-            ),
-            PopupMenuButton<String>(
-              tooltip: 'Mer',
-              enabled: !_exporting &&
-                  !_previewing &&
-                  (_hasAnyImage || _history.canRedo),
-              onSelected: (value) async {
-                if (value == 'redo') {
-                  _redo();
-                } else if (value == 'download') {
-                  await _downloadFrame();
-                } else if (value == 'save_draft') {
-                  await _saveDraft();
-                  await AppFeedback.success();
-                  if (mounted) _showMessage(AppCopy.draftSaved);
-                }
-              },
-              itemBuilder: (context) {
-                return [
-                  PopupMenuItem<String>(
-                    value: 'redo',
-                    enabled: _history.canRedo,
-                    child: const Text('Gjør om'),
-                  ),
-                  if (_hasAnyImage) ...[
-                    const PopupMenuItem<String>(
-                      value: 'save_draft',
-                      child: Text(AppCopy.saveDraft),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'download',
-                      child: Text(AppCopy.saveToPhotos),
-                    ),
-                  ],
-                ];
-              },
+            PopupMenuItem<String>(
+              value: 'download',
+              child: Text(AppCopy.saveToPhotos),
             ),
           ],
+          onMoreSelected: (value) async {
+            if (value == 'download') {
+              await _downloadFrame();
+            } else if (value == 'save_draft') {
+              await _saveDraft();
+              await AppFeedback.success();
+              if (mounted) _showMessage(AppCopy.draftSaved);
+            }
+          },
         ),
         body: SafeArea(
           child: Column(
