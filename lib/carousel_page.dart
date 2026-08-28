@@ -437,7 +437,9 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   Future<void> _offerDraftRestore() async {
-    if (!mounted || !await DraftStorage.hasCarouselDraft()) return;
+    if (!mounted) return;
+    if (!await DraftStorage.hasCarouselDraft()) return;
+    if (!mounted) return;
 
     final restore = await showDialog<bool>(
       context: context,
@@ -633,19 +635,6 @@ class _CarouselPageState extends State<CarouselPage> {
       _imageFocused = false;
       _selectedSlotIndex = null;
       _tool = _CarouselTool.text;
-    });
-  }
-
-  void _deselectOverlay() {
-    if (_selectedOverlayIndex == null) return;
-    setState(() => _selectedOverlayIndex = null);
-  }
-
-  void _deselectImage() {
-    if (!_imageFocused && _selectedSlotIndex == null) return;
-    setState(() {
-      _imageFocused = false;
-      _selectedSlotIndex = null;
     });
   }
 
@@ -1486,14 +1475,15 @@ class _CarouselPageState extends State<CarouselPage> {
             : 'Deling ble avbrutt eller feilet.',
       );
     } finally {
-      if (!mounted) return;
-      _pageController.jumpToPage(current);
-      setState(() {
-        _index = current;
-        _exporting = false;
-        _exportCurrent = 0;
-        _exportTotal = 0;
-      });
+      if (mounted) {
+        _pageController.jumpToPage(current);
+        setState(() {
+          _index = current;
+          _exporting = false;
+          _exportCurrent = 0;
+          _exportTotal = 0;
+        });
+      }
     }
   }
 
@@ -2188,11 +2178,12 @@ class _CarouselPageState extends State<CarouselPage> {
       canPop: !_hasAnyImage,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
+        final navigator = Navigator.of(context);
         final shouldPop = await confirmDiscard(context);
-        if (shouldPop && mounted) {
-          await DraftStorage.clearCarouselDraft();
-          if (mounted) Navigator.of(context).pop();
-        }
+        if (!mounted || !shouldPop) return;
+        await DraftStorage.clearCarouselDraft();
+        if (!mounted) return;
+        navigator.pop();
       },
       child: Scaffold(
         backgroundColor: AppTheme.mist,

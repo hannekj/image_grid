@@ -248,7 +248,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Future<void> _offerDraftRestore() async {
-    if (!mounted || !await DraftStorage.hasLayoutDraft()) return;
+    if (!mounted) return;
+    if (!await DraftStorage.hasLayoutDraft()) return;
+    if (!mounted) return;
 
     final restore = await showDialog<bool>(
       context: context,
@@ -954,11 +956,12 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       canPop: !_hasAnyImage,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
+        final navigator = Navigator.of(context);
         final shouldPop = await _confirmDiscard();
-        if (shouldPop && mounted) {
-          await DraftStorage.clearLayoutDraft();
-          if (mounted) Navigator.of(context).pop();
-        }
+        if (!mounted || !shouldPop) return;
+        await DraftStorage.clearLayoutDraft();
+        if (!mounted) return;
+        navigator.pop();
       },
       child: Scaffold(
         backgroundColor: AppTheme.mist,

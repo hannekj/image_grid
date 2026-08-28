@@ -40,7 +40,7 @@ class OverlayTextsLayer extends StatelessWidget {
     final order = <int>[
       for (var i = 0; i < overlays.length; i++)
         if (i != selected) i,
-      if (selected != null) selected,
+      ?selected,
     ];
 
     return Stack(

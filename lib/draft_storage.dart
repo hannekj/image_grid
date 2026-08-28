@@ -354,7 +354,7 @@ class DraftStorage {
       'imageRotation': slide.imageRotation,
       'imageLocked': slide.imageLocked,
       'layoutId': slide.layoutId,
-      if (slotsJson != null) 'slots': slotsJson,
+      'slots': ?slotsJson,
       'overlays': slide.overlays.map(_overlayToJson).toList(),
     };
   }
