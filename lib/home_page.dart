@@ -107,39 +107,42 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               children: [
                 Expanded(
+                  flex: 3,
                   child: Center(
-                    child: SingleChildScrollView(
+                    child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'LØV',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.libreBaskerville(
-                              fontSize: 34,
-                              fontWeight: FontWeight.w500,
-                              height: 1.1,
-                              letterSpacing: 0.4,
-                              color: AppTheme.ink,
-                            ),
-                          ),
-                          const SizedBox(height: 36),
-                          _PrimaryCreateButton(
-                            label: createLabel,
-                            onPressed: () => _openGrid(),
-                          ),
-                          const SizedBox(height: 10),
-                          _SecondaryCreateButton(
-                            label: carouselLabel,
-                            onPressed: _openCarousel,
-                          ),
-                        ],
+                      child: Text(
+                        'LØV',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.libreBaskerville(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w500,
+                          height: 1.1,
+                          letterSpacing: 0.4,
+                          color: AppTheme.ink,
+                        ),
                       ),
                     ),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _PrimaryCreateButton(
+                        label: createLabel,
+                        onPressed: () => _openGrid(),
+                      ),
+                      const SizedBox(height: 10),
+                      _SecondaryCreateButton(
+                        label: carouselLabel,
+                        onPressed: _openCarousel,
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(flex: 2),
                 if (_hasLayoutDraft || _hasCarouselDraft)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
