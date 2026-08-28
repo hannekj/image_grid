@@ -85,101 +85,134 @@ class _HomePageState extends State<HomePage> {
     final classicLayouts = layoutsInGroup(LayoutGroup.classic);
 
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                tooltip: 'Innstillinger',
-                onPressed: () {},
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                icon: const Icon(
-                  Icons.settings_outlined,
-                  size: 22,
-                  color: AppTheme.muted,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              tooltip: 'Innstillinger',
+              onPressed: () {},
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              icon: const Icon(
+                Icons.settings_outlined,
+                size: 22,
+                color: AppTheme.muted,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'LØV',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.libreBaskerville(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w500,
+                              height: 1.1,
+                              letterSpacing: 0.4,
+                              color: AppTheme.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 36),
+                          _PrimaryCreateButton(
+                            label: createLabel,
+                            onPressed: () => _openGrid(),
+                          ),
+                          const SizedBox(height: 10),
+                          _SecondaryCreateButton(
+                            label: carouselLabel,
+                            onPressed: _openCarousel,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 56),
-            Text(
-              'LØV',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.libreBaskerville(
-                fontSize: 34,
-                fontWeight: FontWeight.w500,
-                height: 1.1,
-                letterSpacing: 0.4,
-                color: AppTheme.ink,
-              ),
-            ),
-            const SizedBox(height: 32),
-            _PrimaryCreateButton(
-              label: createLabel,
-              onPressed: () => _openGrid(),
-            ),
-            const SizedBox(height: 10),
-            _SecondaryCreateButton(
-              label: carouselLabel,
-              onPressed: _openCarousel,
-            ),
-            if (_hasLayoutDraft || _hasCarouselDraft) ...[
-              const SizedBox(height: 36),
-              const _SectionLabel('Siste prosjekter'),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  if (_hasLayoutDraft)
-                    Expanded(
-                      child: _ProjectCard(
-                        title: 'Innlegg',
-                        subtitle: _layoutDraftSavedAt == null
-                            ? 'Utkast'
-                            : DraftStorage.formatSavedAt(_layoutDraftSavedAt!),
-                        layout: defaultGridLayout,
-                        onTap: () => _openGrid(),
-                      ),
+                if (_hasLayoutDraft || _hasCarouselDraft)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _SectionLabel('Siste prosjekter'),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            if (_hasLayoutDraft)
+                              Expanded(
+                                child: _ProjectCard(
+                                  title: 'Innlegg',
+                                  subtitle: _layoutDraftSavedAt == null
+                                      ? 'Utkast'
+                                      : DraftStorage.formatSavedAt(
+                                          _layoutDraftSavedAt!,
+                                        ),
+                                  layout: defaultGridLayout,
+                                  onTap: () => _openGrid(),
+                                ),
+                              ),
+                            if (_hasLayoutDraft && _hasCarouselDraft)
+                              const SizedBox(width: 12),
+                            if (_hasCarouselDraft)
+                              Expanded(
+                                child: _ProjectCard(
+                                  title: 'Karusell',
+                                  subtitle: _carouselDraftSavedAt == null
+                                      ? 'Utkast'
+                                      : DraftStorage.formatSavedAt(
+                                          _carouselDraftSavedAt!,
+                                        ),
+                                  layout: null,
+                                  onTap: _openCarousel,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
-                  if (_hasLayoutDraft && _hasCarouselDraft)
-                    const SizedBox(width: 12),
-                  if (_hasCarouselDraft)
-                    Expanded(
-                      child: _ProjectCard(
-                        title: 'Karusell',
-                        subtitle: _carouselDraftSavedAt == null
-                            ? 'Utkast'
-                            : DraftStorage.formatSavedAt(_carouselDraftSavedAt!),
-                        layout: null,
-                        onTap: _openCarousel,
-                      ),
-                    ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 48),
-            const _SectionLabel('Klassiske oppsett'),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 64,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: classicLayouts.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  final layout = classicLayouts[index];
-                  return _ClassicLayoutThumb(
-                    layout: layout,
-                    onTap: () => _openGrid(layout: layout),
-                  );
-                },
-              ),
+                  ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _SectionLabel('Klassiske oppsett'),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 64,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: classicLayouts.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      final layout = classicLayouts[index];
+                      return _ClassicLayoutThumb(
+                        layout: layout,
+                        onTap: () => _openGrid(layout: layout),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
