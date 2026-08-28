@@ -10,7 +10,9 @@ import 'layout_editor_page.dart';
 import 'layout_outline_painter.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.onDraftsChanged});
+
+  final VoidCallback? onDraftsChanged;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -49,16 +51,17 @@ class _HomePageState extends State<HomePage> {
     return '$base · ${DraftStorage.formatSavedAt(savedAt)}';
   }
 
-  Future<void> _openGrid() async {
+  Future<void> _openGrid({GridLayout? layout}) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LayoutEditorPage(
-          layout: defaultGridLayout,
+          layout: layout ?? defaultGridLayout,
           format: canvasFormats.first,
         ),
       ),
     );
     await _loadDraftFlags();
+    widget.onDraftsChanged?.call();
   }
 
   Future<void> _openCarousel() async {
@@ -68,117 +71,344 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     await _loadDraftFlags();
+    widget.onDraftsChanged?.call();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.cream,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(32, 36, 32, 28),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-              Text(
-                'Bildekarusell',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.libreBaskerville(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w500,
-                  height: 1.15,
-                  color: AppTheme.ink,
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Innlegg, dumps og karuseller',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
+    final createLabel = _hasLayoutDraft
+        ? _continueLabel('Fortsett innlegg', _layoutDraftSavedAt)
+        : 'Lag innlegg';
+    final carouselLabel = _hasCarouselDraft
+        ? _continueLabel('Fortsett karusell', _carouselDraftSavedAt)
+        : 'Karusell';
+    final classicLayouts = layoutsInGroup(LayoutGroup.classic);
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: 'Innstillinger',
+                onPressed: () {},
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  size: 22,
                   color: AppTheme.muted,
-                  letterSpacing: 0.2,
                 ),
               ),
-              const SizedBox(height: 40),
-              GestureDetector(
-                onTap: _openGrid,
-                child: const _HomePreview(),
+            ),
+            const SizedBox(height: 56),
+            Text(
+              'LØV',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.libreBaskerville(
+                fontSize: 34,
+                fontWeight: FontWeight.w500,
+                height: 1.1,
+                letterSpacing: 0.4,
+                color: AppTheme.ink,
               ),
-              const Spacer(flex: 3),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton(
-                  onPressed: _openGrid,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.matcha,
-                    foregroundColor: AppTheme.cream,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+            ),
+            const SizedBox(height: 32),
+            _PrimaryCreateButton(
+              label: createLabel,
+              onPressed: () => _openGrid(),
+            ),
+            const SizedBox(height: 10),
+            _SecondaryCreateButton(
+              label: carouselLabel,
+              onPressed: _openCarousel,
+            ),
+            if (_hasLayoutDraft || _hasCarouselDraft) ...[
+              const SizedBox(height: 36),
+              const _SectionLabel('Siste prosjekter'),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  if (_hasLayoutDraft)
+                    Expanded(
+                      child: _ProjectCard(
+                        title: 'Innlegg',
+                        subtitle: _layoutDraftSavedAt == null
+                            ? 'Utkast'
+                            : DraftStorage.formatSavedAt(_layoutDraftSavedAt!),
+                        layout: defaultGridLayout,
+                        onTap: () => _openGrid(),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    _hasLayoutDraft
-                        ? _continueLabel('Fortsett innlegg', _layoutDraftSavedAt)
-                        : 'Lag innlegg',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                  if (_hasLayoutDraft && _hasCarouselDraft)
+                    const SizedBox(width: 12),
+                  if (_hasCarouselDraft)
+                    Expanded(
+                      child: _ProjectCard(
+                        title: 'Karusell',
+                        subtitle: _carouselDraftSavedAt == null
+                            ? 'Utkast'
+                            : DraftStorage.formatSavedAt(_carouselDraftSavedAt!),
+                        layout: null,
+                        onTap: _openCarousel,
+                      ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: _openCarousel,
-                child: Text(
-                  _hasCarouselDraft
-                      ? _continueLabel(
-                          'Fortsett karusell',
-                          _carouselDraftSavedAt,
-                        )
-                      : 'Karusell',
-                ),
+                ],
               ),
             ],
-          ),
+            const SizedBox(height: 48),
+            const _SectionLabel('Klassiske oppsett'),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 64,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: classicLayouts.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final layout = classicLayouts[index];
+                  return _ClassicLayoutThumb(
+                    layout: layout,
+                    onTap: () => _openGrid(layout: layout),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _HomePreview extends StatelessWidget {
-  const _HomePreview();
+class _PrimaryCreateButton extends StatelessWidget {
+  const _PrimaryCreateButton({
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.matcha.withValues(alpha: 0.16),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: FilledButton(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: AppTheme.matcha,
+          foregroundColor: AppTheme.cream,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
-        ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ],
+        ),
       ),
-      child: SizedBox(
-        width: 176,
-        child: AspectRatio(
-          aspectRatio: 4 / 5,
-          child: ColoredBox(
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(10),
+    );
+  }
+}
+
+class _SecondaryCreateButton extends StatelessWidget {
+  const _SecondaryCreateButton({
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppTheme.ink,
+          side: const BorderSide(color: AppTheme.line),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1.2,
+        color: AppTheme.muted,
+      ),
+    );
+  }
+}
+
+class _ProjectCard extends StatelessWidget {
+  const _ProjectCard({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.layout,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final GridLayout? layout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.mist,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: ColoredBox(
+                color: Colors.white,
+                child: layout == null
+                    ? const Center(
+                        child: Icon(
+                          Icons.view_carousel_outlined,
+                          size: 32,
+                          color: AppTheme.muted,
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: CustomPaint(
+                          painter: LayoutOutlinePainter(
+                            layout: layout!,
+                            cellColor: AppTheme.leaf,
+                            gapColor: Colors.white,
+                            gap: 4,
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClassicLayoutThumb extends StatelessWidget {
+  const _ClassicLayoutThumb({
+    required this.layout,
+    required this.onTap,
+  });
+
+  static const _height = 64.0;
+
+  final GridLayout layout;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = _height * canvasFormats.first.aspectRatio;
+
+    return Semantics(
+      label: layout.label,
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Ink(
+            width: width,
+            height: _height,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.line),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(7),
               child: CustomPaint(
-                painter: LayoutOutlinePainter(
-                  layout: defaultGridLayout,
-                  cellColor: AppTheme.leaf,
-                  gapColor: Colors.white,
-                  gap: 6,
-                ),
+                painter: LayoutOutlinePainter(layout: layout),
               ),
             ),
           ),

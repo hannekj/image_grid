@@ -670,7 +670,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   Future<void> _downloadFrame() {
     return _exportPng(
-      (bytes) => savePngToGallery(bytes, name: 'bildekarusell'),
+      (bytes) => savePngToGallery(bytes, name: 'lov'),
       successMessage: AppCopy.savedToPhotos,
     );
   }

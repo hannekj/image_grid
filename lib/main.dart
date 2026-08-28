@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
-import 'home_page.dart';
+import 'studio_shell.dart';
 
 void main() {
   runApp(const ImageGridApp());
@@ -13,10 +13,10 @@ class ImageGridApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Bildekarusell',
+      title: 'LØV',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.data(),
-      home: const HomePage(),
+      home: const StudioShell(),
     );
   }
 }

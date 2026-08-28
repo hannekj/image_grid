@@ -134,7 +134,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Forkast bildene?'), findsNothing);
-    expect(find.text('Bildekarusell'), findsOneWidget);
+    expect(find.text('LØV'), findsOneWidget);
   });
 
   testWidgets('home Karusell opens its tools', (WidgetTester tester) async {
@@ -153,7 +153,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Tilbake'));
     await tester.pumpAndSettle();
-    expect(find.text('Bildekarusell'), findsOneWidget);
+    expect(find.text('LØV'), findsOneWidget);
     expect(find.text('Beskjær'), findsNothing);
   });
 

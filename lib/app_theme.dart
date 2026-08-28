@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const cream = Color(0xFFF3F4EC);
-  static const mist = Color(0xFFE6E9DF);
-  static const matcha = Color(0xFF7E8F72);
-  static const ink = Color(0xFF2C3028);
-  static const muted = Color(0xFF6F7668);
-  static const leaf = Color(0xFFC5CBBC);
-  static const line = Color(0xFFD2D6C8);
+  /// Warm off-white canvas background.
+  static const cream = Color(0xFFFAF9F6);
+
+  /// Raised surfaces, chips, bottom bar fill.
+  static const mist = Color(0xFFEFEFE9);
+
+  /// Dark forest green — primary actions, logo, active nav.
+  static const matcha = Color(0xFF1E302A);
+
+  static const ink = Color(0xFF1E302A);
+  static const muted = Color(0xFF8A9088);
+  static const leaf = Color(0xFFE5E3DC);
+  static const line = Color(0xFFE5E3DC);
 
   static ThemeData data() {
     return ThemeData(
@@ -21,7 +27,7 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: cream,
       appBarTheme: const AppBarTheme(
-        backgroundColor: mist,
+        backgroundColor: cream,
         foregroundColor: ink,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -36,6 +42,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(foregroundColor: muted),
       ),
+      dividerColor: line,
       useMaterial3: true,
     );
   }
