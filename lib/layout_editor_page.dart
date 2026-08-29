@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'album_grid_layout.dart';
 import 'app_theme.dart';
 import 'app_copy.dart';
 import 'app_feedback.dart';
@@ -112,6 +113,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   String _pathTextDraft = '•';
 
   bool _swapHintShown = false;
+  bool _autoSaveDraftOnDispose = true;
 
   bool get _hasAnyImage => _slots.any((bytes) => bytes != null);
 
@@ -127,10 +129,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   @override
   void dispose() {
-    if (_hasAnyImage) {
+    if (_autoSaveDraftOnDispose && _hasAnyImage) {
       unawaited(_saveDraft());
     }
     super.dispose();
+  }
+
+  void _discardDraft() {
+    _autoSaveDraftOnDispose = false;
   }
 
   List<OverlayText> _cloneOverlays(List<OverlayText> overlays) {
@@ -281,6 +287,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         _applyDraft(draft);
       }
     } else {
+      _discardDraft();
       await DraftStorage.clearLayoutDraft();
     }
   }
@@ -933,6 +940,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildAlbumGrid() {
+    return AlbumGridFrame(
+      slots: [
+        for (var i = 0; i < AlbumGridFrame.slotCount; i++) _slot(i),
+      ],
+    );
+  }
+
   Widget _buildBody(double strokeWidth) {
     if (_layout.isDump) return _buildDump();
     if (_layout.isBooth) return _buildBooth();
@@ -944,6 +959,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     }
     if (_layout.isReaction) return _buildReaction();
     if (_layout.isOverlayFrame) return _buildOverlayFrame();
+    if (_layout.isAlbumGrid) return _buildAlbumGrid();
     return _buildGrid(strokeWidth);
   }
 
@@ -959,6 +975,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         final navigator = Navigator.of(context);
         final shouldPop = await _confirmDiscard();
         if (!mounted || !shouldPop) return;
+        _discardDraft();
         await DraftStorage.clearLayoutDraft();
         if (!mounted) return;
         navigator.pop();

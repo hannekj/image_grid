@@ -47,6 +47,11 @@ class LayoutOutlinePainter extends CustomPainter {
       return;
     }
 
+    if (layout.isAlbumGrid) {
+      _paintAlbumGrid(canvas, size);
+      return;
+    }
+
     final cellPaint = Paint()..color = cellColor;
     final rowFlexTotal = layout.rowFlexTotal;
     final rowCount = layout.rows.length;
@@ -315,6 +320,43 @@ class LayoutOutlinePainter extends CustomPainter {
       frame.deflate(border * 1.35),
       cellPaint,
     );
+  }
+
+  void _paintAlbumGrid(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = AppTheme.cream);
+
+    final cellPaint = Paint()..color = cellColor;
+    const columns = 3;
+    const rows = 4;
+
+    final gridWidth = size.width * 0.78;
+    final gridHeight = size.height * 0.82;
+    final gap = math.min(size.width, size.height) * 0.042;
+
+    final cellSize = math.min(
+      (gridWidth - gap * (columns - 1)) / columns,
+      (gridHeight - gap * (rows - 1)) / rows,
+    );
+    final contentWidth = cellSize * columns + gap * (columns - 1);
+    final contentHeight = cellSize * rows + gap * (rows - 1);
+    final origin = Offset(
+      (size.width - contentWidth) / 2,
+      (size.height - contentHeight) / 2,
+    );
+
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < columns; col++) {
+        final left = origin.dx + col * (cellSize + gap);
+        final top = origin.dy + row * (cellSize + gap);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(left, top, cellSize, cellSize),
+            const Radius.circular(1),
+          ),
+          cellPaint,
+        );
+      }
+    }
   }
 
   @override

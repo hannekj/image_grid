@@ -36,13 +36,15 @@ class GridLayout {
 
   bool get isOverlayFrame => id == 'overlay-frame';
 
+  bool get isAlbumGrid => id == 'album-grid';
+
   bool get isFilmHorizontal => id == 'film-h';
 
   bool get isFilmVertical => id == 'film-v';
 
   bool get isFilmStrip => isFilmHorizontal || isFilmVertical;
 
-  bool get usesCreamCanvas => isDump || isBooth || isFilmStrip;
+  bool get usesCreamCanvas => isDump || isBooth || isFilmStrip || isAlbumGrid;
 
   LayoutGroup get group {
     if (isDump || isBooth || isFilmStrip) return LayoutGroup.film;
@@ -192,6 +194,16 @@ const gridLayouts = [
     id: '3x3',
     label: '3 × 3',
     rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'album-grid',
+    label: 'Album',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),

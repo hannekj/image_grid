@@ -8,6 +8,8 @@ Future<void> _openEditor(WidgetTester tester) async {
   await tester.pumpWidget(const ImageGridApp());
   await tester.tap(find.text('Lag innlegg'));
   await tester.pumpAndSettle();
+  await tester.tap(find.text('Collage'));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _openLayoutPanel(WidgetTester tester) async {
@@ -140,6 +142,8 @@ void main() {
   testWidgets('home Karusell opens its tools', (WidgetTester tester) async {
     await tester.pumpWidget(const ImageGridApp());
 
+    await tester.tap(find.text('Lag innlegg'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Karusell'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Del'), findsOneWidget);

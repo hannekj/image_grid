@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'album_grid_layout.dart';
 import 'app_theme.dart';
 import 'app_copy.dart';
 import 'app_feedback.dart';
@@ -115,6 +116,8 @@ class _CarouselPageState extends State<CarouselPage> {
 
   bool get _hasAnyImage => _slides.any((slide) => !slide.isEmpty);
 
+  bool _autoSaveDraftOnDispose = true;
+
   bool get _cleanView => _exporting || _previewing;
 
   CarouselSlide get _current => _slides[_index];
@@ -150,12 +153,16 @@ class _CarouselPageState extends State<CarouselPage> {
 
   @override
   void dispose() {
-    if (_hasAnyImage) {
+    if (_autoSaveDraftOnDispose && _hasAnyImage) {
       unawaited(_saveDraft());
     }
     _pageController.dispose();
     _stripController.dispose();
     super.dispose();
+  }
+
+  void _discardDraft() {
+    _autoSaveDraftOnDispose = false;
   }
 
   String _nextSlideId() {
@@ -470,6 +477,7 @@ class _CarouselPageState extends State<CarouselPage> {
         _applyDraft(draft);
       }
     } else {
+      _discardDraft();
       await DraftStorage.clearCarouselDraft();
     }
   }
@@ -1841,6 +1849,14 @@ class _CarouselPageState extends State<CarouselPage> {
       );
     }
 
+    if (layout.isAlbumGrid) {
+      return AlbumGridFrame(
+        slots: [
+          for (var i = 0; i < AlbumGridFrame.slotCount; i++) slot(i),
+        ],
+      );
+    }
+
     final gap = math.max(_strokeWidth, 2.0);
     return LayoutGridBody(
       layout: layout,
@@ -2181,6 +2197,7 @@ class _CarouselPageState extends State<CarouselPage> {
         final navigator = Navigator.of(context);
         final shouldPop = await confirmDiscard(context);
         if (!mounted || !shouldPop) return;
+        _discardDraft();
         await DraftStorage.clearCarouselDraft();
         if (!mounted) return;
         navigator.pop();
