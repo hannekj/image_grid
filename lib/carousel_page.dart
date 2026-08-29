@@ -36,6 +36,7 @@ import 'image_slot.dart';
 import 'instagram_preview_chrome.dart';
 import 'layout_grid_body.dart';
 import 'layout_strip.dart';
+import 'layout_slot_pool.dart';
 import 'look_panel.dart';
 import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
@@ -43,6 +44,7 @@ import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'path_text_draw_layer.dart';
 import 'path_text_paint.dart';
+import 'heart_columns_layout.dart';
 import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
 import 'stagger_grid_layout.dart';
@@ -143,6 +145,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isStaggerGrid) return Colors.white;
     if (layout.isLayerCollage) return Colors.white;
     if (layout.isHeartGrid) return Colors.white;
+    if (layout.isHeartColumns) return Colors.white;
     if (layout.isFilmStrip) return AppTheme.cream;
     if (layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
@@ -157,6 +160,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (slide.layout?.isStaggerGrid == true) return 0;
     if (slide.layout?.isLayerCollage == true) return 0;
     if (slide.layout?.isHeartGrid == true) return 0;
+    if (slide.layout?.isHeartColumns == true) return 0;
     return _strokeWidth;
   }
 
@@ -214,6 +218,7 @@ class _CarouselPageState extends State<CarouselPage> {
               : [
                   for (final view in slide.slotViews!) view.copyWith(),
                 ],
+          spareImages: List<Uint8List>.from(slide.spareImages),
         ),
     ];
   }
@@ -382,6 +387,7 @@ class _CarouselPageState extends State<CarouselPage> {
                       rotation: view.rotation,
                     ),
                 ],
+          spareImages: List<Uint8List>.from(slide.spareImages),
           overlays: _cloneOverlays(slide.overlays),
         ),
       );
@@ -442,6 +448,7 @@ class _CarouselPageState extends State<CarouselPage> {
                           rotation: view.rotation,
                         ),
                     ],
+              spareImages: List<Uint8List>.from(slide.spareImages),
               overlays: _cloneOverlays(slide.overlays),
             ),
         ]);
@@ -1131,19 +1138,30 @@ class _CarouselPageState extends State<CarouselPage> {
       if (_current.isGrid) {
         final oldSlots = _current.slots ?? const <Uint8List?>[];
         final oldViews = _current.slotViews ?? const <CarouselSlotView>[];
-        final count = layout.slotCount;
-        final slots = List<Uint8List?>.generate(
-          count,
-          (i) => i < oldSlots.length ? oldSlots[i] : null,
+        final viewsByImage = <int, CarouselSlotView>{};
+        for (var i = 0; i < oldSlots.length; i++) {
+          final bytes = oldSlots[i];
+          if (bytes == null) continue;
+          viewsByImage[identityHashCode(bytes)] =
+              i < oldViews.length ? oldViews[i] : const CarouselSlotView();
+        }
+        final remapped = remapLayoutSlots(
+          currentSlots: oldSlots,
+          spareImages: _current.spareImages,
+          nextSlotCount: layout.slotCount,
         );
-        final views = List<CarouselSlotView>.generate(
-          count,
-          (i) => i < oldViews.length ? oldViews[i] : const CarouselSlotView(),
-        );
+        final views = [
+          for (final bytes in remapped.slots)
+            bytes == null
+                ? const CarouselSlotView()
+                : viewsByImage[identityHashCode(bytes)] ??
+                    const CarouselSlotView(),
+        ];
         _slides[_index] = _current.copyWith(
           layoutId: layout.id,
-          slots: slots,
+          slots: remapped.slots,
           slotViews: views,
+          spareImages: remapped.spareImages,
           clearImage: true,
           clearImageTransform: true,
         );
@@ -1899,8 +1917,20 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isHeartGrid) {
       return HeartGridFrame(
         showHearts: true,
+        heartStyle: layout.isSilverHeartGrid
+            ? HeartDecorationStyle.silver3d
+            : HeartDecorationStyle.white,
         slots: [
           for (var i = 0; i < HeartGridLayout.slotCount; i++) slot(i),
+        ],
+      );
+    }
+
+    if (layout.isHeartColumns) {
+      return HeartColumnsFrame(
+        showHearts: true,
+        slots: [
+          for (var i = 0; i < HeartColumnsLayout.slotCount; i++) slot(i),
         ],
       );
     }
@@ -2223,6 +2253,7 @@ class _CarouselPageState extends State<CarouselPage> {
           onAddPathText: _addPathText,
           onAddMessage: () => _addOverlay(OverlayKind.message),
           onAddLocation: () => _addOverlay(OverlayKind.location),
+          onAddCoordinates: () => _addOverlay(OverlayKind.coordinates),
           onAddDate: () => _addOverlay(OverlayKind.date),
           onAddTime: () => _addOverlay(OverlayKind.time),
           onAddWeather: () => _addOverlay(OverlayKind.weather),

@@ -28,6 +28,7 @@ import 'editor_toolbar.dart';
 import 'film_look.dart';
 import 'frame_style.dart';
 import 'grid_layout.dart';
+import 'layout_slot_pool.dart';
 import 'image_slot.dart';
 import 'instagram_preview_chrome.dart';
 import 'layout_strip.dart';
@@ -38,6 +39,7 @@ import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'path_text_draw_layer.dart';
 import 'path_text_paint.dart';
+import 'heart_columns_layout.dart';
 import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
 import 'stagger_grid_layout.dart';
@@ -57,11 +59,13 @@ class _LayoutSnapshot {
     required this.filter,
     required this.grain,
     required this.checkerLabels,
+    required this.spareImages,
   });
 
   final GridLayout layout;
   final CanvasFormat format;
   final List<Uint8List?> slots;
+  final List<Uint8List> spareImages;
   final List<_SlotView> slotViews;
   final List<OverlayText> overlays;
   final FrameKind kind;
@@ -101,6 +105,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     (_) => const _SlotView(),
   );
   final Map<int, _SlotView> _viewsByImage = {};
+  List<Uint8List> _spareImages = [];
 
   bool _exporting = false;
   bool _previewing = false;
@@ -125,7 +130,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     CheckerGridLayout.defaultLabels,
   );
 
-  bool get _hasAnyImage => _slots.any((bytes) => bytes != null);
+  bool get _hasAnyImage =>
+      _slots.any((bytes) => bytes != null) || _spareImages.isNotEmpty;
 
   bool get _cleanView => _exporting || _previewing;
 
@@ -177,6 +183,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       filter: _filter,
       grain: _grain,
       checkerLabels: List<String>.from(_checkerLabels),
+      spareImages: List<Uint8List>.from(_spareImages),
     );
   }
 
@@ -184,6 +191,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     _layout = snapshot.layout;
     _format = snapshot.format;
     _slots = List<Uint8List?>.from(snapshot.slots);
+    _spareImages = List<Uint8List>.from(snapshot.spareImages);
     _slotViews = List<_SlotView>.from(snapshot.slotViews);
     _overlayTexts
       ..clear()
@@ -234,6 +242,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         checkerLabels: _layout.isCheckerGrid
             ? List<String>.from(_checkerLabels)
             : null,
+        spareImages: List<Uint8List>.from(_spareImages),
       ),
     );
   }
@@ -251,6 +260,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           ? List<String>.from(CheckerGridLayout.defaultLabels)
           : List<String>.from(draft.checkerLabels!);
       _slots = List<Uint8List?>.from(draft.slots);
+      _spareImages = List<Uint8List>.from(draft.spareImages);
       _slotViews = [
         for (final view in draft.slotViews)
           _SlotView(pan: view.pan, zoom: view.zoom, rotation: view.rotation),
@@ -356,18 +366,18 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (next.id == _layout.id) return;
     _pushUndo();
     _rememberSlotViews();
-    final previous = List<Uint8List?>.from(_slots);
-    final nextSlots = List<Uint8List?>.filled(next.slotCount, null);
-    final keep = math.min(previous.length, nextSlots.length);
-    for (var i = 0; i < keep; i++) {
-      nextSlots[i] = previous[i];
-    }
+    final remapped = remapLayoutSlots(
+      currentSlots: _slots,
+      spareImages: _spareImages,
+      nextSlotCount: next.slotCount,
+    );
     final nextViews = [
-      for (final bytes in nextSlots) _viewForImage(bytes),
+      for (final bytes in remapped.slots) _viewForImage(bytes),
     ];
     setState(() {
       _layout = next;
-      _slots = nextSlots;
+      _slots = remapped.slots;
+      _spareImages = remapped.spareImages;
       _slotViews = nextViews;
       _selectedSlotIndex = null;
       if (next.isCheckerGrid) {
@@ -537,6 +547,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   Future<void> _addOverlayMessage() => _addOverlay(OverlayKind.message);
 
   Future<void> _addOverlayLocation() => _addOverlay(OverlayKind.location);
+
+  Future<void> _addOverlayCoordinates() =>
+      _addOverlay(OverlayKind.coordinates);
 
   Future<void> _addOverlayDate() => _addOverlay(OverlayKind.date);
 
@@ -1012,8 +1025,20 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   Widget _buildHeartGrid() {
     return HeartGridFrame(
       showHearts: true,
+      heartStyle: _layout.isSilverHeartGrid
+          ? HeartDecorationStyle.silver3d
+          : HeartDecorationStyle.white,
       slots: [
         for (var i = 0; i < HeartGridLayout.slotCount; i++) _slot(i),
+      ],
+    );
+  }
+
+  Widget _buildHeartColumns() {
+    return HeartColumnsFrame(
+      showHearts: true,
+      slots: [
+        for (var i = 0; i < HeartColumnsLayout.slotCount; i++) _slot(i),
       ],
     );
   }
@@ -1088,6 +1113,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (_layout.isCheckerGrid) return _buildCheckerGrid();
     if (_layout.isLayerCollage) return _buildLayerCollage();
     if (_layout.isHeartGrid) return _buildHeartGrid();
+    if (_layout.isHeartColumns) return _buildHeartColumns();
     return _buildGrid(strokeWidth);
   }
 
@@ -1417,6 +1443,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           onAddPathText: _addPathText,
           onAddMessage: _addOverlayMessage,
           onAddLocation: _addOverlayLocation,
+          onAddCoordinates: _addOverlayCoordinates,
           onAddDate: _addOverlayDate,
           onAddTime: _addOverlayTime,
           onAddWeather: _addOverlayWeather,

@@ -45,6 +45,7 @@ class CarouselSlide {
     this.layoutId,
     this.slots,
     this.slotViews,
+    this.spareImages = const [],
     List<OverlayText>? overlays,
   }) : overlays = overlays ?? <OverlayText>[];
 
@@ -64,6 +65,7 @@ class CarouselSlide {
   final String? layoutId;
   final List<Uint8List?>? slots;
   final List<CarouselSlotView>? slotViews;
+  final List<Uint8List> spareImages;
   final List<OverlayText> overlays;
 
   bool get isGrid => layoutId != null;
@@ -79,8 +81,10 @@ class CarouselSlide {
   bool get isEmpty {
     if (isGrid) {
       final gridSlots = slots;
-      if (gridSlots == null || gridSlots.isEmpty) return true;
-      return gridSlots.every((bytes) => bytes == null);
+      if (gridSlots == null || gridSlots.isEmpty) {
+        return spareImages.isEmpty;
+      }
+      return gridSlots.every((bytes) => bytes == null) && spareImages.isEmpty;
     }
     return imageBytes == null;
   }
@@ -114,6 +118,7 @@ class CarouselSlide {
     String? layoutId,
     List<Uint8List?>? slots,
     List<CarouselSlotView>? slotViews,
+    List<Uint8List>? spareImages,
     List<OverlayText>? overlays,
     bool clearImage = false,
     bool clearSpan = false,
@@ -137,6 +142,7 @@ class CarouselSlide {
       layoutId: clearGrid ? null : (layoutId ?? this.layoutId),
       slots: clearGrid ? null : (slots ?? this.slots),
       slotViews: clearGrid ? null : (slotViews ?? this.slotViews),
+      spareImages: clearGrid ? const [] : (spareImages ?? this.spareImages),
       overlays: overlays ?? this.overlays,
     );
   }
@@ -146,6 +152,7 @@ class CarouselSlide {
     required GridLayout layout,
     List<Uint8List?>? slots,
     List<CarouselSlotView>? slotViews,
+    List<Uint8List>? spareImages,
     List<OverlayText>? overlays,
   }) {
     final count = layout.slotCount;
@@ -158,6 +165,7 @@ class CarouselSlide {
             count,
             (_) => const CarouselSlotView(),
           ),
+      spareImages: spareImages ?? const [],
       overlays: overlays,
     );
   }

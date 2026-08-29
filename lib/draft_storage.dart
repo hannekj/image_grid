@@ -126,7 +126,17 @@ class DraftStorage {
         }
       }
 
-      slidesJson.add(_slideToJson(slide, imageName, slotsJson));
+      List<String>? spareJson;
+      if (slide.spareImages.isNotEmpty) {
+        spareJson = <String>[];
+        for (var s = 0; s < slide.spareImages.length; s++) {
+          final name = 'slide_${i}_spare_$s.jpg';
+          await File('${imageDir.path}/$name').writeAsBytes(slide.spareImages[s]);
+          spareJson.add(name);
+        }
+      }
+
+      slidesJson.add(_slideToJson(slide, imageName, slotsJson, spareJson));
     }
 
     final payload = {
@@ -185,6 +195,7 @@ class DraftStorage {
 
       List<Uint8List?>? slots;
       List<CarouselDraftSlotView>? slotViews;
+      List<Uint8List> spareImages = const [];
       final layoutId = slideMap['layoutId'] as String?;
       final slotsJson = slideMap['slots'] as List<dynamic>?;
       if (layoutId != null && slotsJson != null) {
@@ -211,7 +222,19 @@ class DraftStorage {
         }
       }
 
-      slides.add(_slideFromJson(slideMap, bytes, slots, slotViews));
+      final spareJson = slideMap['spare'] as List<dynamic>?;
+      if (spareJson != null) {
+        spareImages = <Uint8List>[];
+        for (final entry in spareJson) {
+          final imageName = entry as String;
+          final imageFile = File('${imageDir.path}/$imageName');
+          if (await imageFile.exists()) {
+            spareImages.add(await imageFile.readAsBytes());
+          }
+        }
+      }
+
+      slides.add(_slideFromJson(slideMap, bytes, slots, slotViews, spareImages));
     }
 
     return CarouselDraftData(
@@ -248,6 +271,16 @@ class DraftStorage {
       slotsJson.add({'image': name, 'view': _slotViewToJson(data.slotViews[i])});
     }
 
+    List<String>? spareJson;
+    if (data.spareImages.isNotEmpty) {
+      spareJson = <String>[];
+      for (var i = 0; i < data.spareImages.length; i++) {
+        final name = 'spare_$i.jpg';
+        await File('${imageDir.path}/$name').writeAsBytes(data.spareImages[i]);
+        spareJson.add(name);
+      }
+    }
+
     final payload = {
       'version': 1,
       'savedAt': DateTime.now().toIso8601String(),
@@ -259,6 +292,7 @@ class DraftStorage {
       'filter': data.filter.name,
       'grain': data.grain,
       'slots': slotsJson,
+      if (spareJson != null) 'spare': spareJson,
       'overlays': data.overlays.map(_overlayToJson).toList(),
       if (data.checkerLabels != null) 'checkerLabels': data.checkerLabels,
     };
@@ -316,6 +350,18 @@ class DraftStorage {
       }
     }
 
+    final spareImages = <Uint8List>[];
+    final spareJson = map['spare'] as List<dynamic>?;
+    if (spareJson != null) {
+      for (final entry in spareJson) {
+        final imageName = entry as String;
+        final imageFile = File('${imageDir.path}/$imageName');
+        if (await imageFile.exists()) {
+          spareImages.add(await imageFile.readAsBytes());
+        }
+      }
+    }
+
     final overlaysJson = map['overlays'] as List<dynamic>? ?? [];
     final overlays = overlaysJson
         .map((e) => _overlayFromJson(e as Map<String, dynamic>))
@@ -334,6 +380,7 @@ class DraftStorage {
       grain: map['grain'] as bool? ?? false,
       slots: slots,
       slotViews: slotViews,
+      spareImages: spareImages,
       overlays: overlays,
       checkerLabels: checkerLabels,
     );
@@ -343,6 +390,7 @@ class DraftStorage {
     CarouselDraftSlide slide,
     String? imageName,
     List<Map<String, dynamic>?>? slotsJson,
+    List<String>? spareJson,
   ) {
     return {
       'id': slide.id,
@@ -359,7 +407,8 @@ class DraftStorage {
       'imageRotation': slide.imageRotation,
       'imageLocked': slide.imageLocked,
       'layoutId': slide.layoutId,
-      'slots': ?slotsJson,
+      'slots': slotsJson,
+      if (spareJson != null) 'spare': spareJson,
       'overlays': slide.overlays.map(_overlayToJson).toList(),
     };
   }
@@ -369,6 +418,7 @@ class DraftStorage {
     Uint8List? bytes,
     List<Uint8List?>? slots,
     List<CarouselDraftSlotView>? slotViews,
+    List<Uint8List> spareImages,
   ) {
     return CarouselDraftSlide(
       id: map['id'] as String,
@@ -391,6 +441,7 @@ class DraftStorage {
       layoutId: map['layoutId'] as String?,
       slots: slots,
       slotViews: slotViews,
+      spareImages: spareImages,
       overlays: (map['overlays'] as List<dynamic>)
           .map((e) => _overlayFromJson(e as Map<String, dynamic>))
           .toList(),
@@ -548,6 +599,7 @@ class CarouselDraftSlide {
     this.layoutId,
     this.slots,
     this.slotViews,
+    this.spareImages = const [],
     this.overlays = const [],
   });
 
@@ -565,6 +617,7 @@ class CarouselDraftSlide {
   final String? layoutId;
   final List<Uint8List?>? slots;
   final List<CarouselDraftSlotView>? slotViews;
+  final List<Uint8List> spareImages;
   final List<OverlayText> overlays;
 }
 
@@ -593,6 +646,7 @@ class LayoutDraftData {
     required this.slotViews,
     required this.overlays,
     this.checkerLabels,
+    this.spareImages = const [],
   });
 
   final GridLayout layout;
@@ -606,6 +660,7 @@ class LayoutDraftData {
   final List<LayoutDraftSlotView> slotViews;
   final List<OverlayText> overlays;
   final List<String>? checkerLabels;
+  final List<Uint8List> spareImages;
 }
 
 class LayoutDraftSlotView {

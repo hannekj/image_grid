@@ -407,6 +407,39 @@ class _ChatBubbleContent extends StatelessWidget {
       );
     }
 
+    if (overlay.isCoordinates) {
+      final iconSize = (overlay.fontSize * 1.05).clamp(12.0, 24.0);
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: LocationPill(
+          color: overlay.effectiveBubbleColor,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.explore_outlined,
+                size: iconSize,
+                color: overlay.color,
+              ),
+              SizedBox(width: (overlay.fontSize * 0.35).clamp(6.0, 10.0)),
+              Flexible(
+                child: Text(
+                  overlay.value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: textStyle.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final iconSize = (overlay.fontSize * 1.05).clamp(12.0, 28.0);
 
     late final IconData icon;

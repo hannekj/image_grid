@@ -46,7 +46,11 @@ class GridLayout {
 
   bool get isLayerCollage => id == 'layer-collage';
 
-  bool get isHeartGrid => id == 'heart-grid';
+  bool get isHeartGrid => id == 'heart-grid' || id == 'heart-grid-silver';
+
+  bool get isSilverHeartGrid => id == 'heart-grid-silver';
+
+  bool get isHeartColumns => id == 'heart-columns';
 
   bool get isFilmHorizontal => id == 'film-h';
 
@@ -55,13 +59,18 @@ class GridLayout {
   bool get isFilmStrip => isFilmHorizontal || isFilmVertical;
 
   bool get isEdgeToEdgeCanvas =>
-      isCheckerGrid || isStripGrid || isHeartGrid;
+      isCheckerGrid || isStripGrid || isHeartGrid || isHeartColumns;
 
   bool get usesCreamCanvas => isDump || isBooth || isFilmStrip || isAlbumGrid;
 
   LayoutGroup get group {
     if (isDump || isBooth || isFilmStrip) return LayoutGroup.film;
-    if (isReaction || isOverlayFrame || isCheckerGrid || isLayerCollage || isHeartGrid) {
+    if (isReaction ||
+        isOverlayFrame ||
+        isCheckerGrid ||
+        isLayerCollage ||
+        isHeartGrid ||
+        isHeartColumns) {
       return LayoutGroup.special;
     }
     return LayoutGroup.classic;
@@ -418,6 +427,21 @@ const gridLayouts = [
     label: 'Hjerter',
     rows: [
       LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'heart-grid-silver',
+    label: 'Sølvhjerter',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'heart-columns',
+    label: 'To hjerter',
+    rows: [
       LayoutRow(flex: 1, cells: [1, 1]),
     ],
   ),

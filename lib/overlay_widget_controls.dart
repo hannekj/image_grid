@@ -17,6 +17,7 @@ class OverlayWidgetControls extends StatefulWidget {
     required this.onSelect,
     required this.onAddMessage,
     required this.onAddLocation,
+    required this.onAddCoordinates,
     required this.onAddDate,
     required this.onAddTime,
     required this.onAddWeather,
@@ -31,6 +32,7 @@ class OverlayWidgetControls extends StatefulWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onAddMessage;
   final VoidCallback onAddLocation;
+  final VoidCallback onAddCoordinates;
   final VoidCallback onAddDate;
   final VoidCallback onAddTime;
   final VoidCallback onAddWeather;
@@ -78,6 +80,10 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
         onAddLocation: () {
           setState(() => _adding = false);
           widget.onAddLocation();
+        },
+        onAddCoordinates: () {
+          setState(() => _adding = false);
+          widget.onAddCoordinates();
         },
         onAddDate: () {
           setState(() => _adding = false);

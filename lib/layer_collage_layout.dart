@@ -110,12 +110,13 @@ class LayerCollageFrame extends StatelessWidget {
               children: [
                 for (final slot in placed)
                   Positioned.fromRect(
-                    rect: slot.rect,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white, width: border),
+                    rect: slot.rect.inflate(border),
+                    child: ColoredBox(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: EdgeInsets.all(border),
+                        child: ClipRect(child: slots[slot.index]),
                       ),
-                      child: ClipRect(child: slots[slot.index]),
                     ),
                   ),
               ],

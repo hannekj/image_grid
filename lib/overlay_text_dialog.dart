@@ -87,6 +87,8 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
         switch (widget.kind) {
           OverlayKind.location =>
             widget.isNew ? 'Legg til sted' : 'Rediger sted',
+          OverlayKind.coordinates =>
+            widget.isNew ? 'Legg til koordinat' : 'Rediger koordinat',
           OverlayKind.message =>
             widget.isNew ? 'Legg til melding' : 'Rediger melding',
           OverlayKind.date =>
@@ -113,6 +115,7 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
             maxLines: widget.kind == OverlayKind.message ? 4 : 1,
             maxLength: switch (widget.kind) {
               OverlayKind.location => 40,
+              OverlayKind.coordinates => 48,
               OverlayKind.date ||
               OverlayKind.time ||
               OverlayKind.pageNumber =>
@@ -125,6 +128,7 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
               OverlayKind.date ||
               OverlayKind.time ||
               OverlayKind.weather ||
+              OverlayKind.coordinates ||
               OverlayKind.pageNumber =>
                 TextCapitalization.none,
               _ => TextCapitalization.sentences,
@@ -135,6 +139,7 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
             decoration: InputDecoration(
               hintText: switch (widget.kind) {
                 OverlayKind.location => 'F.eks. Lofoten',
+                OverlayKind.coordinates => 'F.eks. 68,23° N, 14,56° E',
                 OverlayKind.message => 'Skriv meldingen',
                 OverlayKind.date => 'F.eks. 22.08.2026',
                 OverlayKind.time => 'F.eks. 19:45',
@@ -143,9 +148,11 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
                 OverlayKind.pathText => 'F.eks. xo · eller et ord',
                 OverlayKind.text => 'Skriv teksten her',
               },
-              helperText: widget.kind == OverlayKind.pathText
-                  ? 'Teksten gjentar seg langs streken du tegner'
-                  : null,
+              helperText: switch (widget.kind) {
+                OverlayKind.pathText =>
+                  'Teksten gjentar seg langs streken du tegner',
+                _ => null,
+              },
               prefixIcon: _isDate
                   ? null
                   : Icon(

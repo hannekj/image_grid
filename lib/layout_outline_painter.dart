@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'app_theme.dart';
 import 'checker_grid_layout.dart';
 import 'grid_layout.dart';
+import 'heart_columns_layout.dart';
 import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
 import 'stagger_grid_layout.dart';
@@ -73,7 +74,18 @@ class LayoutOutlinePainter extends CustomPainter {
     }
 
     if (layout.isHeartGrid) {
-      _paintHeartGrid(canvas, size);
+      _paintHeartGrid(
+        canvas,
+        size,
+        style: layout.isSilverHeartGrid
+            ? HeartDecorationStyle.silver3d
+            : HeartDecorationStyle.white,
+      );
+      return;
+    }
+
+    if (layout.isHeartColumns) {
+      _paintHeartColumns(canvas, size);
       return;
     }
 
@@ -439,74 +451,52 @@ class LayoutOutlinePainter extends CustomPainter {
     final border = LayerCollageLayout.borderWidth(size.width, size.height);
 
     for (final slot in placed) {
-      final inner = slot.rect.deflate(border);
-      canvas.drawRect(inner, cellPaint);
-      canvas.drawRect(
-        inner,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = border,
-      );
+      final outer = slot.rect.inflate(border);
+      canvas.drawRect(outer, Paint()..color = Colors.white);
+      canvas.drawRect(slot.rect, cellPaint);
     }
   }
 
-  void _paintHeartGrid(Canvas canvas, Size size) {
+  void _paintHeartGrid(
+    Canvas canvas,
+    Size size, {
+    HeartDecorationStyle style = HeartDecorationStyle.white,
+  }) {
     canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
 
     final cellPaint = Paint()..color = cellColor;
-    const columns = HeartGridLayout.columns;
-    const rows = HeartGridLayout.rows;
-    final gap = HeartGridLayout.gapForSize(size.width, size.height);
-    final inset = HeartGridLayout.heartInset(size.width, size.height);
-    final heartSize = HeartGridLayout.heartSize(size.width, size.height);
+    final layout = HeartGridLayout.metrics(size.width, size.height);
 
-    final cellWidth = (size.width - gap * (columns - 1)) / columns;
-    final cellHeight = (size.height - gap * (rows - 1)) / rows;
-
-    for (var row = 0; row < rows; row++) {
-      for (var col = 0; col < columns; col++) {
-        final left = col * (cellWidth + gap);
-        final top = row * (cellHeight + gap);
-        canvas.drawRect(
-          Rect.fromLTWH(left, top, cellWidth, cellHeight),
-          cellPaint,
-        );
+    for (var row = 0; row < HeartGridLayout.rows; row++) {
+      for (var col = 0; col < HeartGridLayout.columns; col++) {
+        canvas.drawRect(layout.cellRect(row, col), cellPaint);
 
         if (!HeartGridLayout.showHeart(row, col)) continue;
 
-        final heartCenter = Offset(
-          left + inset + heartSize / 2,
-          top + cellHeight - inset - heartSize / 2,
+        HeartGridLayout.paintHeart(
+          canvas,
+          layout.heartCenter(row, col),
+          layout.heartSize,
+          style: style,
         );
-        _paintHeartIcon(canvas, heartCenter, heartSize);
       }
     }
   }
 
-  void _paintHeartIcon(Canvas canvas, Offset center, double size) {
-    final path = Path();
-    final w = size * 0.92;
-    final h = size * 0.84;
-    path.moveTo(center.dx, center.dy + h * 0.32);
-    path.cubicTo(
-      center.dx - w * 0.52,
-      center.dy - h * 0.08,
-      center.dx - w * 0.52,
-      center.dy - h * 0.62,
-      center.dx,
-      center.dy - h * 0.28,
-    );
-    path.cubicTo(
-      center.dx + w * 0.52,
-      center.dy - h * 0.62,
-      center.dx + w * 0.52,
-      center.dy - h * 0.08,
-      center.dx,
-      center.dy + h * 0.32,
-    );
-    path.close();
-    canvas.drawPath(path, Paint()..color = Colors.white);
+  void _paintHeartColumns(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+
+    final cellPaint = Paint()..color = cellColor;
+    final layout = HeartColumnsLayout.metrics(size.width, size.height);
+
+    for (var col = 0; col < HeartColumnsLayout.columns; col++) {
+      canvas.drawRect(layout.cellRect(col), cellPaint);
+      HeartGridLayout.paintHeart(
+        canvas,
+        layout.heartCenter(col),
+        layout.heartSize,
+      );
+    }
   }
 
   void _paintCheckerGrid(Canvas canvas, Size size) {

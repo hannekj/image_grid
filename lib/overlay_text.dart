@@ -148,6 +148,7 @@ enum OverlayKind {
   pathText,
   message,
   location,
+  coordinates,
   date,
   time,
   weather,
@@ -317,12 +318,15 @@ String overlayPageNumberLabel(int index, int total) {
   return '$safeIndex/$safeTotal';
 }
 
+String overlayCoordinatesLabel() => '68,23° N, 14,56° E';
+
 String overlayDefaultValue(OverlayKind kind) {
   return switch (kind) {
     OverlayKind.date => overlayDateLabel(),
     OverlayKind.time => overlayTimeLabel(),
     OverlayKind.weather => overlayWeatherLabel(),
     OverlayKind.pageNumber => '1/1',
+    OverlayKind.coordinates => overlayCoordinatesLabel(),
     OverlayKind.location => '',
     OverlayKind.message => '',
     OverlayKind.text || OverlayKind.pathText => '',
@@ -332,6 +336,7 @@ String overlayDefaultValue(OverlayKind kind) {
 IconData overlayKindIcon(OverlayKind kind) {
   return switch (kind) {
     OverlayKind.location => Icons.location_on,
+    OverlayKind.coordinates => Icons.explore_outlined,
     OverlayKind.message => Icons.chat_bubble_outline,
     OverlayKind.date => Icons.calendar_today_outlined,
     OverlayKind.time => Icons.schedule,
@@ -345,6 +350,7 @@ IconData overlayKindIcon(OverlayKind kind) {
 String overlayKindLabel(OverlayKind kind) {
   return switch (kind) {
     OverlayKind.location => 'Sted',
+    OverlayKind.coordinates => 'Koordinat',
     OverlayKind.message => 'Melding',
     OverlayKind.date => 'Dato',
     OverlayKind.time => 'Klokke',
@@ -352,6 +358,19 @@ String overlayKindLabel(OverlayKind kind) {
     OverlayKind.pageNumber => 'Side',
     OverlayKind.pathText => 'Tegn tekst',
     OverlayKind.text => 'Tekst',
+  };
+}
+
+Alignment overlayWidgetDefaultAlignment(OverlayKind kind) {
+  return switch (kind) {
+    OverlayKind.location => const Alignment(-0.72, 0.72),
+    OverlayKind.coordinates => const Alignment(0.0, 0.78),
+    OverlayKind.message => const Alignment(0.72, 0.72),
+    OverlayKind.time => const Alignment(0.0, 0.55),
+    OverlayKind.date => const Alignment(-0.55, 0.78),
+    OverlayKind.pageNumber => const Alignment(0.72, -0.78),
+    OverlayKind.weather => const Alignment(0.0, -0.72),
+    _ => Alignment.center,
   };
 }
 
@@ -424,7 +443,8 @@ class OverlayText {
         color: base?.color ?? overlayContrastColor(bubbleColor),
         fontSize: base?.fontSize ?? 15,
         fontId: 'sans',
-        alignment: base?.alignment ?? const Alignment(-0.72, 0.72),
+        alignment: base?.alignment ??
+            overlayWidgetDefaultAlignment(OverlayKind.location),
         textAlign: TextAlign.left,
         effect: OverlayTextEffect.none,
         tailSide: base?.tailSide ?? BubbleTailSide.left,
@@ -445,7 +465,8 @@ class OverlayText {
         color: base?.color ?? overlayContrastColor(bubbleColor),
         fontSize: base?.fontSize ?? 17,
         fontId: base?.fontId ?? 'sans',
-        alignment: base?.alignment ?? const Alignment(0.72, 0.72),
+        alignment: base?.alignment ??
+            overlayWidgetDefaultAlignment(OverlayKind.message),
         textAlign: TextAlign.left,
         effect: OverlayTextEffect.none,
         tailSide: base?.tailSide ?? BubbleTailSide.right,
@@ -465,8 +486,30 @@ class OverlayText {
         color: base?.color ?? const Color(0xFF1C1C1E),
         fontSize: base?.fontSize ?? 36,
         fontId: 'sans',
-        alignment: base?.alignment ?? const Alignment(0.0, 0.55),
+        alignment: base?.alignment ?? overlayWidgetDefaultAlignment(OverlayKind.time),
         textAlign: TextAlign.center,
+        effect: OverlayTextEffect.none,
+        plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
+      );
+    }
+
+    if (kind == OverlayKind.coordinates) {
+      const bubble = locationPillColor;
+      final base =
+          styleFrom != null && styleFrom.kind == OverlayKind.coordinates
+              ? styleFrom
+              : null;
+      final bubbleColor = base?.bubbleColor ?? bubble;
+      return OverlayText(
+        value: value,
+        kind: OverlayKind.coordinates,
+        bubbleColor: bubbleColor,
+        color: base?.color ?? overlayContrastColor(bubbleColor),
+        fontSize: base?.fontSize ?? 13,
+        fontId: 'sans',
+        alignment: base?.alignment ??
+            overlayWidgetDefaultAlignment(OverlayKind.coordinates),
+        textAlign: TextAlign.left,
         effect: OverlayTextEffect.none,
         plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
       );
@@ -478,11 +521,6 @@ class OverlayText {
       const bubble = locationPillColor;
       final base = styleFrom != null && styleFrom.kind == kind ? styleFrom : null;
       final bubbleColor = base?.bubbleColor ?? bubble;
-      final alignment = switch (kind) {
-        OverlayKind.date => const Alignment(-0.55, 0.78),
-        OverlayKind.pageNumber => const Alignment(0.72, -0.78),
-        _ => const Alignment(0.0, -0.72),
-      };
       return OverlayText(
         value: value,
         kind: kind,
@@ -490,7 +528,7 @@ class OverlayText {
         color: base?.color ?? overlayContrastColor(bubbleColor),
         fontSize: base?.fontSize ?? (kind == OverlayKind.pageNumber ? 14 : 15),
         fontId: 'sans',
-        alignment: base?.alignment ?? alignment,
+        alignment: base?.alignment ?? overlayWidgetDefaultAlignment(kind),
         textAlign: TextAlign.left,
         effect: OverlayTextEffect.none,
         plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
@@ -537,6 +575,8 @@ class OverlayText {
 
   bool get isLocation => kind == OverlayKind.location;
 
+  bool get isCoordinates => kind == OverlayKind.coordinates;
+
   bool get isMessage => kind == OverlayKind.message;
 
   bool get isDate => kind == OverlayKind.date;
@@ -552,7 +592,12 @@ class OverlayText {
   bool get isPlainText => kind == OverlayKind.text || isPathText;
 
   bool get isPill =>
-      isLocation || isDate || isTime || isWeather || isPageNumber;
+      isLocation ||
+      isCoordinates ||
+      isDate ||
+      isTime ||
+      isWeather ||
+      isPageNumber;
 
   bool get isBubble => isMessage || isPill;
 

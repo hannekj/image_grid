@@ -9,6 +9,7 @@ class WidgetPickerGrid extends StatelessWidget {
     super.key,
     required this.onAddMessage,
     required this.onAddLocation,
+    required this.onAddCoordinates,
     required this.onAddDate,
     required this.onAddTime,
     required this.onAddWeather,
@@ -17,6 +18,7 @@ class WidgetPickerGrid extends StatelessWidget {
 
   final VoidCallback onAddMessage;
   final VoidCallback onAddLocation;
+  final VoidCallback onAddCoordinates;
   final VoidCallback onAddDate;
   final VoidCallback onAddTime;
   final VoidCallback onAddWeather;
@@ -27,11 +29,11 @@ class WidgetPickerGrid extends StatelessWidget {
     final items = <(String, IconData, VoidCallback)>[
       ('Melding', Icons.chat_bubble_outline, onAddMessage),
       ('Sted', Icons.place_outlined, onAddLocation),
+      ('Koordinat', Icons.explore_outlined, onAddCoordinates),
       ('Dato', Icons.calendar_today_outlined, onAddDate),
       ('Klokke', Icons.more_time, onAddTime),
       ('Vær', Icons.wb_sunny_outlined, onAddWeather),
-      if (onAddPageNumber != null)
-        ('Side', Icons.tag, onAddPageNumber!),
+      if (onAddPageNumber != null) ('Side', Icons.tag, onAddPageNumber!),
     ];
 
     return ListView.separated(
