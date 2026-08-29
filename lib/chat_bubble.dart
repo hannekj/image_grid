@@ -13,6 +13,9 @@ const chatBubbleGray = Color(0xFFE9E9EB);
 /// Dark pill for location widgets.
 const locationPillColor = Color(0xFF3A3A3C);
 
+/// Default fill opacity for location-style pills (sted, koordinat, dato, vær).
+const overlayTranslucentPillOpacity = 0.72;
+
 /// iMessage-style speech bubble with tail protruding outside the body.
 class ChatBubble extends StatelessWidget {
   const ChatBubble({

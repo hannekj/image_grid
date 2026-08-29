@@ -396,7 +396,7 @@ class _ChatBubbleContent extends StatelessWidget {
       return ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: LocationPill(
-          color: overlay.effectiveBubbleColor,
+          color: overlay.effectiveBubbleFillColor,
           child: Text(
             overlay.value,
             maxLines: 2,
@@ -412,7 +412,7 @@ class _ChatBubbleContent extends StatelessWidget {
       return ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: LocationPill(
-          color: overlay.effectiveBubbleColor,
+          color: overlay.effectiveBubbleFillColor,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -456,7 +456,7 @@ class _ChatBubbleContent extends StatelessWidget {
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
       child: LocationPill(
-        color: overlay.effectiveBubbleColor,
+        color: overlay.effectiveBubbleFillColor,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,

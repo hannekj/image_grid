@@ -488,6 +488,7 @@ class DraftStorage {
       'plateTone': overlay.plateStyle.tone.name,
       'plateOpacity': overlay.plateStyle.opacity,
       'bubbleColor': overlay.bubbleColor?.toARGB32(),
+      if (overlay.bubbleOpacity != null) 'bubbleOpacity': overlay.bubbleOpacity,
       'tailSide': overlay.tailSide.name,
       if (overlay.pathPoints != null)
         'pathPoints': [
@@ -531,6 +532,7 @@ class DraftStorage {
       bubbleColor: map['bubbleColor'] == null
           ? null
           : Color(map['bubbleColor'] as int),
+      bubbleOpacity: (map['bubbleOpacity'] as num?)?.toDouble(),
       tailSide: BubbleTailSide.values.byName(map['tailSide'] as String),
       pathPoints: pathPoints,
     );

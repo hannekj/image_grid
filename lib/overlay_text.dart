@@ -385,6 +385,11 @@ Alignment overlayTextDefaultAlignment(int index) {
   return presets[index % presets.length];
 }
 
+double? inheritedTranslucentPillOpacity(OverlayText? from) {
+  if (from == null || !from.usesTranslucentPill) return null;
+  return from.bubbleOpacity;
+}
+
 class OverlayText {
   OverlayText({
     required this.value,
@@ -402,6 +407,7 @@ class OverlayText {
       opacity: 0.55,
     ),
     this.bubbleColor,
+    this.bubbleOpacity,
     this.tailSide = BubbleTailSide.right,
     this.pathPoints,
   });
@@ -449,6 +455,7 @@ class OverlayText {
         effect: OverlayTextEffect.none,
         tailSide: base?.tailSide ?? BubbleTailSide.left,
         plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
+        bubbleOpacity: inheritedTranslucentPillOpacity(base ?? styleFrom),
       );
     }
 
@@ -512,6 +519,7 @@ class OverlayText {
         textAlign: TextAlign.left,
         effect: OverlayTextEffect.none,
         plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
+        bubbleOpacity: inheritedTranslucentPillOpacity(base ?? styleFrom),
       );
     }
 
@@ -532,6 +540,9 @@ class OverlayText {
         textAlign: TextAlign.left,
         effect: OverlayTextEffect.none,
         plateStyle: const OverlayPlateStyle(tone: OverlayPlateTone.none),
+        bubbleOpacity: kind == OverlayKind.pageNumber
+            ? null
+            : inheritedTranslucentPillOpacity(base ?? styleFrom),
       );
     }
 
@@ -568,6 +579,7 @@ class OverlayText {
   OverlayTextEffect effect;
   OverlayPlateStyle plateStyle;
   Color? bubbleColor;
+  double? bubbleOpacity;
   BubbleTailSide tailSide;
 
   /// Normalized (0–1) polyline for [OverlayKind.pathText].
@@ -603,10 +615,25 @@ class OverlayText {
 
   bool get isWidgetOverlay => isBubble;
 
+  bool get usesTranslucentPill =>
+      isLocation || isCoordinates || isDate || isWeather;
+
   Color get effectiveBubbleColor {
     if (bubbleColor != null) return bubbleColor!;
     if (isPill) return locationPillColor;
     return tailSide == BubbleTailSide.left ? chatBubbleGray : chatBubbleBlue;
+  }
+
+  Color get effectiveBubbleFillColor {
+    final base = effectiveBubbleColor;
+    final opacity = effectiveBubbleOpacity;
+    if (opacity >= 1.0) return base;
+    return base.withValues(alpha: opacity);
+  }
+
+  double get effectiveBubbleOpacity {
+    if (!usesTranslucentPill) return 1.0;
+    return bubbleOpacity ?? overlayTranslucentPillOpacity;
   }
 
   TextStyle textStyle() {
@@ -664,6 +691,7 @@ class OverlayText {
     OverlayTextEffect? effect,
     OverlayPlateStyle? plateStyle,
     Color? bubbleColor,
+    double? bubbleOpacity,
     BubbleTailSide? tailSide,
     List<Offset>? pathPoints,
   }) {
@@ -680,6 +708,7 @@ class OverlayText {
       effect: effect ?? this.effect,
       plateStyle: plateStyle ?? this.plateStyle,
       bubbleColor: bubbleColor ?? this.bubbleColor,
+      bubbleOpacity: bubbleOpacity ?? this.bubbleOpacity,
       tailSide: tailSide ?? this.tailSide,
       pathPoints: pathPoints ?? this.pathPoints,
     );

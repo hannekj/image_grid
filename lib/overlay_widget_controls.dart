@@ -4,10 +4,11 @@ import 'app_theme.dart';
 import 'color_scrub_strip.dart';
 import 'editor_chrome.dart';
 import 'overlay_text.dart';
+import 'overlay_opacity_controls.dart';
 import 'overlay_size_controls.dart';
 import 'widget_picker.dart';
 
-enum _WidgetSection { color, format, font, size }
+enum _WidgetSection { color, opacity, format, font, size }
 
 class OverlayWidgetControls extends StatefulWidget {
   const OverlayWidgetControls({
@@ -66,6 +67,7 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
   List<_WidgetSection> _sectionsFor(OverlayText current) {
     return [
       _WidgetSection.color,
+      if (current.usesTranslucentPill) _WidgetSection.opacity,
       if (current.isDate) _WidgetSection.format,
       if (current.isMessage) _WidgetSection.font,
       _WidgetSection.size,
@@ -120,29 +122,11 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
 
   @override
   Widget build(BuildContext context) {
-    if (_widgetIndexes.isEmpty || _adding) {
+    if (_widgetIndexes.isEmpty || _adding || _current == null) {
       return _picker;
     }
 
-    final current = _current;
-    if (current == null) {
-      return Row(
-        children: [
-          const Expanded(
-            child: Text(
-              'Velg en sticker på bildet',
-              style: TextStyle(fontSize: 13, color: AppTheme.muted),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Legg til',
-            onPressed: () => setState(() => _adding = true),
-            icon: const Icon(Icons.add),
-          ),
-        ],
-      );
-    }
-
+    final current = _current!;
     final sections = _sectionsFor(current);
 
     return Column(
@@ -164,6 +148,7 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
                       label: switch (section) {
                         _WidgetSection.color =>
                           current.isMessage ? 'Boble' : 'Farge',
+                        _WidgetSection.opacity => 'Gjennomsikt',
                         _WidgetSection.format => 'Format',
                         _WidgetSection.font => 'Font',
                         _WidgetSection.size => 'Størrelse',
@@ -212,6 +197,11 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
                   selected: current.effectiveBubbleColor,
                   onChanged: (color) =>
                       widget.onChanged(current.withBubbleColor(color)),
+                ),
+              _WidgetSection.opacity => OverlayOpacityControls(
+                  opacity: current.effectiveBubbleOpacity,
+                  onChanged: (opacity) =>
+                      widget.onChanged(current.copyWith(bubbleOpacity: opacity)),
                 ),
               _WidgetSection.format => ListView(
                   scrollDirection: Axis.horizontal,
