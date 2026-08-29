@@ -38,6 +38,8 @@ import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'path_text_draw_layer.dart';
 import 'path_text_paint.dart';
+import 'layer_collage_layout.dart';
+import 'stagger_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
 
@@ -990,6 +992,22 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildStaggerGrid() {
+    return StaggerGridFrame(
+      slots: [
+        for (var i = 0; i < StaggerGridLayout.slotCount; i++) _slot(i),
+      ],
+    );
+  }
+
+  Widget _buildLayerCollage() {
+    return LayerCollageFrame(
+      slots: [
+        for (var i = 0; i < LayerCollageLayout.slotCount; i++) _slot(i),
+      ],
+    );
+  }
+
   Widget _buildCheckerGrid() {
     return CheckerGridFrame(
       imageSlots: [
@@ -1056,7 +1074,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (_layout.isOverlayFrame) return _buildOverlayFrame();
     if (_layout.isAlbumGrid) return _buildAlbumGrid();
     if (_layout.isStripGrid) return _buildStripGrid();
+    if (_layout.isStaggerGrid) return _buildStaggerGrid();
     if (_layout.isCheckerGrid) return _buildCheckerGrid();
+    if (_layout.isLayerCollage) return _buildLayerCollage();
     return _buildGrid(strokeWidth);
   }
 

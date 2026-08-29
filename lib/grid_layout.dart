@@ -40,7 +40,11 @@ class GridLayout {
 
   bool get isStripGrid => id == 'strip-grid';
 
+  bool get isStaggerGrid => id == 'stagger-grid';
+
   bool get isCheckerGrid => id == 'checker-grid';
+
+  bool get isLayerCollage => id == 'layer-collage';
 
   bool get isFilmHorizontal => id == 'film-h';
 
@@ -54,7 +58,9 @@ class GridLayout {
 
   LayoutGroup get group {
     if (isDump || isBooth || isFilmStrip) return LayoutGroup.film;
-    if (isReaction || isOverlayFrame || isCheckerGrid) return LayoutGroup.special;
+    if (isReaction || isOverlayFrame || isCheckerGrid || isLayerCollage) {
+      return LayoutGroup.special;
+    }
     return LayoutGroup.classic;
   }
 }
@@ -225,6 +231,14 @@ const gridLayouts = [
     ],
   ),
   GridLayout(
+    id: 'stagger-grid',
+    label: 'Forskyvning',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
     id: '4x6',
     label: '4 × 6',
     rows: [
@@ -386,6 +400,14 @@ const gridLayouts = [
     label: 'Summer recap',
     rows: [
       LayoutRow(flex: 1, cells: [1, 1, 1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'layer-collage',
+    label: 'Lag collage',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
     ],
   ),
 ];

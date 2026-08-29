@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'app_theme.dart';
 import 'checker_grid_layout.dart';
 import 'grid_layout.dart';
+import 'layer_collage_layout.dart';
+import 'stagger_grid_layout.dart';
 import 'strip_grid_layout.dart';
 
 class LayoutOutlinePainter extends CustomPainter {
@@ -56,6 +58,16 @@ class LayoutOutlinePainter extends CustomPainter {
 
     if (layout.isStripGrid) {
       _paintStripGrid(canvas, size);
+      return;
+    }
+
+    if (layout.isStaggerGrid) {
+      _paintStaggerGrid(canvas, size);
+      return;
+    }
+
+    if (layout.isLayerCollage) {
+      _paintLayerCollage(canvas, size);
       return;
     }
 
@@ -395,6 +407,41 @@ class LayoutOutlinePainter extends CustomPainter {
           cellPaint,
         );
       }
+    }
+  }
+
+  void _paintStaggerGrid(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+
+    final cellPaint = Paint()..color = cellColor;
+    final metrics = StaggerGridLayout.metrics(size.width, size.height);
+
+    for (var i = 0; i < StaggerGridLayout.slotCount; i++) {
+      final rect = metrics.slotRect(i);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(1)),
+        cellPaint,
+      );
+    }
+  }
+
+  void _paintLayerCollage(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+
+    final cellPaint = Paint()..color = cellColor;
+    final placed = LayerCollageLayout.placements(size.width, size.height);
+    final border = LayerCollageLayout.borderWidth(size.width, size.height);
+
+    for (final slot in placed) {
+      final inner = slot.rect.deflate(border);
+      canvas.drawRect(inner, cellPaint);
+      canvas.drawRect(
+        inner,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = border,
+      );
     }
   }
 

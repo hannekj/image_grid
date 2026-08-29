@@ -43,6 +43,8 @@ import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'path_text_draw_layer.dart';
 import 'path_text_paint.dart';
+import 'layer_collage_layout.dart';
+import 'stagger_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
 
@@ -137,6 +139,8 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout == null) return _canvasColor;
     if (layout.isCheckerGrid) return Colors.white;
     if (layout.isStripGrid) return Colors.white;
+    if (layout.isStaggerGrid) return Colors.white;
+    if (layout.isLayerCollage) return Colors.white;
     if (layout.isFilmStrip) return AppTheme.cream;
     if (layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
@@ -148,6 +152,8 @@ class _CarouselPageState extends State<CarouselPage> {
     if (slide.layout?.usesCreamCanvas == true) return 0;
     if (slide.layout?.isCheckerGrid == true) return 0;
     if (slide.layout?.isStripGrid == true) return 0;
+    if (slide.layout?.isStaggerGrid == true) return 0;
+    if (slide.layout?.isLayerCollage == true) return 0;
     return _strokeWidth;
   }
 
@@ -1867,6 +1873,22 @@ class _CarouselPageState extends State<CarouselPage> {
       return StripGridFrame(
         slots: [
           for (var i = 0; i < StripGridLayout.slotCount; i++) slot(i),
+        ],
+      );
+    }
+
+    if (layout.isStaggerGrid) {
+      return StaggerGridFrame(
+        slots: [
+          for (var i = 0; i < StaggerGridLayout.slotCount; i++) slot(i),
+        ],
+      );
+    }
+
+    if (layout.isLayerCollage) {
+      return LayerCollageFrame(
+        slots: [
+          for (var i = 0; i < LayerCollageLayout.slotCount; i++) slot(i),
         ],
       );
     }
