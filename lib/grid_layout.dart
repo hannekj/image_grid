@@ -46,19 +46,22 @@ class GridLayout {
 
   bool get isLayerCollage => id == 'layer-collage';
 
+  bool get isHeartGrid => id == 'heart-grid';
+
   bool get isFilmHorizontal => id == 'film-h';
 
   bool get isFilmVertical => id == 'film-v';
 
   bool get isFilmStrip => isFilmHorizontal || isFilmVertical;
 
-  bool get isEdgeToEdgeCanvas => isCheckerGrid || isStripGrid;
+  bool get isEdgeToEdgeCanvas =>
+      isCheckerGrid || isStripGrid || isHeartGrid;
 
   bool get usesCreamCanvas => isDump || isBooth || isFilmStrip || isAlbumGrid;
 
   LayoutGroup get group {
     if (isDump || isBooth || isFilmStrip) return LayoutGroup.film;
-    if (isReaction || isOverlayFrame || isCheckerGrid || isLayerCollage) {
+    if (isReaction || isOverlayFrame || isCheckerGrid || isLayerCollage || isHeartGrid) {
       return LayoutGroup.special;
     }
     return LayoutGroup.classic;
@@ -408,6 +411,14 @@ const gridLayouts = [
     rows: [
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'heart-grid',
+    label: 'Hjerter',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
     ],
   ),
 ];

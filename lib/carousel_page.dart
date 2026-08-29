@@ -43,6 +43,7 @@ import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'path_text_draw_layer.dart';
 import 'path_text_paint.dart';
+import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
 import 'stagger_grid_layout.dart';
 import 'strip_grid_layout.dart';
@@ -141,6 +142,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isStripGrid) return Colors.white;
     if (layout.isStaggerGrid) return Colors.white;
     if (layout.isLayerCollage) return Colors.white;
+    if (layout.isHeartGrid) return Colors.white;
     if (layout.isFilmStrip) return AppTheme.cream;
     if (layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
@@ -154,6 +156,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (slide.layout?.isStripGrid == true) return 0;
     if (slide.layout?.isStaggerGrid == true) return 0;
     if (slide.layout?.isLayerCollage == true) return 0;
+    if (slide.layout?.isHeartGrid == true) return 0;
     return _strokeWidth;
   }
 
@@ -1889,6 +1892,15 @@ class _CarouselPageState extends State<CarouselPage> {
       return LayerCollageFrame(
         slots: [
           for (var i = 0; i < LayerCollageLayout.slotCount; i++) slot(i),
+        ],
+      );
+    }
+
+    if (layout.isHeartGrid) {
+      return HeartGridFrame(
+        showHearts: true,
+        slots: [
+          for (var i = 0; i < HeartGridLayout.slotCount; i++) slot(i),
         ],
       );
     }

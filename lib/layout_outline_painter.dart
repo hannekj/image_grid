@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'app_theme.dart';
 import 'checker_grid_layout.dart';
 import 'grid_layout.dart';
+import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
 import 'stagger_grid_layout.dart';
 import 'strip_grid_layout.dart';
@@ -68,6 +69,11 @@ class LayoutOutlinePainter extends CustomPainter {
 
     if (layout.isLayerCollage) {
       _paintLayerCollage(canvas, size);
+      return;
+    }
+
+    if (layout.isHeartGrid) {
+      _paintHeartGrid(canvas, size);
       return;
     }
 
@@ -443,6 +449,64 @@ class LayoutOutlinePainter extends CustomPainter {
           ..strokeWidth = border,
       );
     }
+  }
+
+  void _paintHeartGrid(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+
+    final cellPaint = Paint()..color = cellColor;
+    const columns = HeartGridLayout.columns;
+    const rows = HeartGridLayout.rows;
+    final gap = HeartGridLayout.gapForSize(size.width, size.height);
+    final inset = HeartGridLayout.heartInset(size.width, size.height);
+    final heartSize = HeartGridLayout.heartSize(size.width, size.height);
+
+    final cellWidth = (size.width - gap * (columns - 1)) / columns;
+    final cellHeight = (size.height - gap * (rows - 1)) / rows;
+
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < columns; col++) {
+        final left = col * (cellWidth + gap);
+        final top = row * (cellHeight + gap);
+        canvas.drawRect(
+          Rect.fromLTWH(left, top, cellWidth, cellHeight),
+          cellPaint,
+        );
+
+        if (!HeartGridLayout.showHeart(row, col)) continue;
+
+        final heartCenter = Offset(
+          left + inset + heartSize / 2,
+          top + cellHeight - inset - heartSize / 2,
+        );
+        _paintHeartIcon(canvas, heartCenter, heartSize);
+      }
+    }
+  }
+
+  void _paintHeartIcon(Canvas canvas, Offset center, double size) {
+    final path = Path();
+    final w = size * 0.92;
+    final h = size * 0.84;
+    path.moveTo(center.dx, center.dy + h * 0.32);
+    path.cubicTo(
+      center.dx - w * 0.52,
+      center.dy - h * 0.08,
+      center.dx - w * 0.52,
+      center.dy - h * 0.62,
+      center.dx,
+      center.dy - h * 0.28,
+    );
+    path.cubicTo(
+      center.dx + w * 0.52,
+      center.dy - h * 0.62,
+      center.dx + w * 0.52,
+      center.dy - h * 0.08,
+      center.dx,
+      center.dy + h * 0.32,
+    );
+    path.close();
+    canvas.drawPath(path, Paint()..color = Colors.white);
   }
 
   void _paintCheckerGrid(Canvas canvas, Size size) {

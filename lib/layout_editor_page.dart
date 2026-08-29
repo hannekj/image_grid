@@ -38,6 +38,7 @@ import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'path_text_draw_layer.dart';
 import 'path_text_paint.dart';
+import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
 import 'stagger_grid_layout.dart';
 import 'strip_grid_layout.dart';
@@ -1008,6 +1009,15 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildHeartGrid() {
+    return HeartGridFrame(
+      showHearts: true,
+      slots: [
+        for (var i = 0; i < HeartGridLayout.slotCount; i++) _slot(i),
+      ],
+    );
+  }
+
   Widget _buildCheckerGrid() {
     return CheckerGridFrame(
       imageSlots: [
@@ -1077,6 +1087,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (_layout.isStaggerGrid) return _buildStaggerGrid();
     if (_layout.isCheckerGrid) return _buildCheckerGrid();
     if (_layout.isLayerCollage) return _buildLayerCollage();
+    if (_layout.isHeartGrid) return _buildHeartGrid();
     return _buildGrid(strokeWidth);
   }
 
