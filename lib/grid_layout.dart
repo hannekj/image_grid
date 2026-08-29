@@ -38,6 +38,8 @@ class GridLayout {
 
   bool get isAlbumGrid => id == 'album-grid';
 
+  bool get isStripGrid => id == 'strip-grid';
+
   bool get isCheckerGrid => id == 'checker-grid';
 
   bool get isFilmHorizontal => id == 'film-h';
@@ -45,6 +47,8 @@ class GridLayout {
   bool get isFilmVertical => id == 'film-v';
 
   bool get isFilmStrip => isFilmHorizontal || isFilmVertical;
+
+  bool get isEdgeToEdgeCanvas => isCheckerGrid || isStripGrid;
 
   bool get usesCreamCanvas => isDump || isBooth || isFilmStrip || isAlbumGrid;
 
@@ -206,6 +210,15 @@ const gridLayouts = [
     label: 'Album',
     rows: [
       LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'strip-grid',
+    label: 'Tre striper',
+    rows: [
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),

@@ -38,6 +38,7 @@ import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'path_text_draw_layer.dart';
 import 'path_text_paint.dart';
+import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
 
 class _LayoutSnapshot {
@@ -327,7 +328,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Color get _canvasColor {
-    if (_layout.isCheckerGrid) return Colors.white;
+    if (_layout.isEdgeToEdgeCanvas) return Colors.white;
     if (_layout.isFilmStrip) return AppTheme.cream;
     if (_layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
@@ -385,6 +386,20 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       _slotViews[to] = sourceView;
     });
     _rememberSlotViews();
+  }
+
+  void _resetSlotViews() {
+    _slotViews = List<_SlotView>.generate(
+      _slotViews.length,
+      (_) => const _SlotView(),
+    );
+    _viewsByImage.clear();
+    for (var i = 0; i < _slots.length; i++) {
+      final bytes = _slots[i];
+      if (bytes != null) {
+        _viewsByImage[identityHashCode(bytes)] = const _SlotView();
+      }
+    }
   }
 
   Future<bool> _confirmDiscard() => confirmDiscard(context);
@@ -807,6 +822,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         zoom: view.zoom,
         rotation: view.rotation,
         normalizePan: true,
+        compactChrome: _layout.isCheckerGrid,
         filter: _filter,
         onPanChanged: (pan) => _setSlotPan(index, pan),
         onZoomChanged: (zoom) => _setSlotZoom(index, zoom),
@@ -966,6 +982,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildStripGrid() {
+    return StripGridFrame(
+      slots: [
+        for (var i = 0; i < StripGridLayout.slotCount; i++) _slot(i),
+      ],
+    );
+  }
+
   Widget _buildCheckerGrid() {
     return CheckerGridFrame(
       imageSlots: [
@@ -989,7 +1013,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             controller: controller,
             autofocus: true,
             textCapitalization: TextCapitalization.none,
-            decoration: const InputDecoration(hintText: 'summer'),
+            decoration: const InputDecoration(hintText: 'Lofoten'),
             onSubmitted: (value) => Navigator.pop(context, value),
           ),
           actions: [
@@ -1031,6 +1055,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (_layout.isReaction) return _buildReaction();
     if (_layout.isOverlayFrame) return _buildOverlayFrame();
     if (_layout.isAlbumGrid) return _buildAlbumGrid();
+    if (_layout.isStripGrid) return _buildStripGrid();
     if (_layout.isCheckerGrid) return _buildCheckerGrid();
     return _buildGrid(strokeWidth);
   }
@@ -1147,7 +1172,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                   ),
                                   Padding(
                                     padding: EdgeInsets.all(
-                                      _layout.isCheckerGrid
+                                      _layout.isEdgeToEdgeCanvas
                                           ? 0
                                           : _layout.usesCreamCanvas
                                               ? 12
@@ -1318,7 +1343,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           compact: true,
           onChanged: (format) {
             _pushUndo();
-            setState(() => _format = format);
+            setState(() {
+              _format = format;
+              _resetSlotViews();
+            });
           },
         );
       case EditorTool.look:

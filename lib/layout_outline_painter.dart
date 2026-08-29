@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'app_theme.dart';
 import 'checker_grid_layout.dart';
 import 'grid_layout.dart';
+import 'strip_grid_layout.dart';
 
 class LayoutOutlinePainter extends CustomPainter {
   const LayoutOutlinePainter({
@@ -50,6 +51,11 @@ class LayoutOutlinePainter extends CustomPainter {
 
     if (layout.isAlbumGrid) {
       _paintAlbumGrid(canvas, size);
+      return;
+    }
+
+    if (layout.isStripGrid) {
+      _paintStripGrid(canvas, size);
       return;
     }
 
@@ -357,6 +363,33 @@ class LayoutOutlinePainter extends CustomPainter {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             Rect.fromLTWH(left, top, cellSize, cellSize),
+            const Radius.circular(1),
+          ),
+          cellPaint,
+        );
+      }
+    }
+  }
+
+  void _paintStripGrid(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+
+    final cellPaint = Paint()..color = cellColor;
+    const columns = StripGridLayout.columns;
+    const rows = StripGridLayout.rows;
+
+    final pad = StripGridLayout.verticalPadding(size.height);
+    final gap = StripGridLayout.rowGap(size.height);
+    final rowHeight = (size.height - pad * 2 - gap * (rows - 1)) / rows;
+    final cellWidth = size.width / columns;
+
+    for (var row = 0; row < rows; row++) {
+      final top = pad + row * (rowHeight + gap);
+      for (var col = 0; col < columns; col++) {
+        final left = col * cellWidth;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(left, top, cellWidth, rowHeight),
             const Radius.circular(1),
           ),
           cellPaint,

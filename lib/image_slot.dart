@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -34,6 +33,7 @@ class ImageSlot extends StatefulWidget {
     this.onDuplicate,
     this.onLockToggle,
     this.filter = PhotoFilter.original,
+    this.compactChrome = false,
   });
 
   final Uint8List? imageBytes;
@@ -63,6 +63,9 @@ class ImageSlot extends StatefulWidget {
   /// Applied only to photo pixels — not the empty slot / chrome background.
   final PhotoFilter filter;
 
+  /// Keeps selection UI inside narrow cells (e.g. checker-grid slots).
+  final bool compactChrome;
+
   @override
   State<ImageSlot> createState() => _ImageSlotState();
 }
@@ -76,7 +79,6 @@ class _ImageSlotState extends State<ImageSlot>
   Offset _localPan = Offset.zero;
   double _localRotation = 0.0;
   double _gestureStartZoom = 1.0;
-  Size? _imageSize;
 
   bool get _controlled => widget.onPanChanged != null;
 
@@ -100,12 +102,6 @@ class _ImageSlotState extends State<ImageSlot>
   bool get wantKeepAlive => widget.imageBytes != null;
 
   @override
-  void initState() {
-    super.initState();
-    _decodeSize(widget.imageBytes);
-  }
-
-  @override
   void didUpdateWidget(covariant ImageSlot oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageBytes != widget.imageBytes) {
@@ -114,39 +110,21 @@ class _ImageSlotState extends State<ImageSlot>
         _localPan = Offset.zero;
         _localRotation = 0.0;
       }
-      _imageSize = null;
-      _decodeSize(widget.imageBytes);
       updateKeepAlive();
     }
   }
 
-  Future<void> _decodeSize(Uint8List? bytes) async {
-    if (bytes == null) return;
-
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
-    final size = Size(image.width.toDouble(), image.height.toDouble());
-    image.dispose();
-
-    if (!mounted || widget.imageBytes != bytes) return;
-    setState(() => _imageSize = size);
-  }
-
-  double _coverScale(Size slot) {
-    final image = _imageSize;
-    if (image == null || image.width == 0 || image.height == 0) return 1;
-    return math.max(slot.width / image.width, slot.height / image.height);
-  }
-
   Offset _maxPan(Size slot) {
-    final image = _imageSize;
-    if (image == null) return Offset.zero;
+    if (_zoom <= 1.001) {
+      if (_rotation.abs() > 0.01) {
+        final extra = math.max(slot.width, slot.height) * 0.35;
+        return Offset(extra, extra);
+      }
+      return Offset.zero;
+    }
 
-    final scale = _coverScale(slot) * _zoom;
-    var maxX = math.max(0.0, (image.width * scale - slot.width) / 2);
-    var maxY = math.max(0.0, (image.height * scale - slot.height) / 2);
-
+    var maxX = slot.width * (_zoom - 1) / 2;
+    var maxY = slot.height * (_zoom - 1) / 2;
     if (_rotation.abs() > 0.01) {
       final extra = math.max(slot.width, slot.height) * 0.35;
       maxX += extra;
@@ -265,12 +243,8 @@ class _ImageSlotState extends State<ImageSlot>
   Widget _buildImageContent({
     required Uint8List bytes,
     required Size slot,
-    required Size image,
   }) {
     final pan = _resolvePan(slot);
-    final scale = _coverScale(slot) * _zoom;
-    final displayWidth = image.width * scale;
-    final displayHeight = image.height * scale;
     final gesturesEnabled = widget.enableGestures && _canAdjust;
 
     return GestureDetector(
@@ -296,23 +270,25 @@ class _ImageSlotState extends State<ImageSlot>
       child: ClipRect(
         child: Stack(
           fit: StackFit.expand,
+          clipBehavior: Clip.hardEdge,
           children: [
             Center(
               child: Transform.rotate(
                 angle: _rotation,
                 child: Transform.translate(
                   offset: pan,
-                  child: SizedBox(
-                    width: displayWidth,
-                    height: displayHeight,
-                    child: applyPhotoFilter(
-                      widget.filter,
-                      Image.memory(
-                        bytes,
-                        fit: BoxFit.fill,
-                        width: displayWidth,
-                        height: displayHeight,
-                        gaplessPlayback: true,
+                  child: Transform.scale(
+                    scale: _zoom,
+                    child: SizedBox(
+                      width: slot.width,
+                      height: slot.height,
+                      child: applyPhotoFilter(
+                        widget.filter,
+                        Image.memory(
+                          bytes,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                        ),
                       ),
                     ),
                   ),
@@ -325,6 +301,30 @@ class _ImageSlotState extends State<ImageSlot>
     );
   }
 
+  Widget _buildAdjustToolbar({required bool tightChrome}) {
+    final toolbar = ImageAdjustToolbar(
+      compact: tightChrome,
+      locked: widget.locked,
+      onDelete: widget.onDelete,
+      onDuplicate: tightChrome ? null : widget.onDuplicate,
+      onLockToggle: tightChrome ? null : widget.onLockToggle,
+      onReplace: widget.onPick,
+    );
+
+    return Positioned(
+      top: tightChrome ? 4 : 8,
+      left: 4,
+      right: 4,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: toolbar,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -332,11 +332,14 @@ class _ImageSlotState extends State<ImageSlot>
 
     return Material(
       color: AppTheme.mist,
-      clipBehavior: Clip.none,
+      clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final slot = constraints.biggest;
           final compact = slot.shortestSide < 72;
+          final tightChrome =
+              widget.compactChrome || slot.width < 140 || slot.height < 140;
+          final showHandles = _handlesVisible && !tightChrome;
 
           if (bytes == null) {
             return Semantics(
@@ -359,54 +362,12 @@ class _ImageSlotState extends State<ImageSlot>
             );
           }
 
-          final image = _imageSize;
-          if (image == null) {
-            return Stack(
-              fit: StackFit.expand,
-              clipBehavior: Clip.none,
-              children: [
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _handleTap,
-                  child: ClipRect(
-                    child: applyPhotoFilter(
-                      widget.filter,
-                      Image.memory(
-                        bytes,
-                        fit: BoxFit.cover,
-                        width: slot.width,
-                        height: slot.height,
-                        gaplessPlayback: true,
-                      ),
-                    ),
-                  ),
-                ),
-                if (widget.showAdjustToolbar)
-                  Positioned(
-                    top: 8,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: ImageAdjustToolbar(
-                        locked: widget.locked,
-                        onDelete: widget.onDelete,
-                        onDuplicate: widget.onDuplicate,
-                        onLockToggle: widget.onLockToggle,
-                        onReplace: widget.onPick,
-                      ),
-                    ),
-                  ),
-                _insetShadowOverlay(empty: false),
-              ],
-            );
-          }
-
           return Stack(
             fit: StackFit.expand,
-            clipBehavior: Clip.none,
+            clipBehavior: tightChrome ? Clip.hardEdge : Clip.none,
             children: [
-              _buildImageContent(bytes: bytes, slot: slot, image: image),
-              if (_handlesVisible) ...[
+              _buildImageContent(bytes: bytes, slot: slot),
+              if (showHandles) ...[
                 Positioned.fill(
                   child: IgnorePointer(
                     child: DecoratedBox(
@@ -434,35 +395,38 @@ class _ImageSlotState extends State<ImageSlot>
                     ),
                   ),
                 ),
-              ],
-              if (widget.showAdjustToolbar)
-                Positioned(
-                  top: 8,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ImageAdjustToolbar(
-                      locked: widget.locked,
-                      onDelete: widget.onDelete,
-                      onDuplicate: widget.onDuplicate,
-                      onLockToggle: widget.onLockToggle,
-                      onReplace: widget.onPick,
+              ] else if (_handlesVisible && tightChrome)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          width: 2,
+                        ),
+                      ),
                     ),
                   ),
                 ),
+              if (widget.showAdjustToolbar)
+                _buildAdjustToolbar(tightChrome: tightChrome),
               if (widget.locked && widget.selected)
                 Positioned(
-                  top: 8,
-                  right: 8,
+                  top: tightChrome ? 4 : 8,
+                  right: tightChrome ? 4 : 8,
                   child: IgnorePointer(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.45),
                         shape: BoxShape.circle,
                       ),
-                      child: const Padding(
-                        padding: EdgeInsets.all(6),
-                        child: Icon(Icons.lock, size: 16, color: Colors.white),
+                      child: Padding(
+                        padding: EdgeInsets.all(tightChrome ? 4 : 6),
+                        child: Icon(
+                          Icons.lock,
+                          size: tightChrome ? 14 : 16,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),

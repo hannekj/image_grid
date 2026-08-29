@@ -8,7 +8,7 @@ class CheckerGridLayout {
   static const slotCount = 5;
   static const labelCount = 4;
 
-  static const defaultLabels = ['summer', 'recap', '2026', 'days'];
+  static const defaultLabels = ['Lofoten', 'summer', '2026', 'Norway'];
 
   /// Flat grid indices (row-major) that hold images, in slot order.
   static const imageCells = [0, 2, 4, 6, 8];
@@ -49,7 +49,9 @@ class CheckerGridFrame extends StatelessWidget {
           final imageSlotIndex =
               CheckerGridLayout.imageCells.indexOf(flatIndex);
           if (imageSlotIndex >= 0) {
-            return imageSlots[imageSlotIndex];
+            return ClipRect(
+              child: imageSlots[imageSlotIndex],
+            );
           }
 
           final labelIndex = CheckerGridLayout.textCells.indexOf(flatIndex);

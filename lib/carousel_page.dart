@@ -43,6 +43,7 @@ import 'overlay_text_dialog.dart';
 import 'overlay_text_layer.dart';
 import 'path_text_draw_layer.dart';
 import 'path_text_paint.dart';
+import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
 
 enum _CarouselTool { slides, format, look, text }
@@ -135,6 +136,7 @@ class _CarouselPageState extends State<CarouselPage> {
     final layout = slide.layout;
     if (layout == null) return _canvasColor;
     if (layout.isCheckerGrid) return Colors.white;
+    if (layout.isStripGrid) return Colors.white;
     if (layout.isFilmStrip) return AppTheme.cream;
     if (layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
@@ -145,6 +147,7 @@ class _CarouselPageState extends State<CarouselPage> {
   double _slideStrokeWidth(CarouselSlide slide) {
     if (slide.layout?.usesCreamCanvas == true) return 0;
     if (slide.layout?.isCheckerGrid == true) return 0;
+    if (slide.layout?.isStripGrid == true) return 0;
     return _strokeWidth;
   }
 
@@ -1856,6 +1859,14 @@ class _CarouselPageState extends State<CarouselPage> {
       return AlbumGridFrame(
         slots: [
           for (var i = 0; i < AlbumGridFrame.slotCount; i++) slot(i),
+        ],
+      );
+    }
+
+    if (layout.isStripGrid) {
+      return StripGridFrame(
+        slots: [
+          for (var i = 0; i < StripGridLayout.slotCount; i++) slot(i),
         ],
       );
     }

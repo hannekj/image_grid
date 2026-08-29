@@ -9,6 +9,7 @@ class ImageAdjustToolbar extends StatelessWidget {
     this.onDelete,
     this.onLockToggle,
     this.locked = false,
+    this.compact = false,
   });
 
   final VoidCallback onReplace;
@@ -16,6 +17,7 @@ class ImageAdjustToolbar extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onLockToggle;
   final bool locked;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -23,9 +25,12 @@ class ImageAdjustToolbar extends StatelessWidget {
       elevation: 3,
       shadowColor: Colors.black26,
       color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(compact ? 18 : 22),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 2 : 4,
+          vertical: compact ? 0 : 2,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -34,23 +39,27 @@ class ImageAdjustToolbar extends StatelessWidget {
                 icon: Icons.delete_outline,
                 tooltip: 'Fjern bilde',
                 onTap: onDelete!,
+                compact: compact,
               ),
             if (onDuplicate != null)
               _ToolbarIcon(
                 icon: Icons.control_point_duplicate,
                 tooltip: 'Dupliser slide',
                 onTap: onDuplicate!,
+                compact: compact,
               ),
             if (onLockToggle != null)
               _ToolbarIcon(
                 icon: locked ? Icons.lock : Icons.lock_open_outlined,
                 tooltip: locked ? 'Lås opp' : 'Lås',
                 onTap: onLockToggle!,
+                compact: compact,
               ),
             _ToolbarIcon(
               icon: Icons.add_photo_alternate_outlined,
               tooltip: 'Bytt bilde',
               onTap: onReplace,
+              compact: compact,
             ),
           ],
         ),
@@ -64,21 +73,26 @@ class _ToolbarIcon extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    this.compact = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: tooltip,
       onPressed: onTap,
-      icon: Icon(icon, size: 20),
+      icon: Icon(icon, size: compact ? 18 : 20),
       visualDensity: VisualDensity.compact,
-      padding: const EdgeInsets.all(8),
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      padding: EdgeInsets.all(compact ? 6 : 8),
+      constraints: BoxConstraints(
+        minWidth: compact ? 30 : 36,
+        minHeight: compact ? 30 : 36,
+      ),
     );
   }
 }
