@@ -17,6 +17,7 @@ import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'discard_dialog.dart';
 import 'dump_layout.dart';
+import 'checker_grid_layout.dart';
 import 'draft_storage.dart';
 import 'editor_app_bar.dart';
 import 'editor_history.dart';
@@ -51,6 +52,7 @@ class _LayoutSnapshot {
     required this.thickness,
     required this.filter,
     required this.grain,
+    required this.checkerLabels,
   });
 
   final GridLayout layout;
@@ -63,6 +65,7 @@ class _LayoutSnapshot {
   final StrokeThickness thickness;
   final PhotoFilter filter;
   final bool grain;
+  final List<String> checkerLabels;
 }
 
 class LayoutEditorPage extends StatefulWidget {
@@ -114,6 +117,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   bool _swapHintShown = false;
   bool _autoSaveDraftOnDispose = true;
+  late List<String> _checkerLabels = List<String>.from(
+    CheckerGridLayout.defaultLabels,
+  );
 
   bool get _hasAnyImage => _slots.any((bytes) => bytes != null);
 
@@ -166,6 +172,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       thickness: _thickness,
       filter: _filter,
       grain: _grain,
+      checkerLabels: List<String>.from(_checkerLabels),
     );
   }
 
@@ -182,6 +189,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     _thickness = snapshot.thickness;
     _filter = snapshot.filter;
     _grain = snapshot.grain;
+    _checkerLabels = List<String>.from(snapshot.checkerLabels);
     _selectedOverlayIndex = null;
     _selectedSlotIndex = null;
   }
@@ -219,6 +227,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             ),
         ],
         overlays: _cloneOverlays(_overlayTexts),
+        checkerLabels: _layout.isCheckerGrid
+            ? List<String>.from(_checkerLabels)
+            : null,
       ),
     );
   }
@@ -232,6 +243,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       _thickness = draft.thickness;
       _filter = draft.filter;
       _grain = draft.grain;
+      _checkerLabels = draft.checkerLabels == null
+          ? List<String>.from(CheckerGridLayout.defaultLabels)
+          : List<String>.from(draft.checkerLabels!);
       _slots = List<Uint8List?>.from(draft.slots);
       _slotViews = [
         for (final view in draft.slotViews)
@@ -313,6 +327,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Color get _canvasColor {
+    if (_layout.isCheckerGrid) return Colors.white;
     if (_layout.isFilmStrip) return AppTheme.cream;
     if (_layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
@@ -351,6 +366,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       _slots = nextSlots;
       _slotViews = nextViews;
       _selectedSlotIndex = null;
+      if (next.isCheckerGrid) {
+        _checkerLabels = List<String>.from(CheckerGridLayout.defaultLabels);
+      }
     });
   }
 
@@ -948,6 +966,59 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildCheckerGrid() {
+    return CheckerGridFrame(
+      imageSlots: [
+        for (var i = 0; i < CheckerGridLayout.slotCount; i++) _slot(i),
+      ],
+      labels: _checkerLabels,
+      showChrome: !_cleanView,
+      onEditLabel: _cleanView ? null : _editCheckerLabel,
+    );
+  }
+
+  Future<void> _editCheckerLabel(int index) async {
+    if (index < 0 || index >= _checkerLabels.length) return;
+    final controller = TextEditingController(text: _checkerLabels[index]);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rediger tekst'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.none,
+            decoration: const InputDecoration(hintText: 'summer'),
+            onSubmitted: (value) => Navigator.pop(context, value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(AppCopy.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              child: const Text('Lagre'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    if (!mounted || result == null) return;
+
+    final trimmed = result.trim();
+    if (trimmed == _checkerLabels[index]) return;
+
+    _pushUndo();
+    setState(() {
+      _checkerLabels[index] = trimmed.isEmpty
+          ? CheckerGridLayout.defaultLabels[index]
+          : trimmed;
+    });
+  }
+
   Widget _buildBody(double strokeWidth) {
     if (_layout.isDump) return _buildDump();
     if (_layout.isBooth) return _buildBooth();
@@ -960,6 +1031,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (_layout.isReaction) return _buildReaction();
     if (_layout.isOverlayFrame) return _buildOverlayFrame();
     if (_layout.isAlbumGrid) return _buildAlbumGrid();
+    if (_layout.isCheckerGrid) return _buildCheckerGrid();
     return _buildGrid(strokeWidth);
   }
 
@@ -1075,9 +1147,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                   ),
                                   Padding(
                                     padding: EdgeInsets.all(
-                                      _layout.usesCreamCanvas
-                                          ? 12
-                                          : strokeWidth,
+                                      _layout.isCheckerGrid
+                                          ? 0
+                                          : _layout.usesCreamCanvas
+                                              ? 12
+                                              : strokeWidth,
                                     ),
                                     child: _buildBody(strokeWidth),
                                   ),

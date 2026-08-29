@@ -38,6 +38,8 @@ class GridLayout {
 
   bool get isAlbumGrid => id == 'album-grid';
 
+  bool get isCheckerGrid => id == 'checker-grid';
+
   bool get isFilmHorizontal => id == 'film-h';
 
   bool get isFilmVertical => id == 'film-v';
@@ -48,7 +50,7 @@ class GridLayout {
 
   LayoutGroup get group {
     if (isDump || isBooth || isFilmStrip) return LayoutGroup.film;
-    if (isReaction || isOverlayFrame) return LayoutGroup.special;
+    if (isReaction || isOverlayFrame || isCheckerGrid) return LayoutGroup.special;
     return LayoutGroup.classic;
   }
 }
@@ -364,6 +366,13 @@ const gridLayouts = [
     label: 'Reaksjon',
     rows: [
       LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'checker-grid',
+    label: 'Summer recap',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1, 1, 1]),
     ],
   ),
 ];

@@ -260,6 +260,7 @@ class DraftStorage {
       'grain': data.grain,
       'slots': slotsJson,
       'overlays': data.overlays.map(_overlayToJson).toList(),
+      if (data.checkerLabels != null) 'checkerLabels': data.checkerLabels,
     };
 
     await File('${root.path}/$_layoutFile').writeAsString(jsonEncode(payload));
@@ -319,6 +320,9 @@ class DraftStorage {
     final overlays = overlaysJson
         .map((e) => _overlayFromJson(e as Map<String, dynamic>))
         .toList();
+    final checkerLabels = (map['checkerLabels'] as List<dynamic>?)
+        ?.map((label) => label as String)
+        .toList();
 
     return LayoutDraftData(
       layout: layout,
@@ -331,6 +335,7 @@ class DraftStorage {
       slots: slots,
       slotViews: slotViews,
       overlays: overlays,
+      checkerLabels: checkerLabels,
     );
   }
 
@@ -587,6 +592,7 @@ class LayoutDraftData {
     required this.slots,
     required this.slotViews,
     required this.overlays,
+    this.checkerLabels,
   });
 
   final GridLayout layout;
@@ -599,6 +605,7 @@ class LayoutDraftData {
   final List<Uint8List?> slots;
   final List<LayoutDraftSlotView> slotViews;
   final List<OverlayText> overlays;
+  final List<String>? checkerLabels;
 }
 
 class LayoutDraftSlotView {

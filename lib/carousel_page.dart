@@ -19,6 +19,7 @@ import 'carousel_page_dots.dart';
 import 'carousel_slide.dart';
 import 'carousel_templates.dart';
 import 'discard_dialog.dart';
+import 'checker_grid_layout.dart';
 import 'draft_storage.dart';
 import 'dump_layout.dart';
 import 'editor_app_bar.dart';
@@ -133,6 +134,7 @@ class _CarouselPageState extends State<CarouselPage> {
   Color _slideCanvasColor(CarouselSlide slide) {
     final layout = slide.layout;
     if (layout == null) return _canvasColor;
+    if (layout.isCheckerGrid) return Colors.white;
     if (layout.isFilmStrip) return AppTheme.cream;
     if (layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
@@ -142,6 +144,7 @@ class _CarouselPageState extends State<CarouselPage> {
 
   double _slideStrokeWidth(CarouselSlide slide) {
     if (slide.layout?.usesCreamCanvas == true) return 0;
+    if (slide.layout?.isCheckerGrid == true) return 0;
     return _strokeWidth;
   }
 
@@ -1854,6 +1857,16 @@ class _CarouselPageState extends State<CarouselPage> {
         slots: [
           for (var i = 0; i < AlbumGridFrame.slotCount; i++) slot(i),
         ],
+      );
+    }
+
+    if (layout.isCheckerGrid) {
+      return CheckerGridFrame(
+        imageSlots: [
+          for (var i = 0; i < CheckerGridLayout.slotCount; i++) slot(i),
+        ],
+        labels: List<String>.from(CheckerGridLayout.defaultLabels),
+        showChrome: showChrome,
       );
     }
 

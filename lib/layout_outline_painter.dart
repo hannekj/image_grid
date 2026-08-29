@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
+import 'checker_grid_layout.dart';
 import 'grid_layout.dart';
 
 class LayoutOutlinePainter extends CustomPainter {
@@ -49,6 +50,11 @@ class LayoutOutlinePainter extends CustomPainter {
 
     if (layout.isAlbumGrid) {
       _paintAlbumGrid(canvas, size);
+      return;
+    }
+
+    if (layout.isCheckerGrid) {
+      _paintCheckerGrid(canvas, size);
       return;
     }
 
@@ -355,6 +361,31 @@ class LayoutOutlinePainter extends CustomPainter {
           ),
           cellPaint,
         );
+      }
+    }
+  }
+
+  void _paintCheckerGrid(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+
+    final cellPaint = Paint()..color = cellColor;
+    final textPaint = Paint()..color = Colors.white;
+    const columns = 3;
+    const rows = 3;
+
+    final gap = CheckerGridLayout.gapForSize(size.width, size.height);
+    final cellWidth = (size.width - gap * (columns - 1)) / columns;
+    final cellHeight = (size.height - gap * (rows - 1)) / rows;
+
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < columns; col++) {
+        final flatIndex = row * columns + col;
+        final left = col * (cellWidth + gap);
+        final top = row * (cellHeight + gap);
+        final rect = Rect.fromLTWH(left, top, cellWidth, cellHeight);
+        final isText =
+            flatIndex == 1 || flatIndex == 3 || flatIndex == 5 || flatIndex == 7;
+        canvas.drawRect(rect, isText ? textPaint : cellPaint);
       }
     }
   }
