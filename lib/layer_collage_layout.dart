@@ -31,7 +31,7 @@ class LayerCollageLayout {
   static double borderWidth(double width, double height) =>
       math.max(1.5, 5 * _scaleFor(width, height));
 
-  static List<_PlacedSlot> placements(double width, double height) {
+  static List<PlacedSlot> placements(double width, double height) {
     final scale = _scaleFor(width, height);
     final offsetX = (width - _designWidth * scale) / 2;
     final offsetY = (height - _designHeight * scale) / 2;
@@ -40,7 +40,7 @@ class LayerCollageLayout {
 
     return [
       for (final spec in specs)
-        _PlacedSlot(
+        PlacedSlot(
           index: spec.index,
           rect: Rect.fromLTWH(
             offsetX + spec.x * scale,
@@ -71,8 +71,8 @@ class _SlotSpec {
   final double h;
 }
 
-class _PlacedSlot {
-  const _PlacedSlot({
+class PlacedSlot {
+  const PlacedSlot({
     required this.index,
     required this.rect,
   });

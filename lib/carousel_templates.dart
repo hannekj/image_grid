@@ -13,7 +13,7 @@ class CarouselTemplate {
   final String label;
   final String subtitle;
 
-  /// `null` = single-image slide; otherwise a grid layout id.
+  /// `null` = single-image slide; `spread-*` = two-page spread; otherwise grid id.
   final List<String?> steps;
 }
 
@@ -25,6 +25,12 @@ GridLayout carouselTemplateLayout(String layoutId) {
 }
 
 const carouselTemplates = [
+  CarouselTemplate(
+    id: 'spread',
+    label: 'Over to sider',
+    subtitle: 'Forside · 2 små + stort bilde',
+    steps: [null, 'spread-span'],
+  ),
   CarouselTemplate(
     id: 'story',
     label: 'Historie',

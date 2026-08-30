@@ -105,7 +105,8 @@ class DraftStorage {
       }
 
       List<Map<String, dynamic>?>? slotsJson;
-      if (slide.layoutId != null && slide.slots != null) {
+      if ((slide.layoutId != null || slide.spreadLayoutId != null) &&
+          slide.slots != null) {
         final views = slide.slotViews ?? const <CarouselDraftSlotView>[];
         slotsJson = <Map<String, dynamic>?>[];
         for (var s = 0; s < slide.slots!.length; s++) {
@@ -197,8 +198,9 @@ class DraftStorage {
       List<CarouselDraftSlotView>? slotViews;
       List<Uint8List> spareImages = const [];
       final layoutId = slideMap['layoutId'] as String?;
+      final spreadLayoutId = slideMap['spreadLayoutId'] as String?;
       final slotsJson = slideMap['slots'] as List<dynamic>?;
-      if (layoutId != null && slotsJson != null) {
+      if ((layoutId != null || spreadLayoutId != null) && slotsJson != null) {
         slots = List<Uint8List?>.filled(slotsJson.length, null);
         slotViews = List<CarouselDraftSlotView>.generate(
           slotsJson.length,
@@ -292,9 +294,11 @@ class DraftStorage {
       'filter': data.filter.name,
       'grain': data.grain,
       'slots': slotsJson,
-      if (spareJson != null) 'spare': spareJson,
+      'spare': ?spareJson,
       'overlays': data.overlays.map(_overlayToJson).toList(),
-      if (data.checkerLabels != null) 'checkerLabels': data.checkerLabels,
+      'checkerLabels': ?data.checkerLabels,
+      'postcardCaption': ?data.postcardCaption,
+      'timelineLabels': ?data.timelineLabels,
     };
 
     await File('${root.path}/$_layoutFile').writeAsString(jsonEncode(payload));
@@ -369,6 +373,10 @@ class DraftStorage {
     final checkerLabels = (map['checkerLabels'] as List<dynamic>?)
         ?.map((label) => label as String)
         .toList();
+    final postcardCaption = map['postcardCaption'] as String?;
+    final timelineLabels = (map['timelineLabels'] as List<dynamic>?)
+        ?.map((label) => label as String)
+        .toList();
 
     return LayoutDraftData(
       layout: layout,
@@ -383,6 +391,8 @@ class DraftStorage {
       spareImages: spareImages,
       overlays: overlays,
       checkerLabels: checkerLabels,
+      postcardCaption: postcardCaption,
+      timelineLabels: timelineLabels,
     );
   }
 
@@ -407,8 +417,11 @@ class DraftStorage {
       'imageRotation': slide.imageRotation,
       'imageLocked': slide.imageLocked,
       'layoutId': slide.layoutId,
+      'spreadId': slide.spreadId,
+      'spreadIndex': slide.spreadIndex,
+      'spreadLayoutId': slide.spreadLayoutId,
       'slots': slotsJson,
-      if (spareJson != null) 'spare': spareJson,
+      'spare': ?spareJson,
       'overlays': slide.overlays.map(_overlayToJson).toList(),
     };
   }
@@ -439,6 +452,9 @@ class DraftStorage {
       imageRotation: (map['imageRotation'] as num?)?.toDouble() ?? 0,
       imageLocked: map['imageLocked'] as bool? ?? false,
       layoutId: map['layoutId'] as String?,
+      spreadId: map['spreadId'] as String?,
+      spreadIndex: map['spreadIndex'] as int? ?? 0,
+      spreadLayoutId: map['spreadLayoutId'] as String?,
       slots: slots,
       slotViews: slotViews,
       spareImages: spareImages,
@@ -599,6 +615,9 @@ class CarouselDraftSlide {
     this.imageRotation = 0,
     this.imageLocked = false,
     this.layoutId,
+    this.spreadId,
+    this.spreadIndex = 0,
+    this.spreadLayoutId,
     this.slots,
     this.slotViews,
     this.spareImages = const [],
@@ -617,6 +636,9 @@ class CarouselDraftSlide {
   final double imageRotation;
   final bool imageLocked;
   final String? layoutId;
+  final String? spreadId;
+  final int spreadIndex;
+  final String? spreadLayoutId;
   final List<Uint8List?>? slots;
   final List<CarouselDraftSlotView>? slotViews;
   final List<Uint8List> spareImages;
@@ -648,6 +670,8 @@ class LayoutDraftData {
     required this.slotViews,
     required this.overlays,
     this.checkerLabels,
+    this.postcardCaption,
+    this.timelineLabels,
     this.spareImages = const [],
   });
 
@@ -662,6 +686,8 @@ class LayoutDraftData {
   final List<LayoutDraftSlotView> slotViews;
   final List<OverlayText> overlays;
   final List<String>? checkerLabels;
+  final String? postcardCaption;
+  final List<String>? timelineLabels;
   final List<Uint8List> spareImages;
 }
 

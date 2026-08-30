@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'app_theme.dart';
 import 'overlay_text.dart';
@@ -48,71 +49,74 @@ class _PathTextOverlayState extends State<PathTextOverlay> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTapUp: (details) {
-                final hit = PathTextPaint.hitTest(
-                  normalizedPath: points,
-                  size: size,
-                  localPosition: details.localPosition,
-                );
-                if (hit) widget.onSelect();
-              },
-              onDoubleTapDown: (details) {
-                final hit = PathTextPaint.hitTest(
-                  normalizedPath: points,
-                  size: size,
-                  localPosition: details.localPosition,
-                );
-                if (hit) widget.onEdit();
-              },
-              onPanStart: widget.interactive
-                  ? (details) {
-                      final hit = PathTextPaint.hitTest(
-                        normalizedPath: points,
-                        size: size,
-                        localPosition: details.localPosition,
-                      );
-                      _dragging = hit;
-                      if (hit) widget.onInteractionChanged?.call(true);
-                    }
-                  : null,
-              onPanUpdate: widget.interactive
-                  ? (details) {
-                      if (!_dragging) return;
-                      final dx = details.delta.dx / size.width;
-                      final dy = details.delta.dy / size.height;
-                      final next = [
-                        for (final point in points)
-                          Offset(
-                            (point.dx + dx).clamp(0.0, 1.0),
-                            (point.dy + dy).clamp(0.0, 1.0),
-                          ),
-                      ];
-                      widget.onPathChanged(next);
-                    }
-                  : null,
-              onPanEnd: widget.interactive
-                  ? (_) {
-                      if (!_dragging) return;
-                      _dragging = false;
-                      widget.onInteractionChanged?.call(false);
-                    }
-                  : null,
-              onPanCancel: widget.interactive
-                  ? () {
-                      if (!_dragging) return;
-                      _dragging = false;
-                      widget.onInteractionChanged?.call(false);
-                    }
-                  : null,
-              child: CustomPaint(
-                painter: PathTextPainter(
-                  normalizedPath: points,
-                  text: widget.overlay.value,
-                  style: PathTextPaint.styleFor(widget.overlay),
-                  letterSpacing: widget.overlay.letterSpacing,
-                  selected: widget.interactive,
+            _PathTextHitTarget(
+              normalizedPath: points,
+              child: GestureDetector(
+                behavior: HitTestBehavior.deferToChild,
+                onTapUp: (details) {
+                  final hit = PathTextPaint.hitTest(
+                    normalizedPath: points,
+                    size: size,
+                    localPosition: details.localPosition,
+                  );
+                  if (hit) widget.onSelect();
+                },
+                onDoubleTapDown: (details) {
+                  final hit = PathTextPaint.hitTest(
+                    normalizedPath: points,
+                    size: size,
+                    localPosition: details.localPosition,
+                  );
+                  if (hit) widget.onEdit();
+                },
+                onPanStart: widget.interactive
+                    ? (details) {
+                        final hit = PathTextPaint.hitTest(
+                          normalizedPath: points,
+                          size: size,
+                          localPosition: details.localPosition,
+                        );
+                        _dragging = hit;
+                        if (hit) widget.onInteractionChanged?.call(true);
+                      }
+                    : null,
+                onPanUpdate: widget.interactive
+                    ? (details) {
+                        if (!_dragging) return;
+                        final dx = details.delta.dx / size.width;
+                        final dy = details.delta.dy / size.height;
+                        final next = [
+                          for (final point in points)
+                            Offset(
+                              (point.dx + dx).clamp(0.0, 1.0),
+                              (point.dy + dy).clamp(0.0, 1.0),
+                            ),
+                        ];
+                        widget.onPathChanged(next);
+                      }
+                    : null,
+                onPanEnd: widget.interactive
+                    ? (_) {
+                        if (!_dragging) return;
+                        _dragging = false;
+                        widget.onInteractionChanged?.call(false);
+                      }
+                    : null,
+                onPanCancel: widget.interactive
+                    ? () {
+                        if (!_dragging) return;
+                        _dragging = false;
+                        widget.onInteractionChanged?.call(false);
+                      }
+                    : null,
+                child: CustomPaint(
+                  painter: PathTextPainter(
+                    normalizedPath: points,
+                    text: widget.overlay.value,
+                    style: PathTextPaint.styleFor(widget.overlay),
+                    letterSpacing: widget.overlay.letterSpacing,
+                    selected: widget.interactive,
+                  ),
                 ),
               ),
             ),
@@ -162,5 +166,51 @@ class _PathTextOverlayState extends State<PathTextOverlay> {
         );
       },
     );
+  }
+}
+
+/// Lets taps pass through to widgets below except near the drawn path.
+class _PathTextHitTarget extends SingleChildRenderObjectWidget {
+  const _PathTextHitTarget({
+    required this.normalizedPath,
+    required super.child,
+  });
+
+  final List<Offset> normalizedPath;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderPathTextHitTarget(normalizedPath: normalizedPath);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderPathTextHitTarget renderObject,
+  ) {
+    renderObject.normalizedPath = normalizedPath;
+  }
+}
+
+class _RenderPathTextHitTarget extends RenderProxyBox {
+  _RenderPathTextHitTarget({required this._normalizedPath});
+
+  List<Offset> _normalizedPath;
+
+  set normalizedPath(List<Offset> value) {
+    if (identical(_normalizedPath, value)) return;
+    _normalizedPath = value;
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!PathTextPaint.hitTest(
+      normalizedPath: _normalizedPath,
+      size: size,
+      localPosition: position,
+    )) {
+      return false;
+    }
+    return super.hitTest(result, position: position);
   }
 }

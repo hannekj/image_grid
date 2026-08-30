@@ -8,6 +8,7 @@ import 'grid_layout.dart';
 import 'heart_columns_layout.dart';
 import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
+import 'special_layouts.dart';
 import 'stagger_grid_layout.dart';
 import 'strip_grid_layout.dart';
 
@@ -45,6 +46,21 @@ class LayoutOutlinePainter extends CustomPainter {
 
     if (layout.isReaction) {
       _paintReaction(canvas, size);
+      return;
+    }
+
+    if (layout.isReactionCircle) {
+      _paintReactionCircle(canvas, size);
+      return;
+    }
+
+    if (layout.isPostcard) {
+      _paintPostcard(canvas, size);
+      return;
+    }
+
+    if (layout.isTimeline) {
+      _paintTimeline(canvas, size);
       return;
     }
 
@@ -177,7 +193,12 @@ class LayoutOutlinePainter extends CustomPainter {
     for (var i = 0; i < 3; i++) {
       final y = top + i * (cellHeight + cellGap);
       canvas.drawRect(
-        Rect.fromLTRB(-width / 2 + insetX, y, width / 2 - insetX, y + cellHeight),
+        Rect.fromLTRB(
+          -width / 2 + insetX,
+          y,
+          width / 2 - insetX,
+          y + cellHeight,
+        ),
         cellPaint,
       );
     }
@@ -315,8 +336,8 @@ class LayoutOutlinePainter extends CustomPainter {
       cellPaint,
     );
 
-    final inset = size.shortestSide * 0.30;
-    final margin = size.shortestSide * 0.06;
+    final inset = ReactionLayoutMetrics.insetSize(size.width, size.height);
+    final margin = ReactionLayoutMetrics.margin(size.width, size.height);
     final radius = inset * 0.18;
     final rect = Rect.fromLTWH(
       size.width - margin - inset,
@@ -337,6 +358,90 @@ class LayoutOutlinePainter extends CustomPainter {
     );
   }
 
+  void _paintReactionCircle(Canvas canvas, Size size) {
+    final cellPaint = Paint()..color = cellColor;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(1.5)),
+      cellPaint,
+    );
+
+    final inset = ReactionLayoutMetrics.insetSize(size.width, size.height);
+    final margin = ReactionLayoutMetrics.margin(size.width, size.height);
+    final center = Offset(
+      size.width - margin - inset / 2,
+      size.height - margin - inset / 2,
+    );
+    canvas.drawCircle(center, inset / 2, Paint()..color = gapColor);
+    canvas.drawCircle(center, inset / 2 - 1.2, cellPaint);
+  }
+
+  void _paintPostcard(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+
+    final cellPaint = Paint()..color = cellColor;
+    final margin = PostcardLayout.margin(size.width, size.height);
+    final captionHeight = PostcardLayout.captionHeight(size.width, size.height);
+    final imageRect = Rect.fromLTWH(
+      margin,
+      margin,
+      size.width - margin * 2,
+      size.height - margin * 2.5 - captionHeight,
+    );
+    canvas.drawRect(imageRect, cellPaint);
+    canvas.drawRect(
+      Rect.fromLTWH(
+        margin,
+        size.height - margin - captionHeight,
+        size.width - margin * 2,
+        captionHeight,
+      ),
+      Paint()..color = gapColor,
+    );
+  }
+
+  void _paintTimeline(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+
+    final cellPaint = Paint()..color = cellColor;
+    final lineX = size.width * 0.08;
+    final contentLeft = size.width * 0.14;
+    final labelBand = TimelineLayout.labelBandHeight(size.height);
+    final imageBand =
+        (size.height - labelBand * TimelineLayout.labelCount) /
+        TimelineLayout.slotCount;
+    final lineWidth = TimelineLayout.lineWidth(size.width);
+    final dotRadius = TimelineLayout.dotRadius(size.width);
+
+    canvas.drawRect(
+      Rect.fromLTWH(
+        lineX - lineWidth / 2,
+        imageBand / 2,
+        lineWidth,
+        size.height - imageBand,
+      ),
+      Paint()..color = const Color(0xFFD8D8D8),
+    );
+
+    for (var i = 0; i < TimelineLayout.slotCount; i++) {
+      final top = i * (imageBand + labelBand);
+      canvas.drawRect(
+        Rect.fromLTWH(contentLeft, top, size.width - contentLeft, imageBand),
+        cellPaint,
+      );
+      canvas.drawCircle(
+        Offset(lineX, top + imageBand / 2),
+        dotRadius,
+        Paint()..color = const Color(0xFF6B6B6B),
+      );
+      if (i < TimelineLayout.labelCount) {
+        canvas.drawRect(
+          Rect.fromLTWH(contentLeft, top + imageBand, size.width - contentLeft, labelBand),
+          Paint()..color = gapColor,
+        );
+      }
+    }
+  }
+
   void _paintOverlayFrame(Canvas canvas, Size size) {
     final cellPaint = Paint()..color = cellColor;
     canvas.drawRRect(
@@ -354,14 +459,8 @@ class LayoutOutlinePainter extends CustomPainter {
     final border = size.shortestSide * 0.045;
 
     canvas.drawRect(frame, Paint()..color = Colors.white);
-    canvas.drawRect(
-      frame.deflate(border),
-      Paint()..color = gapColor,
-    );
-    canvas.drawRect(
-      frame.deflate(border * 1.35),
-      cellPaint,
-    );
+    canvas.drawRect(frame.deflate(border), Paint()..color = gapColor);
+    canvas.drawRect(frame.deflate(border * 1.35), cellPaint);
   }
 
   void _paintAlbumGrid(Canvas canvas, Size size) {
@@ -518,7 +617,10 @@ class LayoutOutlinePainter extends CustomPainter {
         final top = row * (cellHeight + gap);
         final rect = Rect.fromLTWH(left, top, cellWidth, cellHeight);
         final isText =
-            flatIndex == 1 || flatIndex == 3 || flatIndex == 5 || flatIndex == 7;
+            flatIndex == 1 ||
+            flatIndex == 3 ||
+            flatIndex == 5 ||
+            flatIndex == 7;
         canvas.drawRect(rect, isText ? textPaint : cellPaint);
       }
     }

@@ -17,7 +17,7 @@ class StaggerGridLayout {
   static double gap(double width, double height) =>
       math.min(width, height) * 0.028;
 
-  static _StaggerMetrics metrics(double width, double height) {
+  static StaggerMetrics metrics(double width, double height) {
     final pad = outerPadding(width, height);
     final gutter = gap(width, height);
     final availW = width - pad * 2;
@@ -50,7 +50,7 @@ class StaggerGridLayout {
     final originX = (width - contentW) / 2;
     final originY = (height - contentH) / 2;
 
-    return _StaggerMetrics(
+    return StaggerMetrics(
       cellWidth: cellW,
       cellHeight: cellH,
       gap: gutter,
@@ -60,8 +60,8 @@ class StaggerGridLayout {
   }
 }
 
-class _StaggerMetrics {
-  const _StaggerMetrics({
+class StaggerMetrics {
+  const StaggerMetrics({
     required this.cellWidth,
     required this.cellHeight,
     required this.gap,

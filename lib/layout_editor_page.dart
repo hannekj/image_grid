@@ -42,6 +42,7 @@ import 'path_text_paint.dart';
 import 'heart_columns_layout.dart';
 import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
+import 'special_layouts.dart';
 import 'stagger_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
@@ -59,6 +60,8 @@ class _LayoutSnapshot {
     required this.filter,
     required this.grain,
     required this.checkerLabels,
+    required this.postcardCaption,
+    required this.timelineLabels,
     required this.spareImages,
   });
 
@@ -74,6 +77,8 @@ class _LayoutSnapshot {
   final PhotoFilter filter;
   final bool grain;
   final List<String> checkerLabels;
+  final String postcardCaption;
+  final List<String> timelineLabels;
 }
 
 class LayoutEditorPage extends StatefulWidget {
@@ -129,6 +134,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   late List<String> _checkerLabels = List<String>.from(
     CheckerGridLayout.defaultLabels,
   );
+  late String _postcardCaption = PostcardLayout.defaultCaption;
+  late List<String> _timelineLabels = List<String>.from(
+    TimelineLayout.defaultLabels,
+  );
 
   bool get _hasAnyImage =>
       _slots.any((bytes) => bytes != null) || _spareImages.isNotEmpty;
@@ -183,6 +192,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       filter: _filter,
       grain: _grain,
       checkerLabels: List<String>.from(_checkerLabels),
+      postcardCaption: _postcardCaption,
+      timelineLabels: List<String>.from(_timelineLabels),
       spareImages: List<Uint8List>.from(_spareImages),
     );
   }
@@ -202,6 +213,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     _filter = snapshot.filter;
     _grain = snapshot.grain;
     _checkerLabels = List<String>.from(snapshot.checkerLabels);
+    _postcardCaption = snapshot.postcardCaption;
+    _timelineLabels = List<String>.from(snapshot.timelineLabels);
     _selectedOverlayIndex = null;
     _selectedSlotIndex = null;
   }
@@ -242,6 +255,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         checkerLabels: _layout.isCheckerGrid
             ? List<String>.from(_checkerLabels)
             : null,
+        postcardCaption: _layout.isPostcard ? _postcardCaption : null,
+        timelineLabels: _layout.isTimeline
+            ? List<String>.from(_timelineLabels)
+            : null,
         spareImages: List<Uint8List>.from(_spareImages),
       ),
     );
@@ -259,6 +276,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       _checkerLabels = draft.checkerLabels == null
           ? List<String>.from(CheckerGridLayout.defaultLabels)
           : List<String>.from(draft.checkerLabels!);
+      _postcardCaption = draft.postcardCaption ?? PostcardLayout.defaultCaption;
+      _timelineLabels = draft.timelineLabels == null
+          ? List<String>.from(TimelineLayout.defaultLabels)
+          : List<String>.from(draft.timelineLabels!);
       _slots = List<Uint8List?>.from(draft.slots);
       _spareImages = List<Uint8List>.from(draft.spareImages);
       _slotViews = [
@@ -383,6 +404,12 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       if (next.isCheckerGrid) {
         _checkerLabels = List<String>.from(CheckerGridLayout.defaultLabels);
       }
+      if (next.isPostcard) {
+        _postcardCaption = PostcardLayout.defaultCaption;
+      }
+      if (next.isTimeline) {
+        _timelineLabels = List<String>.from(TimelineLayout.defaultLabels);
+      }
     });
   }
 
@@ -456,7 +483,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (files.isEmpty) return;
 
     final chosen = files.take(emptyIndexes.length).toList();
-    final bytesList = await Future.wait(chosen.map((file) => file.readAsBytes()));
+    final bytesList = await Future.wait(
+      chosen.map((file) => file.readAsBytes()),
+    );
     if (!mounted) return;
 
     _pushUndo();
@@ -548,8 +577,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   Future<void> _addOverlayLocation() => _addOverlay(OverlayKind.location);
 
-  Future<void> _addOverlayCoordinates() =>
-      _addOverlay(OverlayKind.coordinates);
+  Future<void> _addOverlayCoordinates() => _addOverlay(OverlayKind.coordinates);
 
   Future<void> _addOverlayDate() => _addOverlay(OverlayKind.date);
 
@@ -797,12 +825,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         if (c > 0) cells.add(SizedBox(width: strokeWidth));
         final slotIndex = index;
         index += 1;
-        cells.add(
-          Expanded(
-            flex: row.cells[c],
-            child: _slot(slotIndex),
-          ),
-        );
+        cells.add(Expanded(flex: row.cells[c], child: _slot(slotIndex)));
       }
 
       rows.add(
@@ -833,7 +856,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         showResizeHandles: true,
         selected: selected,
         onSelect: () => _selectSlot(index),
-        onPick: bytes == null ? () => _pickImages(index) : () => _pickImage(index),
+        onPick: bytes == null
+            ? () => _pickImages(index)
+            : () => _pickImage(index),
         pan: view.pan,
         zoom: view.zoom,
         rotation: view.rotation,
@@ -886,20 +911,17 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Widget _buildBooth() {
-    return PhotoboothStrip(
-      slots: [_slot(0), _slot(1), _slot(2)],
-    );
+    return PhotoboothStrip(slots: [_slot(0), _slot(1), _slot(2)]);
   }
 
   Widget _buildFilmStrip(FilmStripAxis axis) {
-    final stripColor =
-        _kind == FrameKind.stroke ? _color.color : const Color(0xFF141414);
+    final stripColor = _kind == FrameKind.stroke
+        ? _color.color
+        : const Color(0xFF141414);
     return FilmStrip(
       axis: axis,
       color: stripColor,
-      slots: [
-        for (var i = 0; i < filmStripSlotCount; i++) _slot(i),
-      ],
+      slots: [for (var i = 0; i < filmStripSlotCount; i++) _slot(i)],
     );
   }
 
@@ -956,7 +978,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         final height = constraints.maxHeight;
         final frameWidth = width * 0.66;
         final frameHeight = height * 0.68;
-        final border = math.max(10.0, math.min(frameWidth, frameHeight) * 0.035);
+        final border = math.max(
+          10.0,
+          math.min(frameWidth, frameHeight) * 0.035,
+        );
 
         return Stack(
           fit: StackFit.expand,
@@ -990,35 +1015,132 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildReactionCircle() {
+    return ReactionCircleFrame(slots: [_slot(0), _slot(1)]);
+  }
+
+  Widget _buildPostcard() {
+    return PostcardFrame(
+      slots: [_slot(0)],
+      caption: _postcardCaption,
+      showChrome: !_cleanView,
+      onEditCaption: _cleanView ? null : _editPostcardCaption,
+    );
+  }
+
+  Future<void> _editPostcardCaption() async {
+    final controller = TextEditingController(text: _postcardCaption);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rediger tekst'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(hintText: 'Lofoten, Norge'),
+            onSubmitted: (value) => Navigator.pop(context, value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(AppCopy.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              child: const Text('Lagre'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    if (!mounted || result == null) return;
+
+    final trimmed = result.trim();
+    if (trimmed == _postcardCaption) return;
+
+    _pushUndo();
+    setState(() {
+      _postcardCaption = trimmed.isEmpty
+          ? PostcardLayout.defaultCaption
+          : trimmed;
+    });
+  }
+
+  Widget _buildTimeline() {
+    return TimelineFrame(
+      slots: [for (var i = 0; i < TimelineLayout.slotCount; i++) _slot(i)],
+      labels: _timelineLabels,
+      showChrome: !_cleanView,
+      onEditLabel: _cleanView ? null : _editTimelineLabel,
+    );
+  }
+
+  Future<void> _editTimelineLabel(int index) async {
+    if (index < 0 || index >= _timelineLabels.length) return;
+    final controller = TextEditingController(text: _timelineLabels[index]);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rediger dato'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.none,
+            decoration: const InputDecoration(hintText: 'Juli'),
+            onSubmitted: (value) => Navigator.pop(context, value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(AppCopy.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              child: const Text('Lagre'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    if (!mounted || result == null) return;
+
+    final trimmed = result.trim();
+    if (trimmed == _timelineLabels[index]) return;
+
+    _pushUndo();
+    setState(() {
+      _timelineLabels[index] = trimmed.isEmpty
+          ? TimelineLayout.defaultLabels[index]
+          : trimmed;
+    });
+  }
+
   Widget _buildAlbumGrid() {
     return AlbumGridFrame(
-      slots: [
-        for (var i = 0; i < AlbumGridFrame.slotCount; i++) _slot(i),
-      ],
+      slots: [for (var i = 0; i < AlbumGridFrame.slotCount; i++) _slot(i)],
     );
   }
 
   Widget _buildStripGrid() {
     return StripGridFrame(
-      slots: [
-        for (var i = 0; i < StripGridLayout.slotCount; i++) _slot(i),
-      ],
+      slots: [for (var i = 0; i < StripGridLayout.slotCount; i++) _slot(i)],
     );
   }
 
   Widget _buildStaggerGrid() {
     return StaggerGridFrame(
-      slots: [
-        for (var i = 0; i < StaggerGridLayout.slotCount; i++) _slot(i),
-      ],
+      slots: [for (var i = 0; i < StaggerGridLayout.slotCount; i++) _slot(i)],
     );
   }
 
   Widget _buildLayerCollage() {
     return LayerCollageFrame(
-      slots: [
-        for (var i = 0; i < LayerCollageLayout.slotCount; i++) _slot(i),
-      ],
+      slots: [for (var i = 0; i < LayerCollageLayout.slotCount; i++) _slot(i)],
     );
   }
 
@@ -1028,18 +1150,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       heartStyle: _layout.isSilverHeartGrid
           ? HeartDecorationStyle.silver3d
           : HeartDecorationStyle.white,
-      slots: [
-        for (var i = 0; i < HeartGridLayout.slotCount; i++) _slot(i),
-      ],
+      slots: [for (var i = 0; i < HeartGridLayout.slotCount; i++) _slot(i)],
     );
   }
 
   Widget _buildHeartColumns() {
     return HeartColumnsFrame(
       showHearts: true,
-      slots: [
-        for (var i = 0; i < HeartColumnsLayout.slotCount; i++) _slot(i),
-      ],
+      slots: [for (var i = 0; i < HeartColumnsLayout.slotCount; i++) _slot(i)],
     );
   }
 
@@ -1106,6 +1224,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       return _buildFilmStrip(FilmStripAxis.vertical);
     }
     if (_layout.isReaction) return _buildReaction();
+    if (_layout.isReactionCircle) return _buildReactionCircle();
+    if (_layout.isPostcard) return _buildPostcard();
+    if (_layout.isTimeline) return _buildTimeline();
     if (_layout.isOverlayFrame) return _buildOverlayFrame();
     if (_layout.isAlbumGrid) return _buildAlbumGrid();
     if (_layout.isStripGrid) return _buildStripGrid();
@@ -1200,8 +1321,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                   ? const []
                                   : [
                                       BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.12),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.12,
+                                        ),
                                         blurRadius: 24,
                                         offset: const Offset(0, 8),
                                       ),
@@ -1212,101 +1334,101 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                               slideCount: 1,
                               currentIndex: 0,
                               child: RepaintBoundary(
-                              key: _frameKey,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () {
-                                      if (_previewing) {
-                                        _exitPreview();
-                                      } else {
-                                        _clearFocus();
-                                      }
-                                    },
-                                    child: ColoredBox(color: canvasColor),
-                                  ),
-                                  Padding(
-                                    padding: EdgeInsets.all(
-                                      _layout.isEdgeToEdgeCanvas
-                                          ? 0
-                                          : _layout.usesCreamCanvas
-                                              ? 12
-                                              : strokeWidth,
+                                key: _frameKey,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () {
+                                        if (_previewing) {
+                                          _exitPreview();
+                                        } else {
+                                          _clearFocus();
+                                        }
+                                      },
+                                      child: ColoredBox(color: canvasColor),
                                     ),
-                                    child: _buildBody(strokeWidth),
-                                  ),
-                                  OverlayTextsLayer(
-                                    overlays: _overlayTexts,
-                                    selectedIndex: _selectedOverlayIndex,
-                                    exporting: _cleanView,
-                                    onSelect: _selectOverlayText,
-                                    onEdit: _editOverlayText,
-                                    onAlignmentChanged: (index, alignment) {
-                                      setState(() {
-                                        _overlayTexts[index] =
-                                            _overlayTexts[index].copyWith(
-                                          alignment: alignment,
-                                        );
-                                        _selectedOverlayIndex = index;
-                                        _selectedSlotIndex = null;
-                                      });
-                                    },
-                                    onFontSizeChanged: (index, fontSize) {
-                                      setState(() {
-                                        _overlayTexts[index] =
-                                            _overlayTexts[index].copyWith(
-                                          fontSize: fontSize,
-                                        );
-                                        _selectedOverlayIndex = index;
-                                        _selectedSlotIndex = null;
-                                      });
-                                    },
-                                    onRotationChanged: (index, rotation) {
-                                      setState(() {
-                                        _overlayTexts[index] =
-                                            _overlayTexts[index].copyWith(
-                                          rotation: rotation,
-                                        );
-                                        _selectedOverlayIndex = index;
-                                        _selectedSlotIndex = null;
-                                      });
-                                    },
-                                    onPathChanged: (index, path) {
-                                      setState(() {
-                                        _overlayTexts[index] =
-                                            _overlayTexts[index].copyWith(
-                                          pathPoints: path,
-                                        );
-                                        _selectedOverlayIndex = index;
-                                        _selectedSlotIndex = null;
-                                      });
-                                    },
-                                    onInteractionChanged:
-                                        _onOverlayInteractionChanged,
-                                  ),
-                                  if (_drawingPathText)
-                                    PathTextDrawLayer(
-                                      text: _pathTextDraft,
-                                      style: PathTextPaint.styleFor(
-                                        OverlayText.create(
-                                          value: _pathTextDraft,
-                                          index: 0,
-                                          kind: OverlayKind.pathText,
-                                        ),
+                                    Padding(
+                                      padding: EdgeInsets.all(
+                                        _layout.isEdgeToEdgeCanvas
+                                            ? 0
+                                            : _layout.usesCreamCanvas
+                                            ? 12
+                                            : strokeWidth,
                                       ),
-                                      letterSpacing: 2,
-                                      onComplete: _completePathTextDraw,
-                                      onCancel: _cancelPathTextDraw,
+                                      child: _buildBody(strokeWidth),
                                     ),
-                                  FilmLookLayer(
-                                    grain: _grain,
-                                    dateStamp: false,
-                                  ),
-                                ],
+                                    OverlayTextsLayer(
+                                      overlays: _overlayTexts,
+                                      selectedIndex: _selectedOverlayIndex,
+                                      exporting: _cleanView,
+                                      onSelect: _selectOverlayText,
+                                      onEdit: _editOverlayText,
+                                      onAlignmentChanged: (index, alignment) {
+                                        setState(() {
+                                          _overlayTexts[index] =
+                                              _overlayTexts[index].copyWith(
+                                                alignment: alignment,
+                                              );
+                                          _selectedOverlayIndex = index;
+                                          _selectedSlotIndex = null;
+                                        });
+                                      },
+                                      onFontSizeChanged: (index, fontSize) {
+                                        setState(() {
+                                          _overlayTexts[index] =
+                                              _overlayTexts[index].copyWith(
+                                                fontSize: fontSize,
+                                              );
+                                          _selectedOverlayIndex = index;
+                                          _selectedSlotIndex = null;
+                                        });
+                                      },
+                                      onRotationChanged: (index, rotation) {
+                                        setState(() {
+                                          _overlayTexts[index] =
+                                              _overlayTexts[index].copyWith(
+                                                rotation: rotation,
+                                              );
+                                          _selectedOverlayIndex = index;
+                                          _selectedSlotIndex = null;
+                                        });
+                                      },
+                                      onPathChanged: (index, path) {
+                                        setState(() {
+                                          _overlayTexts[index] =
+                                              _overlayTexts[index].copyWith(
+                                                pathPoints: path,
+                                              );
+                                          _selectedOverlayIndex = index;
+                                          _selectedSlotIndex = null;
+                                        });
+                                      },
+                                      onInteractionChanged:
+                                          _onOverlayInteractionChanged,
+                                    ),
+                                    if (_drawingPathText)
+                                      PathTextDrawLayer(
+                                        text: _pathTextDraft,
+                                        style: PathTextPaint.styleFor(
+                                          OverlayText.create(
+                                            value: _pathTextDraft,
+                                            index: 0,
+                                            kind: OverlayKind.pathText,
+                                          ),
+                                        ),
+                                        letterSpacing: 2,
+                                        onComplete: _completePathTextDraw,
+                                        onCancel: _cancelPathTextDraw,
+                                      ),
+                                    FilmLookLayer(
+                                      grain: _grain,
+                                      dateStamp: false,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
                             ),
                           ),
                         ),
@@ -1451,7 +1573,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
           onEdit: _editOverlayText,
-          initialTab: (_selectedOverlayIndex != null &&
+          initialTab:
+              (_selectedOverlayIndex != null &&
                   _selectedOverlayIndex! < _overlayTexts.length &&
                   _overlayTexts[_selectedOverlayIndex!].isWidgetOverlay)
               ? OverlayComposeTab.sticker
@@ -1474,11 +1597,7 @@ class _SlotView {
   final double zoom;
   final double rotation;
 
-  _SlotView copyWith({
-    Offset? pan,
-    double? zoom,
-    double? rotation,
-  }) {
+  _SlotView copyWith({Offset? pan, double? zoom, double? rotation}) {
     return _SlotView(
       pan: pan ?? this.pan,
       zoom: zoom ?? this.zoom,

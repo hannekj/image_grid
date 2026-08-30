@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import 'carousel_spread_layout.dart';
 import 'grid_layout.dart';
 import 'overlay_text.dart';
 
@@ -43,6 +44,9 @@ class CarouselSlide {
     this.imageRotation = 0.0,
     this.imageLocked = false,
     this.layoutId,
+    this.spreadId,
+    this.spreadIndex = 0,
+    this.spreadLayoutId,
     this.slots,
     this.slotViews,
     this.spareImages = const [],
@@ -63,12 +67,29 @@ class CarouselSlide {
 
   /// When set, this slide is a multi-slot grid instead of a single image.
   final String? layoutId;
+
+  /// Links two slides into a spread layout across the carousel seam.
+  final String? spreadId;
+  final int spreadIndex;
+  final String? spreadLayoutId;
   final List<Uint8List?>? slots;
   final List<CarouselSlotView>? slotViews;
   final List<Uint8List> spareImages;
   final List<OverlayText> overlays;
 
   bool get isGrid => layoutId != null;
+
+  bool get isSpread => spreadId != null && spreadLayoutId != null;
+
+  bool get isMultiSlot => isGrid || isSpread;
+
+  CarouselSpreadLayout? get spreadLayout {
+    if (spreadLayoutId == null) return null;
+    for (final layout in carouselSpreadLayouts) {
+      if (layout.id == spreadLayoutId) return layout;
+    }
+    return null;
+  }
 
   GridLayout? get layout {
     if (layoutId == null) return null;
@@ -79,7 +100,12 @@ class CarouselSlide {
   }
 
   bool get isEmpty {
-    if (isGrid) {
+    if (isSpread && spreadLayout?.hasSpanImage == true) {
+      final smallEmpty =
+          slots == null || slots!.every((bytes) => bytes == null);
+      return smallEmpty && imageBytes == null && spareImages.isEmpty;
+    }
+    if (isMultiSlot) {
       final gridSlots = slots;
       if (gridSlots == null || gridSlots.isEmpty) {
         return spareImages.isEmpty;
@@ -89,10 +115,14 @@ class CarouselSlide {
     return imageBytes == null;
   }
 
-  bool get isSpan => spanId != null && spanCount > 1;
+  bool get isSpan => spanId != null && spanCount > 1 && !isSpread;
+
+  bool get hasSpreadSpanImage =>
+      isSpread && (spreadLayout?.hasSpanImage ?? false);
 
   Uint8List? get previewBytes {
-    if (isGrid) {
+    if (hasSpreadSpanImage && imageBytes != null) return imageBytes;
+    if (isMultiSlot) {
       final gridSlots = slots;
       if (gridSlots == null) return null;
       for (final bytes in gridSlots) {
@@ -116,12 +146,16 @@ class CarouselSlide {
     double? imageRotation,
     bool? imageLocked,
     String? layoutId,
+    String? spreadId,
+    int? spreadIndex,
+    String? spreadLayoutId,
     List<Uint8List?>? slots,
     List<CarouselSlotView>? slotViews,
     List<Uint8List>? spareImages,
     List<OverlayText>? overlays,
     bool clearImage = false,
     bool clearSpan = false,
+    bool clearSpread = false,
     bool clearImageTransform = false,
     bool clearGrid = false,
   }) {
@@ -140,6 +174,10 @@ class CarouselSlide {
       imageLocked:
           clearImageTransform ? false : (imageLocked ?? this.imageLocked),
       layoutId: clearGrid ? null : (layoutId ?? this.layoutId),
+      spreadId: clearSpread ? null : (spreadId ?? this.spreadId),
+      spreadIndex: spreadIndex ?? this.spreadIndex,
+      spreadLayoutId:
+          clearSpread ? null : (spreadLayoutId ?? this.spreadLayoutId),
       slots: clearGrid ? null : (slots ?? this.slots),
       slotViews: clearGrid ? null : (slotViews ?? this.slotViews),
       spareImages: clearGrid ? const [] : (spareImages ?? this.spareImages),
@@ -168,5 +206,50 @@ class CarouselSlide {
       spareImages: spareImages ?? const [],
       overlays: overlays,
     );
+  }
+
+  static List<CarouselSlide> spreadPair({
+    required String spreadId,
+    required CarouselSpreadLayout layout,
+    required String leftId,
+    required String rightId,
+    List<OverlayText>? overlays,
+  }) {
+    final count = layout.smallSlotCount;
+    final slots = List<Uint8List?>.filled(count, null);
+    final slotViews = List<CarouselSlotView>.generate(
+      count,
+      (_) => const CarouselSlotView(),
+    );
+    final sharedOverlays = overlays ?? const <OverlayText>[];
+
+    return [
+      CarouselSlide(
+        id: leftId,
+        spreadId: spreadId,
+        spreadIndex: 0,
+        spreadLayoutId: layout.id,
+        spanId: layout.hasSpanImage ? spreadId : null,
+        spanIndex: 0,
+        spanCount: layout.hasSpanImage ? 2 : 1,
+        slots: slots,
+        slotViews: slotViews,
+        overlays: sharedOverlays,
+      ),
+      CarouselSlide(
+        id: rightId,
+        spreadId: spreadId,
+        spreadIndex: 1,
+        spreadLayoutId: layout.id,
+        spanId: layout.hasSpanImage ? spreadId : null,
+        spanIndex: 1,
+        spanCount: layout.hasSpanImage ? 2 : 1,
+        slots: List<Uint8List?>.from(slots),
+        slotViews: [
+          for (final view in slotViews) view.copyWith(),
+        ],
+        overlays: sharedOverlays,
+      ),
+    ];
   }
 }

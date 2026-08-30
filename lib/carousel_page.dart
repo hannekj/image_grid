@@ -17,6 +17,7 @@ import 'canvas_gallery.dart';
 import 'canvas_share.dart';
 import 'carousel_page_dots.dart';
 import 'carousel_slide.dart';
+import 'carousel_spread_layout.dart';
 import 'carousel_templates.dart';
 import 'discard_dialog.dart';
 import 'checker_grid_layout.dart';
@@ -47,6 +48,7 @@ import 'path_text_paint.dart';
 import 'heart_columns_layout.dart';
 import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
+import 'special_layouts.dart';
 import 'stagger_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
@@ -112,6 +114,7 @@ class _CarouselPageState extends State<CarouselPage> {
   bool _drawingPathText = false;
   String _pathTextDraft = '•';
   int _spanSeq = 0;
+  int _spreadSeq = 0;
   int _slideSeq = 0;
   int? _selectedOverlayIndex;
   int? _selectedSlotIndex;
@@ -131,8 +134,7 @@ class _CarouselPageState extends State<CarouselPage> {
 
   int get _room => _maxSlides - _slides.length;
 
-  double get _strokeWidth =>
-      _kind == FrameKind.stroke ? _thickness.width : 0;
+  double get _strokeWidth => _kind == FrameKind.stroke ? _thickness.width : 0;
 
   Color get _canvasColor =>
       _kind == FrameKind.stroke ? _color.color : Colors.white;
@@ -146,6 +148,8 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isLayerCollage) return Colors.white;
     if (layout.isHeartGrid) return Colors.white;
     if (layout.isHeartColumns) return Colors.white;
+    if (layout.isPostcard) return Colors.white;
+    if (layout.isTimeline) return Colors.white;
     if (layout.isFilmStrip) return AppTheme.cream;
     if (layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
@@ -161,6 +165,8 @@ class _CarouselPageState extends State<CarouselPage> {
     if (slide.layout?.isLayerCollage == true) return 0;
     if (slide.layout?.isHeartGrid == true) return 0;
     if (slide.layout?.isHeartColumns == true) return 0;
+    if (slide.layout?.isPostcard == true) return 0;
+    if (slide.layout?.isTimeline == true) return 0;
     return _strokeWidth;
   }
 
@@ -194,6 +200,77 @@ class _CarouselPageState extends State<CarouselPage> {
     return 'span-$_spanSeq';
   }
 
+  String _nextSpreadId() {
+    _spreadSeq += 1;
+    return 'spread-$_spreadSeq';
+  }
+
+  int _spreadPrimaryIndex(int index) {
+    final slide = _slides[index];
+    if (!slide.isSpread) return index;
+    return _slides.indexWhere(
+      (item) => item.spreadId == slide.spreadId && item.spreadIndex == 0,
+    );
+  }
+
+  CarouselSlide _slideForSlots(int index) {
+    return _slides[_spreadPrimaryIndex(index)];
+  }
+
+  void _selectSpreadSpan() {
+    setState(() {
+      _selectedSlotIndex = null;
+      _imageFocused = true;
+      _selectedOverlayIndex = null;
+    });
+  }
+
+  Future<void> _pickSpreadSpanImage(int slideIndex) async {
+    final slide = _slides[slideIndex];
+    if (!slide.hasSpreadSpanImage || slide.spreadId == null) return;
+
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      requestFullMetadata: false,
+    );
+    if (file == null) return;
+
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+
+    _pushUndo();
+    setState(() {
+      final spreadId = slide.spreadId!;
+      for (var i = 0; i < _slides.length; i++) {
+        if (_slides[i].spreadId == spreadId) {
+          _slides[i] = _slides[i].copyWith(imageBytes: bytes);
+        }
+      }
+      if (slideIndex == _index) {
+        _selectedSlotIndex = null;
+        _imageFocused = true;
+        _selectedOverlayIndex = null;
+      }
+    });
+  }
+
+  void _syncMultiSlotData(
+    int slideIndex,
+    List<Uint8List?> slots,
+    List<CarouselSlotView> views,
+  ) {
+    final primaryIndex = _spreadPrimaryIndex(slideIndex);
+    final slide = _slides[primaryIndex];
+    _slides[primaryIndex] = slide.copyWith(slots: slots, slotViews: views);
+    final spreadId = slide.spreadId;
+    if (spreadId == null) return;
+    for (var i = 0; i < _slides.length; i++) {
+      if (i != primaryIndex && _slides[i].spreadId == spreadId) {
+        _slides[i] = _slides[i].copyWith(slots: slots, slotViews: views);
+      }
+    }
+  }
+
   List<OverlayText> _cloneOverlays(List<OverlayText> overlays) {
     return [
       for (final overlay in overlays)
@@ -215,9 +292,7 @@ class _CarouselPageState extends State<CarouselPage> {
               : List<Uint8List?>.from(slide.slots!),
           slotViews: slide.slotViews == null
               ? null
-              : [
-                  for (final view in slide.slotViews!) view.copyWith(),
-                ],
+              : [for (final view in slide.slotViews!) view.copyWith()],
           spareImages: List<Uint8List>.from(slide.spareImages),
         ),
     ];
@@ -318,7 +393,11 @@ class _CarouselPageState extends State<CarouselPage> {
         kind: OverlayKind.pageNumber,
       ),
     );
-    _setCurrentOverlays(overlays, selected: overlays.length - 1, recordUndo: false);
+    _setCurrentOverlays(
+      overlays,
+      selected: overlays.length - 1,
+      recordUndo: false,
+    );
     setState(() => _tool = _CarouselTool.text);
   }
 
@@ -374,6 +453,9 @@ class _CarouselPageState extends State<CarouselPage> {
           imageRotation: slide.imageRotation,
           imageLocked: slide.imageLocked,
           layoutId: slide.layoutId,
+          spreadId: slide.spreadId,
+          spreadIndex: slide.spreadIndex,
+          spreadLayoutId: slide.spreadLayoutId,
           slots: slide.slots == null
               ? null
               : List<Uint8List?>.from(slide.slots!),
@@ -435,6 +517,9 @@ class _CarouselPageState extends State<CarouselPage> {
               imageRotation: slide.imageRotation,
               imageLocked: slide.imageLocked,
               layoutId: slide.layoutId,
+              spreadId: slide.spreadId,
+              spreadIndex: slide.spreadIndex,
+              spreadLayoutId: slide.spreadLayoutId,
               slots: slide.slots == null
                   ? null
                   : List<Uint8List?>.from(slide.slots!),
@@ -567,30 +652,39 @@ class _CarouselPageState extends State<CarouselPage> {
 
   void _toggleImageLock() {
     setState(() {
-      _slides[_index] =
-          _current.copyWith(imageLocked: !_current.imageLocked);
+      _slides[_index] = _current.copyWith(imageLocked: !_current.imageLocked);
     });
   }
 
   void _clearCurrentImage() {
     _pushUndo();
     setState(() {
-      final slide = _current;
-      if (slide.isGrid && slide.slots != null) {
+      final primaryIndex = _spreadPrimaryIndex(_index);
+      final slide = _slides[primaryIndex];
+      if (slide.hasSpreadSpanImage &&
+          _selectedSlotIndex == null &&
+          slide.imageBytes != null) {
+        final spreadId = slide.spreadId!;
+        for (var i = 0; i < _slides.length; i++) {
+          if (_slides[i].spreadId == spreadId) {
+            _slides[i] = _slides[i].copyWith(clearImage: true);
+          }
+        }
+      } else if (slide.isMultiSlot && slide.slots != null) {
         final slots = List<Uint8List?>.from(slide.slots!);
         final views = List<CarouselSlotView>.from(
           slide.slotViews ??
               List.generate(slots.length, (_) => const CarouselSlotView()),
         );
-        final slotIndex = _selectedSlotIndex ??
-            slots.indexWhere((bytes) => bytes != null);
+        final slotIndex =
+            _selectedSlotIndex ?? slots.indexWhere((bytes) => bytes != null);
         if (slotIndex >= 0 && slotIndex < slots.length) {
           slots[slotIndex] = null;
           views[slotIndex] = const CarouselSlotView();
-          _slides[_index] = slide.copyWith(slots: slots, slotViews: views);
+          _syncMultiSlotData(_index, slots, views);
         }
       } else {
-        _slides[_index] = slide.copyWith(
+        _slides[_index] = _current.copyWith(
           clearImage: true,
           clearImageTransform: true,
         );
@@ -609,7 +703,7 @@ class _CarouselPageState extends State<CarouselPage> {
       _showMessage('Maks $_maxSlides sider.');
       return;
     }
-    if (_current.isSpan) {
+    if (_current.isSpan || _current.isSpread) {
       _showMessage('Kan ikke duplisere dobbeltside.');
       return;
     }
@@ -625,9 +719,7 @@ class _CarouselPageState extends State<CarouselPage> {
                 : List<Uint8List?>.from(source.slots!),
             slotViews: source.slotViews == null
                 ? null
-                : [
-                    for (final view in source.slotViews!) view.copyWith(),
-                  ],
+                : [for (final view in source.slotViews!) view.copyWith()],
             overlays: _cloneOverlays(source.overlays),
           )
         : CarouselSlide(
@@ -813,10 +905,7 @@ class _CarouselPageState extends State<CarouselPage> {
 
     _pushUndo();
     final overlays = List<OverlayText>.from(_current.overlays)..addAll(result);
-    _setCurrentOverlays(
-      overlays,
-      selected: overlays.length - result.length,
-    );
+    _setCurrentOverlays(overlays, selected: overlays.length - result.length);
     setState(() => _tool = _CarouselTool.text);
   }
 
@@ -856,37 +945,27 @@ class _CarouselPageState extends State<CarouselPage> {
 
   List<_ReorderUnit> _buildUnits() {
     final units = <_ReorderUnit>[];
-    final seenSpans = <String>{};
+    final seenGroups = <String>{};
     for (final slide in _slides) {
       if (slide.isSpan) {
         final spanId = slide.spanId!;
-        if (seenSpans.contains(spanId)) continue;
-        seenSpans.add(spanId);
+        if (seenGroups.contains(spanId)) continue;
+        seenGroups.add(spanId);
         final group = _slides.where((item) => item.spanId == spanId).toList()
           ..sort((a, b) => a.spanIndex.compareTo(b.spanIndex));
         units.add(_ReorderUnit(key: spanId, slides: group));
+      } else if (slide.isSpread) {
+        final spreadId = slide.spreadId!;
+        if (seenGroups.contains(spreadId)) continue;
+        seenGroups.add(spreadId);
+        final group = _slides.where((item) => item.spreadId == spreadId).toList()
+          ..sort((a, b) => a.spreadIndex.compareTo(b.spreadIndex));
+        units.add(_ReorderUnit(key: spreadId, slides: group));
       } else {
         units.add(_ReorderUnit(key: slide.id, slides: [slide]));
       }
     }
     return units;
-  }
-
-  int get _currentUnitIndex {
-    final units = _buildUnits();
-    return units.indexWhere(
-      (unit) => unit.slides.any((slide) => slide.id == _current.id),
-    );
-  }
-
-  void _goToUnit(int unitIndex) {
-    if (_exporting || _previewing) return;
-    final units = _buildUnits();
-    if (unitIndex < 0 || unitIndex >= units.length) return;
-    final slideIndex = _slides.indexWhere(
-      (slide) => slide.id == units[unitIndex].slides.first.id,
-    );
-    if (slideIndex >= 0) _goTo(slideIndex);
   }
 
   void _reorderUnits(int oldIndex, int newIndex) {
@@ -934,7 +1013,7 @@ class _CarouselPageState extends State<CarouselPage> {
 
   Future<void> _pickImage(int index) async {
     final slide = _slides[index];
-    if (slide.isGrid) {
+    if (slide.isMultiSlot) {
       await _pickSlotImage(index, _selectedSlotIndex ?? 0);
       return;
     }
@@ -976,7 +1055,7 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   Future<void> _pickDoubleWide() async {
-    if (_current.isGrid) {
+    if (_current.isGrid || _current.isSpread) {
       _showMessage('Bytt til vanlig side først.');
       return;
     }
@@ -1055,7 +1134,7 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   Future<void> _pickImages() async {
-    if (_current.isGrid) {
+    if (_current.isMultiSlot) {
       await _pickImagesForGrid(_index);
       return;
     }
@@ -1121,12 +1200,14 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   void _applyGridLayout(GridLayout layout) {
-    if (_current.isSpan) {
+    if (_current.isSpan || _current.isSpread) {
       _showMessage('Kan ikke legge grid på dobbeltside.');
       return;
     }
 
-    final canReplace = (_current.isEmpty && !_current.isSpan) || _current.isGrid;
+    final canReplace =
+        (_current.isEmpty && !_current.isSpan && !_current.isSpread) ||
+        _current.isGrid;
     if (!canReplace && _slides.length >= _maxSlides) {
       _showMessage('Maks $_maxSlides sider.');
       return;
@@ -1142,8 +1223,9 @@ class _CarouselPageState extends State<CarouselPage> {
         for (var i = 0; i < oldSlots.length; i++) {
           final bytes = oldSlots[i];
           if (bytes == null) continue;
-          viewsByImage[identityHashCode(bytes)] =
-              i < oldViews.length ? oldViews[i] : const CarouselSlotView();
+          viewsByImage[identityHashCode(bytes)] = i < oldViews.length
+              ? oldViews[i]
+              : const CarouselSlotView();
         }
         final remapped = remapLayoutSlots(
           currentSlots: oldSlots,
@@ -1155,7 +1237,7 @@ class _CarouselPageState extends State<CarouselPage> {
             bytes == null
                 ? const CarouselSlotView()
                 : viewsByImage[identityHashCode(bytes)] ??
-                    const CarouselSlotView(),
+                      const CarouselSlotView(),
         ];
         _slides[_index] = _current.copyWith(
           layoutId: layout.id,
@@ -1243,6 +1325,12 @@ class _CarouselPageState extends State<CarouselPage> {
           for (final step in template.steps)
             if (step == null)
               CarouselSlide(id: _nextSlideId())
+            else if (isCarouselSpreadStep(step)) ...CarouselSlide.spreadPair(
+                spreadId: _nextSpreadId(),
+                layout: carouselSpreadLayout(step),
+                leftId: _nextSlideId(),
+                rightId: _nextSlideId(),
+              )
             else
               CarouselSlide.grid(
                 id: _nextSlideId(),
@@ -1268,8 +1356,9 @@ class _CarouselPageState extends State<CarouselPage> {
 
   void _swapGridSlots(int slideIndex, int from, int to) {
     if (from == to) return;
-    final slide = _slides[slideIndex];
-    if (!slide.isGrid || slide.slots == null) return;
+    final primaryIndex = _spreadPrimaryIndex(slideIndex);
+    final slide = _slides[primaryIndex];
+    if (!slide.isMultiSlot || slide.slots == null) return;
 
     _pushUndo();
     setState(() {
@@ -1278,10 +1367,7 @@ class _CarouselPageState extends State<CarouselPage> {
         slide.slotViews ??
             List.generate(slots.length, (_) => const CarouselSlotView()),
       );
-      if (from < 0 ||
-          to < 0 ||
-          from >= slots.length ||
-          to >= slots.length) {
+      if (from < 0 || to < 0 || from >= slots.length || to >= slots.length) {
         return;
       }
       final sourceBytes = slots[from];
@@ -1290,7 +1376,7 @@ class _CarouselPageState extends State<CarouselPage> {
       final sourceView = views[from];
       views[from] = views[to];
       views[to] = sourceView;
-      _slides[slideIndex] = slide.copyWith(slots: slots, slotViews: views);
+      _syncMultiSlotData(slideIndex, slots, views);
       if (slideIndex == _index) {
         _selectedSlotIndex = to;
         _imageFocused = true;
@@ -1299,35 +1385,38 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   void _updateSlotPan(int slideIndex, int slotIndex, Offset pan) {
-    final slide = _slides[slideIndex];
-    if (!slide.isGrid || slide.slotViews == null) return;
+    final primaryIndex = _spreadPrimaryIndex(slideIndex);
+    final slide = _slides[primaryIndex];
+    if (!slide.isMultiSlot || slide.slotViews == null) return;
     final views = List<CarouselSlotView>.from(slide.slotViews!);
     if (slotIndex < 0 || slotIndex >= views.length) return;
     views[slotIndex] = views[slotIndex].copyWith(pan: pan);
     setState(() {
-      _slides[slideIndex] = slide.copyWith(slotViews: views);
+      _syncMultiSlotData(slideIndex, slide.slots!, views);
     });
   }
 
   void _updateSlotZoom(int slideIndex, int slotIndex, double zoom) {
-    final slide = _slides[slideIndex];
-    if (!slide.isGrid || slide.slotViews == null) return;
+    final primaryIndex = _spreadPrimaryIndex(slideIndex);
+    final slide = _slides[primaryIndex];
+    if (!slide.isMultiSlot || slide.slotViews == null) return;
     final views = List<CarouselSlotView>.from(slide.slotViews!);
     if (slotIndex < 0 || slotIndex >= views.length) return;
     views[slotIndex] = views[slotIndex].copyWith(zoom: zoom);
     setState(() {
-      _slides[slideIndex] = slide.copyWith(slotViews: views);
+      _syncMultiSlotData(slideIndex, slide.slots!, views);
     });
   }
 
   void _updateSlotRotation(int slideIndex, int slotIndex, double rotation) {
-    final slide = _slides[slideIndex];
-    if (!slide.isGrid || slide.slotViews == null) return;
+    final primaryIndex = _spreadPrimaryIndex(slideIndex);
+    final slide = _slides[primaryIndex];
+    if (!slide.isMultiSlot || slide.slotViews == null) return;
     final views = List<CarouselSlotView>.from(slide.slotViews!);
     if (slotIndex < 0 || slotIndex >= views.length) return;
     views[slotIndex] = views[slotIndex].copyWith(rotation: rotation);
     setState(() {
-      _slides[slideIndex] = slide.copyWith(slotViews: views);
+      _syncMultiSlotData(slideIndex, slide.slots!, views);
     });
   }
 
@@ -1343,8 +1432,9 @@ class _CarouselPageState extends State<CarouselPage> {
 
     _pushUndo();
     setState(() {
-      final slide = _slides[slideIndex];
-      if (!slide.isGrid || slide.slots == null) return;
+      final primaryIndex = _spreadPrimaryIndex(slideIndex);
+      final slide = _slides[primaryIndex];
+      if (!slide.isMultiSlot || slide.slots == null) return;
       final slots = List<Uint8List?>.from(slide.slots!);
       final views = List<CarouselSlotView>.from(
         slide.slotViews ??
@@ -1353,7 +1443,7 @@ class _CarouselPageState extends State<CarouselPage> {
       if (slotIndex < 0 || slotIndex >= slots.length) return;
       slots[slotIndex] = bytes;
       views[slotIndex] = const CarouselSlotView();
-      _slides[slideIndex] = slide.copyWith(slots: slots, slotViews: views);
+      _syncMultiSlotData(slideIndex, slots, views);
       if (slideIndex == _index) {
         _selectedSlotIndex = slotIndex;
         _imageFocused = true;
@@ -1363,18 +1453,16 @@ class _CarouselPageState extends State<CarouselPage> {
   }
 
   Future<void> _pickImagesForGrid(int slideIndex) async {
-    final slide = _slides[slideIndex];
-    if (!slide.isGrid || slide.slots == null) return;
+    final primaryIndex = _spreadPrimaryIndex(slideIndex);
+    final slide = _slides[primaryIndex];
+    if (!slide.isMultiSlot || slide.slots == null) return;
 
     final emptyIndexes = <int>[
       for (var i = 0; i < slide.slots!.length; i++)
         if (slide.slots![i] == null) i,
     ];
     if (emptyIndexes.isEmpty) {
-      await _pickSlotImage(
-        slideIndex,
-        _selectedSlotIndex ?? 0,
-      );
+      await _pickSlotImage(slideIndex, _selectedSlotIndex ?? 0);
       return;
     }
 
@@ -1391,7 +1479,7 @@ class _CarouselPageState extends State<CarouselPage> {
 
     _pushUndo();
     setState(() {
-      final current = _slides[slideIndex];
+      final current = _slides[primaryIndex];
       final slots = List<Uint8List?>.from(current.slots!);
       final views = List<CarouselSlotView>.from(
         current.slotViews ??
@@ -1402,7 +1490,7 @@ class _CarouselPageState extends State<CarouselPage> {
         slots[slotIndex] = bytesList[i];
         views[slotIndex] = const CarouselSlotView();
       }
-      _slides[slideIndex] = current.copyWith(slots: slots, slotViews: views);
+      _syncMultiSlotData(slideIndex, slots, views);
       if (slideIndex == _index) {
         _selectedSlotIndex = emptyIndexes.first;
         _imageFocused = true;
@@ -1432,6 +1520,8 @@ class _CarouselPageState extends State<CarouselPage> {
     setState(() {
       if (slide.isSpan) {
         _slides.removeWhere((item) => item.spanId == slide.spanId);
+      } else if (slide.isSpread) {
+        _slides.removeWhere((item) => item.spreadId == slide.spreadId);
       } else {
         _slides.removeAt(removeAt);
       }
@@ -1485,7 +1575,7 @@ class _CarouselPageState extends State<CarouselPage> {
 
   Future<void> _withExport(
     Future<void> Function(List<({String name, Uint8List bytes})> images)
-        action, {
+    action, {
     String? successMessage,
   }) async {
     if (!_hasAnyImage || _exporting) return;
@@ -1552,6 +1642,9 @@ class _CarouselPageState extends State<CarouselPage> {
     if (slide.isSpan) {
       return 'Dobbel ${slide.spanIndex + 1}/${slide.spanCount} · $position';
     }
+    if (slide.isSpread) {
+      return 'Spread ${slide.spreadIndex + 1}/2 · $position';
+    }
     if (slide.isGrid) {
       final label = slide.layout?.label ?? 'Grid';
       return '$label · $position';
@@ -1617,6 +1710,8 @@ class _CarouselPageState extends State<CarouselPage> {
     Widget image;
     if (slide.isGrid && slide.layout != null) {
       image = _buildGridSlide(index, slide, showChrome, imageSelected);
+    } else if (slide.isSpread && slide.spreadLayout != null) {
+      image = _buildSpreadSlide(index, slide, showChrome, imageSelected);
     } else if (slide.isSpan && slide.imageBytes != null) {
       image = _SpanImagePage(
         imageBytes: slide.imageBytes!,
@@ -1670,10 +1765,7 @@ class _CarouselPageState extends State<CarouselPage> {
       clipBehavior: Clip.none,
       children: [
         ColoredBox(color: canvasColor),
-        Padding(
-          padding: EdgeInsets.all(strokeWidth),
-          child: image,
-        ),
+        Padding(padding: EdgeInsets.all(strokeWidth), child: image),
         OverlayTextsLayer(
           overlays: slide.overlays,
           selectedIndex: index == _index ? _selectedOverlayIndex : null,
@@ -1707,9 +1799,7 @@ class _CarouselPageState extends State<CarouselPage> {
           onPathChanged: (overlayIndex, path) {
             if (index != _index) return;
             final next = List<OverlayText>.from(slide.overlays);
-            next[overlayIndex] = next[overlayIndex].copyWith(
-              pathPoints: path,
-            );
+            next[overlayIndex] = next[overlayIndex].copyWith(pathPoints: path);
             _setCurrentOverlays(next, selected: overlayIndex);
           },
           onInteractionChanged: _onOverlayInteractionChanged,
@@ -1728,10 +1818,7 @@ class _CarouselPageState extends State<CarouselPage> {
             onComplete: _completePathTextDraw,
             onCancel: _cancelPathTextDraw,
           ),
-        FilmLookLayer(
-          grain: _grain,
-          dateStamp: false,
-        ),
+        FilmLookLayer(grain: _grain, dateStamp: false),
       ],
     );
   }
@@ -1743,13 +1830,8 @@ class _CarouselPageState extends State<CarouselPage> {
     bool imageSelected,
   ) {
     final layout = slide.layout!;
-    Widget slot(int slotIndex) => _gridSlot(
-          slideIndex,
-          slide,
-          slotIndex,
-          showChrome,
-          imageSelected,
-        );
+    Widget slot(int slotIndex) =>
+        _gridSlot(slideIndex, slide, slotIndex, showChrome, imageSelected);
 
     if (layout.isDump) {
       return LayoutBuilder(
@@ -1776,28 +1858,30 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isFilmHorizontal) {
       return FilmStrip(
         axis: FilmStripAxis.horizontal,
-        color: _kind == FrameKind.stroke ? _color.color : const Color(0xFF141414),
-        slots: [
-          for (var i = 0; i < filmStripSlotCount; i++) slot(i),
-        ],
+        color: _kind == FrameKind.stroke
+            ? _color.color
+            : const Color(0xFF141414),
+        slots: [for (var i = 0; i < filmStripSlotCount; i++) slot(i)],
       );
     }
 
     if (layout.isFilmVertical) {
       return FilmStrip(
         axis: FilmStripAxis.vertical,
-        color: _kind == FrameKind.stroke ? _color.color : const Color(0xFF141414),
-        slots: [
-          for (var i = 0; i < filmStripSlotCount; i++) slot(i),
-        ],
+        color: _kind == FrameKind.stroke
+            ? _color.color
+            : const Color(0xFF141414),
+        slots: [for (var i = 0; i < filmStripSlotCount; i++) slot(i)],
       );
     }
 
     if (layout.isReaction) {
       return LayoutBuilder(
         builder: (context, constraints) {
-          final shortest =
-              math.min(constraints.maxWidth, constraints.maxHeight);
+          final shortest = math.min(
+            constraints.maxWidth,
+            constraints.maxHeight,
+          );
           final insetSize = shortest * 0.30;
           final margin = shortest * 0.045;
           final radius = insetSize * 0.18;
@@ -1840,6 +1924,30 @@ class _CarouselPageState extends State<CarouselPage> {
       );
     }
 
+    if (layout.isReactionCircle) {
+      return ReactionCircleFrame(
+        slots: [slot(0), slot(1)],
+      );
+    }
+
+    if (layout.isPostcard) {
+      return PostcardFrame(
+        slots: [slot(0)],
+        caption: PostcardLayout.defaultCaption,
+        showChrome: showChrome,
+      );
+    }
+
+    if (layout.isTimeline) {
+      return TimelineFrame(
+        slots: [
+          for (var i = 0; i < TimelineLayout.slotCount; i++) slot(i),
+        ],
+        labels: List<String>.from(TimelineLayout.defaultLabels),
+        showChrome: showChrome,
+      );
+    }
+
     if (layout.isOverlayFrame) {
       return LayoutBuilder(
         builder: (context, constraints) {
@@ -1847,8 +1955,10 @@ class _CarouselPageState extends State<CarouselPage> {
           final height = constraints.maxHeight;
           final frameWidth = width * 0.66;
           final frameHeight = height * 0.68;
-          final border =
-              math.max(10.0, math.min(frameWidth, frameHeight) * 0.035);
+          final border = math.max(
+            10.0,
+            math.min(frameWidth, frameHeight) * 0.035,
+          );
 
           return Stack(
             fit: StackFit.expand,
@@ -1884,33 +1994,25 @@ class _CarouselPageState extends State<CarouselPage> {
 
     if (layout.isAlbumGrid) {
       return AlbumGridFrame(
-        slots: [
-          for (var i = 0; i < AlbumGridFrame.slotCount; i++) slot(i),
-        ],
+        slots: [for (var i = 0; i < AlbumGridFrame.slotCount; i++) slot(i)],
       );
     }
 
     if (layout.isStripGrid) {
       return StripGridFrame(
-        slots: [
-          for (var i = 0; i < StripGridLayout.slotCount; i++) slot(i),
-        ],
+        slots: [for (var i = 0; i < StripGridLayout.slotCount; i++) slot(i)],
       );
     }
 
     if (layout.isStaggerGrid) {
       return StaggerGridFrame(
-        slots: [
-          for (var i = 0; i < StaggerGridLayout.slotCount; i++) slot(i),
-        ],
+        slots: [for (var i = 0; i < StaggerGridLayout.slotCount; i++) slot(i)],
       );
     }
 
     if (layout.isLayerCollage) {
       return LayerCollageFrame(
-        slots: [
-          for (var i = 0; i < LayerCollageLayout.slotCount; i++) slot(i),
-        ],
+        slots: [for (var i = 0; i < LayerCollageLayout.slotCount; i++) slot(i)],
       );
     }
 
@@ -1920,18 +2022,14 @@ class _CarouselPageState extends State<CarouselPage> {
         heartStyle: layout.isSilverHeartGrid
             ? HeartDecorationStyle.silver3d
             : HeartDecorationStyle.white,
-        slots: [
-          for (var i = 0; i < HeartGridLayout.slotCount; i++) slot(i),
-        ],
+        slots: [for (var i = 0; i < HeartGridLayout.slotCount; i++) slot(i)],
       );
     }
 
     if (layout.isHeartColumns) {
       return HeartColumnsFrame(
         showHearts: true,
-        slots: [
-          for (var i = 0; i < HeartColumnsLayout.slotCount; i++) slot(i),
-        ],
+        slots: [for (var i = 0; i < HeartColumnsLayout.slotCount; i++) slot(i)],
       );
     }
 
@@ -1953,6 +2051,70 @@ class _CarouselPageState extends State<CarouselPage> {
     );
   }
 
+  Widget _buildSpreadSlide(
+    int slideIndex,
+    CarouselSlide slide,
+    bool showChrome,
+    bool imageSelected,
+  ) {
+    final layout = slide.spreadLayout!;
+    final gap = math.max(_strokeWidth, 2.0);
+    final spanSelected =
+        imageSelected && showChrome && slideIndex == _index && _selectedSlotIndex == null;
+
+    if (layout.hasSpanImage) {
+      return SpreadSpanFrame(
+        pageIndex: slide.spreadIndex,
+        gap: gap,
+        smallSlotBuilder: (slotIndex) => _gridSlot(
+          slideIndex,
+          slide,
+          slotIndex,
+          showChrome,
+          imageSelected,
+        ),
+        spanBuilder: (panelWidth, panelHeight) {
+          final bytes = slide.imageBytes;
+          if (bytes == null) {
+            return ImageSlot(
+              imageBytes: null,
+              onPick: () => _pickSpreadSpanImage(slideIndex),
+              showChrome: showChrome,
+              enableGestures: false,
+              showResizeHandles: false,
+              selected: spanSelected,
+              onSelect: _selectSpreadSpan,
+              filter: _filter,
+              onDelete: spanSelected ? _clearCurrentImage : null,
+            );
+          }
+
+          return _SpreadSpanHalf(
+            fullSlideWidth: panelWidth * 2,
+            panelHeight: panelHeight,
+            imageBytes: bytes,
+            spanIndex: slide.spreadIndex,
+            spanPan: slide.spanPan,
+            spanScale: slide.spanScale,
+            showChrome: showChrome,
+            selected: spanSelected,
+            alignRight: slide.spreadIndex == 0,
+            filter: _filter,
+            onSelect: _selectSpreadSpan,
+            onReplace: () => _pickSpreadSpanImage(slideIndex),
+            onDelete: _clearCurrentImage,
+            onSpanPanChanged: (pan) => _updateSpanPan(slide.spanId!, pan),
+            onSpanScaleChanged: (scale) =>
+                _updateSpanScale(slide.spanId!, scale),
+            onInteractionChanged: _onImageInteractionChanged,
+          );
+        },
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
   Widget _gridSlot(
     int slideIndex,
     CarouselSlide slide,
@@ -1960,13 +2122,15 @@ class _CarouselPageState extends State<CarouselPage> {
     bool showChrome,
     bool imageSelected,
   ) {
-    final slots = slide.slots ?? const <Uint8List?>[];
-    final views = slide.slotViews ?? const <CarouselSlotView>[];
+    final slotSlide = _slideForSlots(slideIndex);
+    final slots = slotSlide.slots ?? const <Uint8List?>[];
+    final views = slotSlide.slotViews ?? const <CarouselSlotView>[];
     final bytes = slotIndex < slots.length ? slots[slotIndex] : null;
     final view = slotIndex < views.length
         ? views[slotIndex]
         : const CarouselSlotView();
-    final selected = imageSelected &&
+    final selected =
+        imageSelected &&
         showChrome &&
         slideIndex == _index &&
         _selectedSlotIndex == slotIndex;
@@ -1999,7 +2163,7 @@ class _CarouselPageState extends State<CarouselPage> {
         onRotationChanged: bytes == null
             ? null
             : (rotation) =>
-                _updateSlotRotation(slideIndex, slotIndex, rotation),
+                  _updateSlotRotation(slideIndex, slotIndex, rotation),
         showAdjustToolbar: selected && showChrome && slideIndex == _index,
         onDelete: slideIndex == _index ? _clearCurrentImage : null,
         onInteractionChanged: _onImageInteractionChanged,
@@ -2121,7 +2285,11 @@ class _CarouselPageState extends State<CarouselPage> {
                 IconButton(
                   tooltip: 'Dupliser side',
                   visualDensity: VisualDensity.compact,
-                  onPressed: !_exporting && !_current.isEmpty && !_current.isSpan
+                  onPressed:
+                      !_exporting &&
+                          !_current.isEmpty &&
+                          !_current.isSpan &&
+                          !_current.isSpread
                       ? _duplicateCurrentSlide
                       : null,
                   icon: const Icon(Icons.copy_outlined, size: 20),
@@ -2145,7 +2313,7 @@ class _CarouselPageState extends State<CarouselPage> {
                   child: OutlinedButton(
                     onPressed: _exporting ? null : _pickImages,
                     child: Text(
-                      _current.isGrid
+                      _current.isMultiSlot
                           ? 'Fyll grid'
                           : AppCopy.emptyCarouselAction,
                     ),
@@ -2154,7 +2322,7 @@ class _CarouselPageState extends State<CarouselPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _exporting || _current.isSpan
+                    onPressed: _exporting || _current.isSpan || _current.isSpread
                         ? null
                         : _toggleGridPicker,
                     child: Text(
@@ -2171,8 +2339,10 @@ class _CarouselPageState extends State<CarouselPage> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _exporting ||
+                    onPressed:
+                        _exporting ||
                             _current.isGrid ||
+                            _current.isSpread ||
                             (_room < 1 && !_canConvertCurrentToSpan())
                         ? null
                         : _pickDoubleWide,
@@ -2183,9 +2353,7 @@ class _CarouselPageState extends State<CarouselPage> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _exporting ? null : _toggleTemplatePicker,
-                    child: Text(
-                      _pickingTemplate ? 'Lukk maler' : 'Maler',
-                    ),
+                    child: Text(_pickingTemplate ? 'Lukk maler' : 'Maler'),
                   ),
                 ),
               ],
@@ -2198,8 +2366,7 @@ class _CarouselPageState extends State<CarouselPage> {
               const SizedBox(height: 10),
               LayoutStrip(
                 format: _format,
-                selectedLayoutId:
-                    _current.layoutId ?? defaultGridLayout.id,
+                selectedLayoutId: _current.layoutId ?? defaultGridLayout.id,
                 onLayoutSelected: _applyGridLayout,
               ),
             ],
@@ -2262,7 +2429,8 @@ class _CarouselPageState extends State<CarouselPage> {
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
           onEdit: _editOverlay,
-          initialTab: (_selectedOverlayIndex != null &&
+          initialTab:
+              (_selectedOverlayIndex != null &&
                   _selectedOverlayIndex! < _current.overlays.length &&
                   _current.overlays[_selectedOverlayIndex!].isWidgetOverlay)
               ? OverlayComposeTab.sticker
@@ -2275,10 +2443,6 @@ class _CarouselPageState extends State<CarouselPage> {
 
   @override
   Widget build(BuildContext context) {
-    final pageUnits = _buildUnits();
-    final pageUnitIndex =
-        pageUnits.isEmpty ? 0 : _currentUnitIndex.clamp(0, pageUnits.length - 1);
-
     return PopScope(
       canPop: !_hasAnyImage,
       onPopInvokedWithResult: (didPop, result) async {
@@ -2302,8 +2466,8 @@ class _CarouselPageState extends State<CarouselPage> {
           shareEnabled: _hasAnyImage && !_exporting && !_previewing,
           shareLabel: _exporting
               ? (_exportTotal > 0
-                  ? AppCopy.exportProgress(_exportCurrent, _exportTotal)
-                  : AppCopy.wait)
+                    ? AppCopy.exportProgress(_exportCurrent, _exportTotal)
+                    : AppCopy.wait)
               : AppCopy.share,
           onShare: _shareAll,
           previewing: _previewing,
@@ -2346,8 +2510,9 @@ class _CarouselPageState extends State<CarouselPage> {
                       child: AnimatedPadding(
                         duration: const Duration(milliseconds: 280),
                         curve: Curves.easeOutCubic,
-                        padding:
-                            _cleanView ? EdgeInsets.zero : _workZonePadding,
+                        padding: _cleanView
+                            ? EdgeInsets.zero
+                            : _workZonePadding,
                         child: AspectRatio(
                           aspectRatio: _format.aspectRatio,
                           child: DecoratedBox(
@@ -2356,8 +2521,9 @@ class _CarouselPageState extends State<CarouselPage> {
                                   ? const []
                                   : [
                                       BoxShadow(
-                                        color:
-                                            Colors.black.withValues(alpha: 0.12),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.12,
+                                        ),
                                         blurRadius: 24,
                                         offset: const Offset(0, 8),
                                       ),
@@ -2375,7 +2541,8 @@ class _CarouselPageState extends State<CarouselPage> {
                                   child: PageView.builder(
                                     clipBehavior: Clip.none,
                                     controller: _pageController,
-                                    physics: _exporting ||
+                                    physics:
+                                        _exporting ||
                                             _spanInteracting ||
                                             _drawingPathText
                                         ? const NeverScrollableScrollPhysics()
@@ -2417,13 +2584,13 @@ class _CarouselPageState extends State<CarouselPage> {
                   secondaryLabel: AppCopy.emptyCarouselTemplate,
                   onSecondary: _toggleTemplatePicker,
                 ),
-              if (!_previewing && pageUnits.length > 1)
+              if (!_previewing && _slides.length > 1)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                   child: CarouselPageDots(
-                    count: pageUnits.length,
-                    currentIndex: pageUnitIndex,
-                    onTap: _goToUnit,
+                    count: _slides.length,
+                    currentIndex: _index,
+                    onTap: _goTo,
                   ),
                 ),
               AnimatedSize(
@@ -2523,6 +2690,18 @@ class _FilmThumb extends StatelessWidget {
                   ),
                 ),
               )
+            else if (slide.isSpread)
+              const Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 3),
+                  child: Icon(
+                    Icons.view_week_outlined,
+                    size: 12,
+                    color: Colors.white,
+                  ),
+                ),
+              )
             else if (isSpan)
               const Align(
                 alignment: Alignment.bottomCenter,
@@ -2536,6 +2715,75 @@ class _FilmThumb extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SpreadSpanHalf extends StatelessWidget {
+  const _SpreadSpanHalf({
+    required this.fullSlideWidth,
+    required this.panelHeight,
+    required this.imageBytes,
+    required this.spanIndex,
+    required this.spanPan,
+    required this.spanScale,
+    required this.showChrome,
+    required this.selected,
+    required this.alignRight,
+    required this.filter,
+    required this.onSelect,
+    required this.onReplace,
+    required this.onDelete,
+    required this.onSpanPanChanged,
+    required this.onSpanScaleChanged,
+    required this.onInteractionChanged,
+  });
+
+  final double fullSlideWidth;
+  final double panelHeight;
+  final Uint8List imageBytes;
+  final int spanIndex;
+  final Offset spanPan;
+  final double spanScale;
+  final bool showChrome;
+  final bool selected;
+  final bool alignRight;
+  final PhotoFilter filter;
+  final VoidCallback onSelect;
+  final VoidCallback onReplace;
+  final VoidCallback onDelete;
+  final ValueChanged<Offset> onSpanPanChanged;
+  final ValueChanged<double> onSpanScaleChanged;
+  final ValueChanged<bool> onInteractionChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: OverflowBox(
+        maxWidth: fullSlideWidth,
+        minWidth: fullSlideWidth,
+        alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+        child: SizedBox(
+          width: fullSlideWidth,
+          height: panelHeight,
+          child: _SpanImagePage(
+            imageBytes: imageBytes,
+            spanIndex: spanIndex,
+            spanCount: 2,
+            spanPan: spanPan,
+            spanScale: spanScale,
+            showChrome: showChrome,
+            selected: selected,
+            filter: filter,
+            onSelect: onSelect,
+            onReplace: onReplace,
+            onDelete: onDelete,
+            onSpanPanChanged: onSpanPanChanged,
+            onSpanScaleChanged: onSpanScaleChanged,
+            onInteractionChanged: onInteractionChanged,
+          ),
         ),
       ),
     );
@@ -2627,10 +2875,7 @@ class _SpanImagePageState extends State<_SpanImagePage> {
     final displayH = image.height * scale;
     final maxX = math.max(0.0, (displayW - wide.width) / 2);
     final maxY = math.max(0.0, (displayH - wide.height) / 2);
-    return Offset(
-      pan.dx.clamp(-maxX, maxX),
-      pan.dy.clamp(-maxY, maxY),
-    );
+    return Offset(pan.dx.clamp(-maxX, maxX), pan.dy.clamp(-maxY, maxY));
   }
 
   bool get _handlesVisible => widget.showChrome && widget.selected;
@@ -2691,7 +2936,8 @@ class _SpanImagePageState extends State<_SpanImagePage> {
                 child: Stack(
                   children: [
                     Positioned(
-                      left: -widget.spanIndex * pageWidth +
+                      left:
+                          -widget.spanIndex * pageWidth +
                           (wide.width - displayW) / 2 +
                           pan.dx,
                       top: (wide.height - displayH) / 2 + pan.dy,

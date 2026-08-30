@@ -65,25 +65,32 @@ class _PathTextDrawLayerState extends State<PathTextDrawLayer> {
             borderRadius: BorderRadius.circular(8),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'Tegn med fingeren — teksten følger streken',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  const Text(
+                    'Tegn med fingeren — teksten følger streken',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35,
                     ),
                   ),
-                  TextButton(
-                    onPressed: widget.onCancel,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      visualDensity: VisualDensity.compact,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: widget.onCancel,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Avbryt'),
                     ),
-                    child: const Text('Avbryt'),
                   ),
                 ],
               ),

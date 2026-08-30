@@ -23,8 +23,7 @@ LayoutSlotRemap remapLayoutSlots({
   required int nextSlotCount,
 }) {
   final ordered = <Uint8List>[
-    for (final bytes in currentSlots)
-      if (bytes != null) bytes,
+    for (final bytes in currentSlots) ?bytes,
     ...spareImages,
   ];
   final assigned = math.min(ordered.length, nextSlotCount);

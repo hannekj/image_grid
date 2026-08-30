@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
 import 'editor_chrome.dart';
-import 'overlay_text.dart';
 
 /// Slider for pill background opacity on translucent stickers.
 class OverlayOpacityControls extends StatelessWidget {

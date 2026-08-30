@@ -32,6 +32,12 @@ class GridLayout {
 
   bool get isReaction => id == 'reaction';
 
+  bool get isReactionCircle => id == 'reaction-circle';
+
+  bool get isPostcard => id == 'postcard';
+
+  bool get isTimeline => id == 'timeline';
+
   bool get isBooth => id == 'booth';
 
   bool get isOverlayFrame => id == 'overlay-frame';
@@ -70,7 +76,10 @@ class GridLayout {
         isCheckerGrid ||
         isLayerCollage ||
         isHeartGrid ||
-        isHeartColumns) {
+        isHeartColumns ||
+        isPostcard ||
+        isTimeline ||
+        isReactionCircle) {
       return LayoutGroup.special;
     }
     return LayoutGroup.classic;
@@ -81,10 +90,10 @@ enum LayoutGroup { classic, film, special }
 
 extension LayoutGroupX on LayoutGroup {
   String get label => switch (this) {
-        LayoutGroup.classic => 'Klassisk',
-        LayoutGroup.film => 'Film',
-        LayoutGroup.special => 'Spesial',
-      };
+    LayoutGroup.classic => 'Klassisk',
+    LayoutGroup.film => 'Film',
+    LayoutGroup.special => 'Spesial',
+  };
 }
 
 List<GridLayout> layoutsInGroup(LayoutGroup group) {
@@ -405,6 +414,30 @@ const gridLayouts = [
     label: 'Reaksjon',
     rows: [
       LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'reaction-circle',
+    label: 'Reaksjon sirkel',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'postcard',
+    label: 'Postkort',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+    ],
+  ),
+  GridLayout(
+    id: 'timeline',
+    label: 'Tidslinje',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
     ],
   ),
   GridLayout(

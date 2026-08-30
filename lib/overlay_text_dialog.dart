@@ -105,62 +105,71 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
             widget.isNew ? 'Legg til tekst' : 'Rediger tekst',
         },
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            maxLines: widget.kind == OverlayKind.message ? 4 : 1,
-            maxLength: switch (widget.kind) {
-              OverlayKind.location => 40,
-              OverlayKind.coordinates => 48,
-              OverlayKind.date ||
-              OverlayKind.time ||
-              OverlayKind.pageNumber =>
-                40,
-              OverlayKind.weather => 12,
-              _ => 80,
-            },
-            textCapitalization: switch (widget.kind) {
-              OverlayKind.location => TextCapitalization.words,
-              OverlayKind.date ||
-              OverlayKind.time ||
-              OverlayKind.weather ||
-              OverlayKind.coordinates ||
-              OverlayKind.pageNumber =>
-                TextCapitalization.none,
-              _ => TextCapitalization.sentences,
-            },
-            keyboardType: widget.kind == OverlayKind.time
-                ? TextInputType.datetime
-                : TextInputType.text,
-            decoration: InputDecoration(
-              hintText: switch (widget.kind) {
-                OverlayKind.location => 'F.eks. Lofoten',
-                OverlayKind.coordinates => 'F.eks. 68,23° N, 14,56° E',
-                OverlayKind.message => 'Skriv meldingen',
-                OverlayKind.date => 'F.eks. 22.08.2026',
-                OverlayKind.time => 'F.eks. 19:45',
-                OverlayKind.weather => 'F.eks. 18°',
-                OverlayKind.pageNumber => 'F.eks. 1/7',
-                OverlayKind.pathText => 'F.eks. xo · eller et ord',
-                OverlayKind.text => 'Skriv teksten her',
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              maxLines: widget.kind == OverlayKind.message ? 4 : 1,
+              maxLength: switch (widget.kind) {
+                OverlayKind.location => 40,
+                OverlayKind.coordinates => 48,
+                OverlayKind.date ||
+                OverlayKind.time ||
+                OverlayKind.pageNumber =>
+                  40,
+                OverlayKind.weather => 12,
+                _ => 80,
               },
-              helperText: switch (widget.kind) {
-                OverlayKind.pathText =>
-                  'Teksten gjentar seg langs streken du tegner',
-                _ => null,
+              textCapitalization: switch (widget.kind) {
+                OverlayKind.location => TextCapitalization.words,
+                OverlayKind.date ||
+                OverlayKind.time ||
+                OverlayKind.weather ||
+                OverlayKind.coordinates ||
+                OverlayKind.pageNumber =>
+                  TextCapitalization.none,
+                _ => TextCapitalization.sentences,
               },
-              prefixIcon: _isDate
-                  ? null
-                  : Icon(
-                      _isWeather ? weatherIcon : overlayKindIcon(widget.kind),
-                    ),
+              keyboardType: widget.kind == OverlayKind.time
+                  ? TextInputType.datetime
+                  : TextInputType.text,
+              decoration: InputDecoration(
+                hintText: switch (widget.kind) {
+                  OverlayKind.location => 'F.eks. Lofoten',
+                  OverlayKind.coordinates => 'F.eks. 68,23° N, 14,56° E',
+                  OverlayKind.message => 'Skriv meldingen',
+                  OverlayKind.date => 'F.eks. 22.08.2026',
+                  OverlayKind.time => 'F.eks. 19:45',
+                  OverlayKind.weather => 'F.eks. 18°',
+                  OverlayKind.pageNumber => 'F.eks. 1/7',
+                  OverlayKind.pathText => 'F.eks. xo · eller et ord',
+                  OverlayKind.text => 'Skriv teksten her',
+                },
+                prefixIcon: _isDate
+                    ? null
+                    : Icon(
+                        _isWeather
+                            ? weatherIcon
+                            : overlayKindIcon(widget.kind),
+                      ),
+              ),
+              onChanged: _isDate ? (_) => setState(() {}) : null,
             ),
-            onChanged: _isDate ? (_) => setState(() {}) : null,
-          ),
+          if (widget.kind == OverlayKind.pathText) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Teksten gjentar seg langs streken du tegner',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.35,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           if (_isDate) ...[
             const SizedBox(height: 12),
             Wrap(
@@ -207,7 +216,8 @@ class _OverlayTextDialogState extends State<OverlayTextDialog> {
               ],
             ),
           ],
-        ],
+          ],
+        ),
       ),
       actions: [
         TextButton(
