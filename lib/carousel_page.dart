@@ -50,6 +50,7 @@ import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
 import 'special_layouts.dart';
 import 'stagger_grid_layout.dart';
+import 'strawberry_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
 
@@ -147,6 +148,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isStaggerGrid) return Colors.white;
     if (layout.isLayerCollage) return Colors.white;
     if (layout.isHeartGrid) return Colors.white;
+    if (layout.isStrawberryGrid) return Colors.white;
     if (layout.isHeartColumns) return Colors.white;
     if (layout.isPostcard) return Colors.white;
     if (layout.isTimeline) return Colors.white;
@@ -164,6 +166,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (slide.layout?.isStaggerGrid == true) return 0;
     if (slide.layout?.isLayerCollage == true) return 0;
     if (slide.layout?.isHeartGrid == true) return 0;
+    if (slide.layout?.isStrawberryGrid == true) return 0;
     if (slide.layout?.isHeartColumns == true) return 0;
     if (slide.layout?.isPostcard == true) return 0;
     if (slide.layout?.isTimeline == true) return 0;
@@ -1860,7 +1863,7 @@ class _CarouselPageState extends State<CarouselPage> {
         axis: FilmStripAxis.horizontal,
         color: _kind == FrameKind.stroke
             ? _color.color
-            : const Color(0xFF141414),
+            : defaultFilmStripColor,
         slots: [for (var i = 0; i < filmStripSlotCount; i++) slot(i)],
       );
     }
@@ -1870,7 +1873,7 @@ class _CarouselPageState extends State<CarouselPage> {
         axis: FilmStripAxis.vertical,
         color: _kind == FrameKind.stroke
             ? _color.color
-            : const Color(0xFF141414),
+            : defaultFilmStripColor,
         slots: [for (var i = 0; i < filmStripSlotCount; i++) slot(i)],
       );
     }
@@ -2023,6 +2026,14 @@ class _CarouselPageState extends State<CarouselPage> {
             ? HeartDecorationStyle.silver3d
             : HeartDecorationStyle.white,
         slots: [for (var i = 0; i < HeartGridLayout.slotCount; i++) slot(i)],
+      );
+    }
+
+    if (layout.isStrawberryGrid) {
+      return StrawberryGridFrame(
+        slots: [
+          for (var i = 0; i < StrawberryGridLayout.slotCount; i++) slot(i),
+        ],
       );
     }
 

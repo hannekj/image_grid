@@ -44,6 +44,7 @@ import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
 import 'special_layouts.dart';
 import 'stagger_grid_layout.dart';
+import 'strawberry_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
 
@@ -915,9 +916,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Widget _buildFilmStrip(FilmStripAxis axis) {
-    final stripColor = _kind == FrameKind.stroke
-        ? _color.color
-        : const Color(0xFF141414);
+    final stripColor =
+        _kind == FrameKind.stroke ? _color.color : defaultFilmStripColor;
     return FilmStrip(
       axis: axis,
       color: stripColor,
@@ -1154,6 +1154,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildStrawberryGrid() {
+    return StrawberryGridFrame(
+      slots: [
+        for (var i = 0; i < StrawberryGridLayout.slotCount; i++) _slot(i),
+      ],
+    );
+  }
+
   Widget _buildHeartColumns() {
     return HeartColumnsFrame(
       showHearts: true,
@@ -1234,6 +1242,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (_layout.isCheckerGrid) return _buildCheckerGrid();
     if (_layout.isLayerCollage) return _buildLayerCollage();
     if (_layout.isHeartGrid) return _buildHeartGrid();
+    if (_layout.isStrawberryGrid) return _buildStrawberryGrid();
     if (_layout.isHeartColumns) return _buildHeartColumns();
     return _buildGrid(strokeWidth);
   }

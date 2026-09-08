@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
 import 'checker_grid_layout.dart';
+import 'film_strip.dart';
 import 'grid_layout.dart';
 import 'heart_columns_layout.dart';
 import 'heart_grid_layout.dart';
 import 'layer_collage_layout.dart';
 import 'special_layouts.dart';
 import 'stagger_grid_layout.dart';
+import 'strawberry_grid_layout.dart';
 import 'strip_grid_layout.dart';
 
 class LayoutOutlinePainter extends CustomPainter {
@@ -97,6 +99,11 @@ class LayoutOutlinePainter extends CustomPainter {
             ? HeartDecorationStyle.silver3d
             : HeartDecorationStyle.white,
       );
+      return;
+    }
+
+    if (layout.isStrawberryGrid) {
+      _paintStrawberryGrid(canvas, size);
       return;
     }
 
@@ -207,8 +214,8 @@ class LayoutOutlinePainter extends CustomPainter {
 
   void _paintFilmStrip(Canvas canvas, Size size, bool horizontal) {
     canvas.drawRect(Offset.zero & size, Paint()..color = AppTheme.cream);
-    final filmPaint = Paint()..color = const Color(0xFF1A1A1A);
-    final holePaint = Paint()..color = const Color(0xFFE8E4DC);
+    final filmPaint = Paint()..color = defaultFilmStripColor;
+    final holePaint = Paint()..color = const Color(0xFF1A1A1A);
     final cellPaint = Paint()..color = cellColor;
 
     late Rect strip;
@@ -577,6 +584,27 @@ class LayoutOutlinePainter extends CustomPainter {
           layout.heartCenter(row, col),
           layout.heartSize,
           style: style,
+        );
+      }
+    }
+  }
+
+  void _paintStrawberryGrid(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+
+    final cellPaint = Paint()..color = cellColor;
+    final layout = StrawberryGridLayout.metrics(size.width, size.height);
+
+    for (var row = 0; row < StrawberryGridLayout.rows; row++) {
+      for (var col = 0; col < StrawberryGridLayout.columns; col++) {
+        canvas.drawRect(layout.cellRect(row, col), cellPaint);
+
+        if (!StrawberryGridLayout.showStrawberry(row, col)) continue;
+
+        StrawberryGridLayout.paintStrawberry(
+          canvas,
+          layout.heartCenter(row, col),
+          layout.heartSize,
         );
       }
     }

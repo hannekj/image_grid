@@ -94,87 +94,593 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final classicLayouts = layoutsInGroup(LayoutGroup.classic);
+    final hasDraft = _hasLayoutDraft || _hasCarouselDraft;
 
     return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      bottom: false,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              tooltip: 'Innstillinger',
-              onPressed: () {},
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-              icon: const Icon(
-                Icons.settings_outlined,
-                size: 22,
-                color: AppTheme.muted,
-              ),
-            ),
+          const _HomeWordmark(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _HeroCard(onCreate: _showCreateOptions),
           ),
-          Expanded(
-            child: Column(
+          if (hasDraft) ...[
+            const _SectionHeading('Fortsett der du slapp'),
+            if (_hasLayoutDraft)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: _DraftCard(
+                  icon: Icons.grid_view_rounded,
+                  title: 'Collage',
+                  savedAt: _layoutDraftSavedAt,
+                  onTap: () => _openGrid(),
+                ),
+              ),
+            if (_hasCarouselDraft)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: _DraftCard(
+                  icon: Icons.view_carousel_outlined,
+                  title: 'Karusell',
+                  savedAt: _carouselDraftSavedAt,
+                  onTap: _openCarousel,
+                ),
+              ),
+          ],
+          const _SectionHeading('Start her'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  flex: 3,
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text(
-                        'LØV',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.libreBaskerville(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w500,
-                          height: 1.1,
-                          letterSpacing: 0.4,
-                          color: AppTheme.ink,
-                        ),
-                      ),
-                    ),
+                  child: _StartCard(
+                    title: 'Collage',
+                    subtitle: 'Flere bilder i ett innlegg',
+                    preview: const _CollagePreview(),
+                    onTap: () => _openGrid(),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _PrimaryCreateButton(
-                    label: 'Lag innlegg',
-                    onPressed: _showCreateOptions,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StartCard(
+                    title: 'Karusell',
+                    subtitle: 'Flere sider å swipe',
+                    preview: const _CarouselPreview(),
+                    onTap: _openCarousel,
                   ),
                 ),
-                const Spacer(flex: 2),
               ],
             ),
           ),
+          _LayoutShelf(
+            title: 'Klassiske oppsett',
+            layouts: layoutsInGroup(LayoutGroup.classic),
+            onSelected: (layout) => _openGrid(layout: layout),
+          ),
+          _LayoutShelf(
+            title: 'Spesialoppsett',
+            layouts: layoutsInGroup(LayoutGroup.special),
+            onSelected: (layout) => _openGrid(layout: layout),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeWordmark extends StatelessWidget {
+  const _HomeWordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LØV',
+            style: GoogleFonts.libreBaskerville(
+              fontSize: 24,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 1.6,
+              height: 1,
+              color: AppTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'BILDESTUDIO',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 2.2,
+              color: AppTheme.muted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({required this.onCreate});
+
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.matcha,
+      clipBehavior: Clip.antiAlias,
+      borderRadius: BorderRadius.circular(22),
+      child: Stack(
+        children: [
+          const Positioned(
+            right: -64,
+            top: -72,
+            child: _HeroBlob(size: 228, alpha: 0.06),
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _SectionLabel('Klassiske oppsett'),
+                Text(
+                  'Sett sammen bildene\ndine med omhu',
+                  style: GoogleFonts.libreBaskerville(
+                    fontSize: 21,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.cream,
+                  ),
+                ),
                 const SizedBox(height: 10),
+                Text(
+                  'Collage, karusell og editorial tekst — '
+                  'ferdig i Instagram-format.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    color: AppTheme.cream.withValues(alpha: 0.74),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 SizedBox(
-                  height: 64,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: classicLayouts.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(width: 10),
-                    itemBuilder: (context, index) {
-                      final layout = classicLayouts[index];
-                      return _ClassicLayoutThumb(
-                        layout: layout,
-                        onTap: () => _openGrid(layout: layout),
-                      );
-                    },
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: onCreate,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.cream,
+                      foregroundColor: AppTheme.matcha,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_rounded, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Lag innlegg',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HeroBlob extends StatelessWidget {
+  const _HeroBlob({required this.size, required this.alpha});
+
+  final double size;
+  final double alpha;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppTheme.cream.withValues(alpha: alpha),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.3,
+          color: AppTheme.muted,
+        ),
+      ),
+    );
+  }
+}
+
+class _DraftCard extends StatelessWidget {
+  const _DraftCard({
+    required this.icon,
+    required this.title,
+    required this.savedAt,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final DateTime? savedAt;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = savedAt == null
+        ? 'Utkast'
+        : 'Lagret ${DraftStorage.formatSavedAt(savedAt!)}';
+
+    return Material(
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppTheme.line),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppTheme.matcha.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(icon, size: 20, color: AppTheme.matcha),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: AppTheme.muted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StartCard extends StatelessWidget {
+  const _StartCard({
+    required this.title,
+    required this.subtitle,
+    required this.preview,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget preview;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppTheme.line),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AspectRatio(aspectRatio: 1.25, child: preview),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.ink,
+                ),
+              ),
+              const SizedBox(height: 3),
+              // Fixed box keeps both start cards the same height when one
+              // subtitle wraps to a second line.
+              SizedBox(
+                height: 34,
+                child: Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AppTheme.muted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CollagePreview extends StatelessWidget {
+  const _CollagePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppTheme.mist,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: AspectRatio(
+            aspectRatio: canvasFormats.first.aspectRatio,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: AppTheme.line),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: CustomPaint(
+                  painter: LayoutOutlinePainter(layout: defaultGridLayout),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CarouselPreview extends StatelessWidget {
+  const _CarouselPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppTheme.mist,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Expanded(flex: 6, child: _CarouselPage()),
+                  const SizedBox(width: 4),
+                  const Expanded(flex: 6, child: _CarouselPage()),
+                  const SizedBox(width: 4),
+                  const Expanded(flex: 2, child: _CarouselPage()),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var i = 0; i < 3; i++) ...[
+                  if (i > 0) const SizedBox(width: 4),
+                  _CarouselDot(active: i == 0),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CarouselPage extends StatelessWidget {
+  const _CarouselPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: AppTheme.line),
+      ),
+    );
+  }
+}
+
+class _CarouselDot extends StatelessWidget {
+  const _CarouselDot({required this.active});
+
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 4,
+      height: 4,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: active
+            ? AppTheme.matcha
+            : AppTheme.muted.withValues(alpha: 0.45),
+      ),
+    );
+  }
+}
+
+class _LayoutShelf extends StatelessWidget {
+  const _LayoutShelf({
+    required this.title,
+    required this.layouts,
+    required this.onSelected,
+  });
+
+  final String title;
+  final List<GridLayout> layouts;
+  final ValueChanged<GridLayout> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    if (layouts.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeading(title),
+        SizedBox(
+          height: 106,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: layouts.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final layout = layouts[index];
+              return _LayoutThumb(
+                layout: layout,
+                onTap: () => onSelected(layout),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LayoutThumb extends StatelessWidget {
+  const _LayoutThumb({required this.layout, required this.onTap});
+
+  static const _height = 72.0;
+
+  final GridLayout layout;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = _height * canvasFormats.first.aspectRatio;
+
+    return Semantics(
+      label: layout.label,
+      button: true,
+      child: SizedBox(
+        width: width,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: Colors.white,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                side: const BorderSide(color: AppTheme.line),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: InkWell(
+                onTap: onTap,
+                child: SizedBox(
+                  height: _height,
+                  child: CustomPaint(
+                    painter: LayoutOutlinePainter(layout: layout),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              layout.label,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 10,
+                height: 1.25,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.muted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -319,115 +825,6 @@ class _CreateOptionTile extends StatelessWidget {
                 size: 22,
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PrimaryCreateButton extends StatelessWidget {
-  const _PrimaryCreateButton({
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: FilledButton(
-        onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: AppTheme.matcha,
-          foregroundColor: AppTheme.cream,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.add, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 1.2,
-        color: AppTheme.muted,
-      ),
-    );
-  }
-}
-
-class _ClassicLayoutThumb extends StatelessWidget {
-  const _ClassicLayoutThumb({
-    required this.layout,
-    required this.onTap,
-  });
-
-  static const _height = 64.0;
-
-  final GridLayout layout;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final width = _height * canvasFormats.first.aspectRatio;
-
-    return Semantics(
-      label: layout.label,
-      button: true,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Ink(
-            width: width,
-            height: _height,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.line),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(7),
-              child: CustomPaint(
-                painter: LayoutOutlinePainter(layout: layout),
-              ),
-            ),
           ),
         ),
       ),

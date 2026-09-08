@@ -45,21 +45,21 @@ const editorialTemplates = [
     id: 'magasin',
     label: 'Magasin',
     defaultTitle: 'Ved havet',
-    defaultBody: 'Luft, lys og ro — akkurat slik jeg husker det.',
+    defaultBody: 'Tromsø, august',
     build: _buildMagasin,
   ),
   EditorialTemplate(
     id: 'vertikal',
     label: 'Vertikal',
     defaultTitle: 'Stillehavet',
-    defaultBody: 'Norge',
+    defaultBody: '',
     build: _buildVertikal,
   ),
   EditorialTemplate(
     id: 'notat',
     label: 'Notat',
     defaultTitle: 'en fin dag',
-    defaultBody: 'på tur',
+    defaultBody: '',
     build: _buildNotat,
   ),
   EditorialTemplate(
@@ -73,7 +73,7 @@ const editorialTemplates = [
     id: 'caps',
     label: 'Caps',
     defaultTitle: 'Norge · 2026',
-    defaultBody: 'sommer',
+    defaultBody: '',
     build: _buildCaps,
   ),
 ];

@@ -9,7 +9,10 @@ const int filmStripSlotCount = 4;
 
 enum FilmStripAxis { horizontal, vertical }
 
-const _defaultFilmColor = Color(0xFF141414);
+/// Default body color for film strip layouts (warm light gray).
+const Color defaultFilmStripColor = Color(0xFFE8E4DC);
+
+const _defaultFilmColor = defaultFilmStripColor;
 
 /// Classic 35mm-style film strip with sprocket holes and photo frames.
 class FilmStrip extends StatelessWidget {
