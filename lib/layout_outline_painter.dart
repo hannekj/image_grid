@@ -603,8 +603,8 @@ class LayoutOutlinePainter extends CustomPainter {
 
         StrawberryGridLayout.paintStrawberry(
           canvas,
-          layout.heartCenter(row, col),
-          layout.heartSize,
+          StrawberryGridLayout.berryCenter(layout, row, col),
+          StrawberryGridLayout.berrySize(layout),
         );
       }
     }
