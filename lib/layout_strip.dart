@@ -47,49 +47,45 @@ class _LayoutStripState extends State<LayoutStrip> {
   Widget build(BuildContext context) {
     final layouts = layoutsInGroup(_group);
 
-    return SizedBox(
-      height: EditorChrome.panelHeight,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: EditorChrome.tabRowHeight,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: LayoutGroup.values.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: EditorChrome.spaceSm),
-              itemBuilder: (context, index) {
-                final group = LayoutGroup.values[index];
-                return EditorSegmentTab(
-                  label: group.label,
-                  selected: _group == group,
-                  onTap: () => setState(() => _group = group),
-                );
-              },
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: EditorChrome.tabRowHeight,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: LayoutGroup.values.length,
+            separatorBuilder: (context, index) =>
+                const SizedBox(width: EditorChrome.spaceSm),
+            itemBuilder: (context, index) {
+              final group = LayoutGroup.values[index];
+              return EditorSegmentTab(
+                label: group.label,
+                selected: _group == group,
+                onTap: () => setState(() => _group = group),
+              );
+            },
           ),
-          const SizedBox(height: EditorChrome.spaceMd),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (var i = 0; i < layouts.length; i++) ...[
-                    if (i > 0) const SizedBox(width: EditorChrome.spaceMd),
-                    _LayoutThumb(
-                      layout: layouts[i],
-                      format: widget.format,
-                      selected: layouts[i].id == widget.selectedLayoutId,
-                      onTap: () => widget.onLayoutSelected(layouts[i]),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+        ),
+        const SizedBox(height: EditorChrome.spaceSm),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var i = 0; i < layouts.length; i++) ...[
+                if (i > 0) const SizedBox(width: EditorChrome.spaceMd),
+                _LayoutThumb(
+                  layout: layouts[i],
+                  format: widget.format,
+                  selected: layouts[i].id == widget.selectedLayoutId,
+                  onTap: () => widget.onLayoutSelected(layouts[i]),
+                ),
+              ],
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

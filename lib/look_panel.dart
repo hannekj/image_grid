@@ -83,78 +83,69 @@ class _LookPanelState extends State<LookPanel> {
   Widget build(BuildContext context) {
     final sections = _sections;
 
-    return SizedBox(
-      height: EditorChrome.panelHeight,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: EditorChrome.tabRowHeight,
-            width: double.infinity,
-            child: ListView.separated(
-              key: const PageStorageKey<String>('look-panel-tabs'),
-              controller: _tabsController,
-              scrollDirection: Axis.horizontal,
-              itemCount: sections.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: EditorChrome.spaceSm),
-              itemBuilder: (context, index) {
-                final section = sections[index];
-                return EditorSegmentTab(
-                  label: switch (section) {
-                    _LookSection.type => 'Type',
-                    _LookSection.color => 'Farge',
-                    _LookSection.thickness => 'Tykkelse',
-                    _LookSection.filter => 'Filter',
-                  },
-                  selected: _section == section,
-                  onTap: () => setState(() => _section = section),
-                );
-              },
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: EditorChrome.tabRowHeight,
+          width: double.infinity,
+          child: ListView.separated(
+            key: const PageStorageKey<String>('look-panel-tabs'),
+            controller: _tabsController,
+            scrollDirection: Axis.horizontal,
+            itemCount: sections.length,
+            separatorBuilder: (context, index) =>
+                const SizedBox(width: EditorChrome.spaceSm),
+            itemBuilder: (context, index) {
+              final section = sections[index];
+              return EditorSegmentTab(
+                label: switch (section) {
+                  _LookSection.type => 'Type',
+                  _LookSection.color => 'Farge',
+                  _LookSection.thickness => 'Tykkelse',
+                  _LookSection.filter => 'Filter',
+                },
+                selected: _section == section,
+                onTap: () => setState(() => _section = section),
+              );
+            },
           ),
-          const SizedBox(height: EditorChrome.spaceMd),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: switch (_section) {
-                _LookSection.type => FrameKindControls(
-                    kind: widget.kind,
-                    onKindChanged: _onKindChanged,
-                  ),
-                _LookSection.color => FrameColorControls(
-                    color: widget.color,
-                    onColorChanged: widget.onColorChanged,
-                  ),
-                _LookSection.thickness => FrameThicknessControls(
-                    thickness: widget.thickness,
-                    onThicknessChanged: widget.onThicknessChanged,
-                  ),
-                _LookSection.filter => FilterLookControls(
-                    filter: widget.filter,
-                    grain: widget.grain,
-                    onFilterChanged: widget.onFilterChanged,
-                    onGrainChanged: widget.onGrainChanged,
-                  ),
-              },
+        ),
+        const SizedBox(height: EditorChrome.spaceSm),
+        switch (_section) {
+          _LookSection.type => FrameKindControls(
+              kind: widget.kind,
+              onKindChanged: _onKindChanged,
             ),
-          ),
-          if (widget.onApplyToAll != null) ...[
-            const SizedBox(height: EditorChrome.spaceSm),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: widget.onApplyToAll,
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  foregroundColor: AppTheme.matcha,
-                ),
-                child: Text(widget.applyToAllLabel ?? 'Bruk stil på alle sider'),
+          _LookSection.color => FrameColorControls(
+              color: widget.color,
+              onColorChanged: widget.onColorChanged,
+            ),
+          _LookSection.thickness => FrameThicknessControls(
+              thickness: widget.thickness,
+              onThicknessChanged: widget.onThicknessChanged,
+            ),
+          _LookSection.filter => FilterLookControls(
+              filter: widget.filter,
+              grain: widget.grain,
+              onFilterChanged: widget.onFilterChanged,
+              onGrainChanged: widget.onGrainChanged,
+            ),
+        },
+        if (widget.onApplyToAll != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: widget.onApplyToAll,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: AppTheme.matcha,
               ),
+              child: Text(widget.applyToAllLabel ?? 'Bruk stil på alle sider'),
             ),
-          ],
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

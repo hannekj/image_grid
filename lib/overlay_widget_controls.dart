@@ -74,37 +74,41 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
     ];
   }
 
-  Widget get _picker => WidgetPickerGrid(
-        onAddMessage: () {
-          setState(() => _adding = false);
-          widget.onAddMessage();
-        },
-        onAddLocation: () {
-          setState(() => _adding = false);
-          widget.onAddLocation();
-        },
-        onAddCoordinates: () {
-          setState(() => _adding = false);
-          widget.onAddCoordinates();
-        },
-        onAddDate: () {
-          setState(() => _adding = false);
-          widget.onAddDate();
-        },
-        onAddTime: () {
-          setState(() => _adding = false);
-          widget.onAddTime();
-        },
-        onAddWeather: () {
-          setState(() => _adding = false);
-          widget.onAddWeather();
-        },
-        onAddPageNumber: widget.onAddPageNumber == null
-            ? null
-            : () {
-                setState(() => _adding = false);
-                widget.onAddPageNumber!();
-              },
+  Widget get _picker => SizedBox(
+        height: EditorChrome.pickerHeight,
+        width: double.infinity,
+        child: WidgetPickerGrid(
+          onAddMessage: () {
+            setState(() => _adding = false);
+            widget.onAddMessage();
+          },
+          onAddLocation: () {
+            setState(() => _adding = false);
+            widget.onAddLocation();
+          },
+          onAddCoordinates: () {
+            setState(() => _adding = false);
+            widget.onAddCoordinates();
+          },
+          onAddDate: () {
+            setState(() => _adding = false);
+            widget.onAddDate();
+          },
+          onAddTime: () {
+            setState(() => _adding = false);
+            widget.onAddTime();
+          },
+          onAddWeather: () {
+            setState(() => _adding = false);
+            widget.onAddWeather();
+          },
+          onAddPageNumber: widget.onAddPageNumber == null
+              ? null
+              : () {
+                  setState(() => _adding = false);
+                  widget.onAddPageNumber!();
+                },
+        ),
       );
 
   @override
@@ -130,6 +134,7 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
     final sections = _sectionsFor(current);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -187,23 +192,25 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
           ],
         ),
         const SizedBox(height: EditorChrome.spaceSm),
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: switch (_section) {
-              _WidgetSection.color => ColorScrubStrip(
-                  colors: overlayBubbleColors,
-                  labels: overlayBubbleColorLabels,
-                  selected: current.effectiveBubbleColor,
-                  onChanged: (color) =>
-                      widget.onChanged(current.withBubbleColor(color)),
-                ),
-              _WidgetSection.opacity => OverlayOpacityControls(
-                  opacity: current.effectiveBubbleOpacity,
-                  onChanged: (opacity) =>
-                      widget.onChanged(current.copyWith(bubbleOpacity: opacity)),
-                ),
-              _WidgetSection.format => ListView(
+        Align(
+          alignment: Alignment.centerLeft,
+          child: switch (_section) {
+            _WidgetSection.color => ColorScrubStrip(
+                colors: overlayBubbleColors,
+                labels: overlayBubbleColorLabels,
+                selected: current.effectiveBubbleColor,
+                onChanged: (color) =>
+                    widget.onChanged(current.withBubbleColor(color)),
+              ),
+            _WidgetSection.opacity => OverlayOpacityControls(
+                opacity: current.effectiveBubbleOpacity,
+                onChanged: (opacity) =>
+                    widget.onChanged(current.copyWith(bubbleOpacity: opacity)),
+              ),
+            _WidgetSection.format => SizedBox(
+                height: EditorChrome.stripHeight,
+                width: double.infinity,
+                child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
                     _DateFormatChip(
@@ -233,7 +240,11 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
                     ),
                   ],
                 ),
-              _WidgetSection.font => ListView.separated(
+              ),
+            _WidgetSection.font => SizedBox(
+                height: EditorChrome.stripHeight,
+                width: double.infinity,
+                child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: overlayFonts.length,
                   separatorBuilder: (context, index) =>
@@ -249,13 +260,13 @@ class _OverlayWidgetControlsState extends State<OverlayWidgetControls> {
                     );
                   },
                 ),
-              _WidgetSection.size => OverlaySizeControls(
-                  fontSize: current.fontSize,
-                  onChanged: (size) =>
-                      widget.onChanged(current.copyWith(fontSize: size)),
-                ),
-            },
-          ),
+              ),
+            _WidgetSection.size => OverlaySizeControls(
+                fontSize: current.fontSize,
+                onChanged: (size) =>
+                    widget.onChanged(current.copyWith(fontSize: size)),
+              ),
+          },
         ),
       ],
     );

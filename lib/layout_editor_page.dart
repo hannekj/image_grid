@@ -1442,29 +1442,26 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                           ),
                         ),
                       ),
+                      if (!_hasAnyImage && !_previewing)
+                        Center(
+                          child: AspectRatio(
+                            aspectRatio: _format.aspectRatio,
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: EmptyCanvasHint(
+                                  title: AppCopy.emptyLayoutTitle,
+                                  actionLabel: AppCopy.emptyLayoutAction,
+                                  onAction: _pickStarterImages,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
-              ),
-              if (!_hasAnyImage && !_previewing)
-                EmptyCanvasHint(
-                  title: AppCopy.emptyLayoutTitle,
-                  actionLabel: AppCopy.emptyLayoutAction,
-                  onAction: _pickStarterImages,
-                ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: (!_previewing && _tool != null)
-                    ? ColoredBox(
-                        color: AppTheme.cream,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                          child: _buildToolPanel(),
-                        ),
-                      )
-                    : const SizedBox(width: double.infinity),
               ),
               AnimatedSize(
                 duration: const Duration(milliseconds: 240),
@@ -1472,13 +1469,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                 alignment: Alignment.topCenter,
                 child: _previewing
                     ? const SizedBox(width: double.infinity)
-                    : EditorToolBottomBar(
+                    : EditorDock(
                         tools: gridToolDefinitions,
                         activeTool: toolDefinitionById(
                           gridToolDefinitions,
                           _activeToolId,
                         ),
-                        onBack: () => setState(() => _tool = null),
+                        panel: _tool == null ? null : _buildToolPanel(),
+                        onClose: () => setState(() => _tool = null),
                         onToolSelected: _onGridToolSelected,
                       ),
               ),

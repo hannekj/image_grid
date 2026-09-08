@@ -24,6 +24,7 @@ import 'checker_grid_layout.dart';
 import 'draft_storage.dart';
 import 'dump_layout.dart';
 import 'editor_app_bar.dart';
+import 'editor_chrome.dart';
 import 'editor_history.dart';
 import 'editor_tool_grid.dart';
 import 'empty_canvas_hint.dart';
@@ -2267,6 +2268,36 @@ class _CarouselPageState extends State<CarouselPage> {
     );
   }
 
+  List<Widget> get _slideActions => [
+    EditorActionChip(
+      label: _current.isMultiSlot ? 'Fyll grid' : AppCopy.emptyCarouselAction,
+      onPressed: _exporting ? null : _pickImages,
+    ),
+    EditorActionChip(
+      label: 'Grid',
+      active: _pickingGridLayout || _current.isGrid,
+      onPressed: _exporting || _current.isSpan || _current.isSpread
+          ? null
+          : _toggleGridPicker,
+    ),
+    EditorActionChip(
+      label: 'Over 2 sider',
+      active: _current.isSpan || _current.isSpread,
+      onPressed:
+          _exporting ||
+              _current.isGrid ||
+              _current.isSpread ||
+              (_room < 1 && !_canConvertCurrentToSpan())
+          ? null
+          : _pickDoubleWide,
+    ),
+    EditorActionChip(
+      label: 'Maler',
+      active: _pickingTemplate,
+      onPressed: _exporting ? null : _toggleTemplatePicker,
+    ),
+  ];
+
   Widget _buildToolPanel() {
     switch (_tool) {
       case _CarouselTool.slides:
@@ -2317,57 +2348,16 @@ class _CarouselPageState extends State<CarouselPage> {
             ),
             const SizedBox(height: 6),
             _buildFilmstrip(),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _exporting ? null : _pickImages,
-                    child: Text(
-                      _current.isMultiSlot
-                          ? 'Fyll grid'
-                          : AppCopy.emptyCarouselAction,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _exporting || _current.isSpan || _current.isSpread
-                        ? null
-                        : _toggleGridPicker,
-                    child: Text(
-                      _pickingGridLayout || _current.isGrid
-                          ? 'Oppsett'
-                          : 'Grid',
-                    ),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed:
-                        _exporting ||
-                            _current.isGrid ||
-                            _current.isSpread ||
-                            (_room < 1 && !_canConvertCurrentToSpan())
-                        ? null
-                        : _pickDoubleWide,
-                    child: const Text('Over 2 sider'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _exporting ? null : _toggleTemplatePicker,
-                    child: Text(_pickingTemplate ? 'Lukk maler' : 'Maler'),
-                  ),
-                ),
-              ],
+            SizedBox(
+              height: EditorActionChip.height,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _slideActions.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(width: EditorChrome.spaceSm),
+                itemBuilder: (context, index) => _slideActions[index],
+              ),
             ),
             if (_pickingTemplate) ...[
               const SizedBox(height: 10),
@@ -2511,112 +2501,46 @@ class _CarouselPageState extends State<CarouselPage> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTap: () {
-                      if (_previewing) return;
-                      _clearFocus();
-                    },
-                    child: Center(
-                      child: AnimatedPadding(
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeOutCubic,
-                        padding: _cleanView
-                            ? EdgeInsets.zero
-                            : _workZonePadding,
-                        child: AspectRatio(
-                          aspectRatio: _format.aspectRatio,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              boxShadow: _previewing
-                                  ? const []
-                                  : [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.12,
-                                        ),
-                                        blurRadius: 24,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                            ),
-                            child: InstagramPreviewChrome(
-                              enabled: _previewing,
-                              slideCount: _slides.length,
-                              currentIndex: _index,
-                              onPageTap: _previewing ? _goTo : null,
-                              child: RepaintBoundary(
-                                key: _frameKey,
-                                child: ColoredBox(
-                                  color: _canvasColor,
-                                  child: PageView.builder(
-                                    clipBehavior: Clip.none,
-                                    controller: _pageController,
-                                    physics:
-                                        _exporting ||
-                                            _spanInteracting ||
-                                            _drawingPathText
-                                        ? const NeverScrollableScrollPhysics()
-                                        : const PageScrollPhysics(),
-                                    itemCount: _slides.length,
-                                    onPageChanged: (index) {
-                                      AppFeedback.selection();
-                                      setState(() {
-                                        _index = index;
-                                        _selectedOverlayIndex = null;
-                                        _imageFocused = false;
-                                        _selectedSlotIndex = null;
-                                        if (!_slides[index].isGrid) {
-                                          _pickingGridLayout = false;
-                                        }
-                                        _pickingTemplate = false;
-                                      });
-                                      _scrollStripToCurrent();
-                                    },
-                                    itemBuilder: (context, index) {
-                                      return _buildSlidePage(index);
-                                    },
+                  child: Stack(
+                    children: [
+                      Positioned.fill(child: _buildCanvasArea()),
+                      if (!_previewing && _slides.length > 1)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: CarouselPageDots(
+                            count: _slides.length,
+                            currentIndex: _index,
+                            onTap: _goTo,
+                          ),
+                        ),
+                      if (!_hasAnyImage && !_previewing)
+                        Center(
+                          child: Padding(
+                            padding: _workZonePadding,
+                            child: AspectRatio(
+                              aspectRatio: _format.aspectRatio,
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: EmptyCanvasHint(
+                                    title: AppCopy.emptyCarouselTitle,
+                                    actionLabel: AppCopy.emptyCarouselAction,
+                                    onAction: _pickImages,
+                                    secondaryLabel:
+                                        AppCopy.emptyCarouselTemplate,
+                                    onSecondary: _toggleTemplatePicker,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                    ],
                   ),
                 ),
-              ),
-              if (!_hasAnyImage && !_previewing)
-                EmptyCanvasHint(
-                  title: AppCopy.emptyCarouselTitle,
-                  actionLabel: AppCopy.emptyCarouselAction,
-                  onAction: _pickImages,
-                  secondaryLabel: AppCopy.emptyCarouselTemplate,
-                  onSecondary: _toggleTemplatePicker,
-                ),
-              if (!_previewing && _slides.length > 1)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-                  child: CarouselPageDots(
-                    count: _slides.length,
-                    currentIndex: _index,
-                    onTap: _goTo,
-                  ),
-                ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: (!_previewing && _tool != null)
-                    ? ColoredBox(
-                        color: AppTheme.cream,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                          child: _buildToolPanel(),
-                        ),
-                      )
-                    : const SizedBox(width: double.infinity),
               ),
               AnimatedSize(
                 duration: const Duration(milliseconds: 240),
@@ -2624,17 +2548,89 @@ class _CarouselPageState extends State<CarouselPage> {
                 alignment: Alignment.topCenter,
                 child: _previewing
                     ? const SizedBox(width: double.infinity)
-                    : EditorToolBottomBar(
+                    : EditorDock(
                         tools: carouselToolDefinitions,
                         activeTool: toolDefinitionById(
                           carouselToolDefinitions,
                           _activeToolId,
                         ),
-                        onBack: () => setState(() => _tool = null),
+                        panel: _tool == null ? null : _buildToolPanel(),
+                        onClose: () => setState(() => _tool = null),
                         onToolSelected: _onGridToolSelected,
                       ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCanvasArea() {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        if (_previewing) return;
+        _clearFocus();
+      },
+      child: Center(
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          padding: _cleanView ? EdgeInsets.zero : _workZonePadding,
+          child: AspectRatio(
+            aspectRatio: _format.aspectRatio,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                boxShadow: _previewing
+                    ? const []
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+              ),
+              child: InstagramPreviewChrome(
+                enabled: _previewing,
+                slideCount: _slides.length,
+                currentIndex: _index,
+                onPageTap: _previewing ? _goTo : null,
+                child: RepaintBoundary(
+                  key: _frameKey,
+                  child: ColoredBox(
+                    color: _canvasColor,
+                    child: PageView.builder(
+                      clipBehavior: Clip.none,
+                      controller: _pageController,
+                      physics:
+                          _exporting || _spanInteracting || _drawingPathText
+                          ? const NeverScrollableScrollPhysics()
+                          : const PageScrollPhysics(),
+                      itemCount: _slides.length,
+                      onPageChanged: (index) {
+                        AppFeedback.selection();
+                        setState(() {
+                          _index = index;
+                          _selectedOverlayIndex = null;
+                          _imageFocused = false;
+                          _selectedSlotIndex = null;
+                          if (!_slides[index].isGrid) {
+                            _pickingGridLayout = false;
+                          }
+                          _pickingTemplate = false;
+                        });
+                        _scrollStripToCurrent();
+                      },
+                      itemBuilder: (context, index) {
+                        return _buildSlidePage(index);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

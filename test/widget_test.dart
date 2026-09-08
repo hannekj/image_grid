@@ -8,7 +8,7 @@ Future<void> _openEditor(WidgetTester tester) async {
   await tester.pumpWidget(const ImageGridApp());
   await tester.tap(find.text('Lag innlegg'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Collage'));
+  await tester.tap(find.text('Collage').last);
   await tester.pumpAndSettle();
 }
 
@@ -144,7 +144,7 @@ void main() {
 
     await tester.tap(find.text('Lag innlegg'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Karusell'));
+    await tester.tap(find.text('Karusell').last);
     await tester.pumpAndSettle();
     expect(find.byTooltip('Del'), findsOneWidget);
     expect(find.byTooltip('Angre'), findsOneWidget);

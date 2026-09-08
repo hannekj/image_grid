@@ -58,28 +58,22 @@ class FormatChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: EditorChrome.panelHeight,
-      child: Align(
-        alignment: Alignment.center,
-        child: Row(
-          children: [
-            for (final format in canvasFormats) ...[
-              if (format != canvasFormats.first)
-                const SizedBox(width: EditorChrome.spaceSm),
-              Expanded(
-                child: EditorChoiceTile(
-                  label: format.label,
-                  caption: format.caption,
-                  selected: format.id == selected.id,
-                  compact: compact,
-                  onTap: () => onChanged(format),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return Row(
+      children: [
+        for (final format in canvasFormats) ...[
+          if (format != canvasFormats.first)
+            const SizedBox(width: EditorChrome.spaceSm),
+          Expanded(
+            child: EditorChoiceTile(
+              label: format.label,
+              caption: format.caption,
+              selected: format.id == selected.id,
+              compact: compact,
+              onTap: () => onChanged(format),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

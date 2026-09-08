@@ -142,6 +142,7 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
     }
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -201,25 +202,27 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
           ],
         ),
         const SizedBox(height: EditorChrome.spaceSm),
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: switch (_section) {
-              _TextSection.color => ColorScrubStrip(
-                  colors: overlayTextColors,
-                  labels: overlayTextColorLabels,
-                  selected: current.color,
-                  onChanged: (color) =>
-                      widget.onChanged(current.copyWith(color: color)),
-                ),
-              _TextSection.plate => PlateScrubStrip(
-                  selected: current.plateStyle,
-                  textColor: current.color,
-                  fontId: current.fontId,
-                  onChanged: (style) =>
-                      widget.onChanged(current.copyWith(plateStyle: style)),
-                ),
-              _TextSection.font => ListView.separated(
+        Align(
+          alignment: Alignment.centerLeft,
+          child: switch (_section) {
+            _TextSection.color => ColorScrubStrip(
+                colors: overlayTextColors,
+                labels: overlayTextColorLabels,
+                selected: current.color,
+                onChanged: (color) =>
+                    widget.onChanged(current.copyWith(color: color)),
+              ),
+            _TextSection.plate => PlateScrubStrip(
+                selected: current.plateStyle,
+                textColor: current.color,
+                fontId: current.fontId,
+                onChanged: (style) =>
+                    widget.onChanged(current.copyWith(plateStyle: style)),
+              ),
+            _TextSection.font => SizedBox(
+                height: EditorChrome.stripHeight,
+                width: double.infinity,
+                child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: overlayFonts.length,
                   separatorBuilder: (context, index) =>
@@ -235,13 +238,14 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                     );
                   },
                 ),
-              _TextSection.size => OverlaySizeControls(
-                  fontSize: current.fontSize,
-                  onChanged: (size) =>
-                      widget.onChanged(current.copyWith(fontSize: size)),
-                ),
-              _TextSection.style => Row(
-                  children: [
+              ),
+            _TextSection.size => OverlaySizeControls(
+                fontSize: current.fontSize,
+                onChanged: (size) =>
+                    widget.onChanged(current.copyWith(fontSize: size)),
+              ),
+            _TextSection.style => Row(
+                children: [
                     _IconToggle(
                       tooltip: 'Venstre',
                       icon: Icons.format_align_left,
@@ -293,8 +297,7 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                     ),
                   ],
                 ),
-            },
-          ),
+          },
         ),
       ],
     );

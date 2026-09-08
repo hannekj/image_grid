@@ -8,9 +8,16 @@ class EditorChrome {
   static const spaceMd = 12.0;
   static const spaceLg = 16.0;
 
-  /// One fixed height for the active tool panel body.
-  static const panelHeight = 168.0;
   static const tabRowHeight = 36.0;
+
+  /// Panel bodies size to their content; this keeps the dock from jittering
+  /// between short sections.
+  static const bodyMinHeight = 44.0;
+
+  /// Height for horizontal option strips (fonts, stickers, chips) that have no
+  /// intrinsic height of their own.
+  static const stripHeight = 38.0;
+  static const pickerHeight = 62.0;
 }
 
 /// Text segment — selected weight + underline, no white pills.
@@ -58,6 +65,59 @@ class EditorSegmentTab extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact pill action for dock panels — cheaper in height than a full button
+/// row, and scrollable when the actions do not fit.
+class EditorActionChip extends StatelessWidget {
+  const EditorActionChip({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.active = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool active;
+
+  static const height = 34.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+
+    return Material(
+      color: active
+          ? AppTheme.matcha.withValues(alpha: 0.16)
+          : enabled
+          ? AppTheme.mist
+          : AppTheme.mist.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          height: height,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                  color: enabled
+                      ? AppTheme.ink
+                      : AppTheme.muted.withValues(alpha: 0.55),
+                ),
+              ),
+            ),
           ),
         ),
       ),

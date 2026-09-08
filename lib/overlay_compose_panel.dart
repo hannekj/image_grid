@@ -73,72 +73,67 @@ class _OverlayComposePanelState extends State<OverlayComposePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: EditorChrome.panelHeight,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            height: EditorChrome.tabRowHeight,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                EditorSegmentTab(
-                  label: 'Tekst',
-                  selected: _tab == OverlayComposeTab.text,
-                  onTap: () => setState(() => _tab = OverlayComposeTab.text),
-                ),
-                const SizedBox(width: EditorChrome.spaceSm),
-                EditorSegmentTab(
-                  label: 'Sticker',
-                  selected: _tab == OverlayComposeTab.sticker,
-                  onTap: () => setState(() => _tab = OverlayComposeTab.sticker),
-                ),
-                const SizedBox(width: EditorChrome.spaceSm),
-                EditorSegmentTab(
-                  label: 'Mal',
-                  selected: _tab == OverlayComposeTab.template,
-                  onTap: () =>
-                      setState(() => _tab = OverlayComposeTab.template),
-                ),
-              ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: EditorChrome.tabRowHeight,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              EditorSegmentTab(
+                label: 'Tekst',
+                selected: _tab == OverlayComposeTab.text,
+                onTap: () => setState(() => _tab = OverlayComposeTab.text),
+              ),
+              const SizedBox(width: EditorChrome.spaceSm),
+              EditorSegmentTab(
+                label: 'Sticker',
+                selected: _tab == OverlayComposeTab.sticker,
+                onTap: () => setState(() => _tab = OverlayComposeTab.sticker),
+              ),
+              const SizedBox(width: EditorChrome.spaceSm),
+              EditorSegmentTab(
+                label: 'Mal',
+                selected: _tab == OverlayComposeTab.template,
+                onTap: () => setState(() => _tab = OverlayComposeTab.template),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: EditorChrome.spaceSm),
+        switch (_tab) {
+          OverlayComposeTab.text => OverlayTextControls(
+              overlays: widget.overlays,
+              selectedIndex: widget.selectedIndex,
+              onSelect: widget.onSelect,
+              onAddText: widget.onAddText,
+              onAddPathText: widget.onAddPathText,
+              onChanged: widget.onChanged,
+              onRemove: widget.onRemove,
+              onEdit: widget.onEdit,
             ),
-          ),
-          const SizedBox(height: EditorChrome.spaceMd),
-          Expanded(
-            child: switch (_tab) {
-              OverlayComposeTab.text => OverlayTextControls(
-                  overlays: widget.overlays,
-                  selectedIndex: widget.selectedIndex,
-                  onSelect: widget.onSelect,
-                  onAddText: widget.onAddText,
-                  onAddPathText: widget.onAddPathText,
-                  onChanged: widget.onChanged,
-                  onRemove: widget.onRemove,
-                  onEdit: widget.onEdit,
-                ),
-              OverlayComposeTab.sticker => OverlayWidgetControls(
-                  overlays: widget.overlays,
-                  selectedIndex: widget.selectedIndex,
-                  onSelect: widget.onSelect,
-                  onAddMessage: widget.onAddMessage,
-                  onAddLocation: widget.onAddLocation,
-                  onAddCoordinates: widget.onAddCoordinates,
-                  onAddDate: widget.onAddDate,
-                  onAddTime: widget.onAddTime,
-                  onAddWeather: widget.onAddWeather,
-                  onAddPageNumber: widget.onAddPageNumber,
-                  onChanged: widget.onChanged,
-                  onRemove: widget.onRemove,
-                  onEdit: widget.onEdit,
-                ),
-              OverlayComposeTab.template => _TemplateTab(
-                  onAddTemplate: widget.onAddTemplate,
-                ),
-            },
-          ),
-        ],
-      ),
+          OverlayComposeTab.sticker => OverlayWidgetControls(
+              overlays: widget.overlays,
+              selectedIndex: widget.selectedIndex,
+              onSelect: widget.onSelect,
+              onAddMessage: widget.onAddMessage,
+              onAddLocation: widget.onAddLocation,
+              onAddCoordinates: widget.onAddCoordinates,
+              onAddDate: widget.onAddDate,
+              onAddTime: widget.onAddTime,
+              onAddWeather: widget.onAddWeather,
+              onAddPageNumber: widget.onAddPageNumber,
+              onChanged: widget.onChanged,
+              onRemove: widget.onRemove,
+              onEdit: widget.onEdit,
+            ),
+          OverlayComposeTab.template => _TemplateTab(
+              onAddTemplate: widget.onAddTemplate,
+            ),
+        },
+      ],
     );
   }
 }

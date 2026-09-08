@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
 /// Empty-canvas nudge with one clear next step (optional second action).
+///
+/// Rendered as a floating card so it can sit over the empty canvas instead of
+/// taking a band of its own below it.
 class EmptyCanvasHint extends StatelessWidget {
   const EmptyCanvasHint({
     super.key,
@@ -25,8 +28,20 @@ class EmptyCanvasHint extends StatelessWidget {
     final onSecondaryAction = onSecondary;
     final hasSecondary = secondary != null && onSecondaryAction != null;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cream,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.line),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -34,67 +49,70 @@ class EmptyCanvasHint extends StatelessWidget {
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppTheme.ink,
+              color: AppTheme.muted,
             ),
           ),
           const SizedBox(height: 10),
-          if (hasSecondary)
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 40,
-                    child: OutlinedButton(
-                      onPressed: onAction,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.matcha,
-                        side: const BorderSide(color: AppTheme.line),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(actionLabel),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SizedBox(
-                    height: 40,
-                    child: OutlinedButton(
-                      onPressed: onSecondaryAction,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.matcha,
-                        side: const BorderSide(color: AppTheme.line),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(secondary),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          else
-            SizedBox(
-              height: 40,
-              child: OutlinedButton(
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _HintAction(
+                label: actionLabel,
+                primary: true,
                 onPressed: onAction,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.matcha,
-                  side: const BorderSide(color: AppTheme.line),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(actionLabel),
               ),
-            ),
+              if (hasSecondary)
+                _HintAction(
+                  label: secondary,
+                  primary: false,
+                  onPressed: onSecondaryAction,
+                ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _HintAction extends StatelessWidget {
+  const _HintAction({
+    required this.label,
+    required this.primary,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool primary;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+    );
+
+    return SizedBox(
+      height: 38,
+      child: primary
+          ? FilledButton(
+              onPressed: onPressed,
+              style: FilledButton.styleFrom(shape: shape),
+              child: Text(label),
+            )
+          : OutlinedButton(
+              onPressed: onPressed,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.matcha,
+                side: const BorderSide(color: AppTheme.line),
+                shape: shape,
+              ),
+              child: Text(label),
+            ),
     );
   }
 }
