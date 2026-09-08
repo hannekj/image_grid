@@ -55,8 +55,8 @@ const carouselToolDefinitions = [
 /// Floating dock at the bottom of an editor.
 ///
 /// Collapsed it is a single row of tools. Opening a tool morphs the same
-/// surface into a compact header — icon-only tool switcher plus a close
-/// button — above a panel that is only as tall as its content.
+/// surface into a compact header — tool name plus a close button — above a
+/// panel that is only as tall as its content. Switch tools by closing first.
 class EditorDock extends StatelessWidget {
   const EditorDock({
     super.key,
@@ -75,11 +75,14 @@ class EditorDock extends StatelessWidget {
 
   static const collapsedHeight = 62.0;
   static const margin = EdgeInsets.fromLTRB(10, 0, 10, 8);
+  static const expandDuration = Duration(milliseconds: 320);
+  static const expandCurve = Curves.easeInOutCubic;
 
   @override
   Widget build(BuildContext context) {
     final tool = activeTool;
     final body = panel;
+    final open = tool != null && body != null;
 
     return Padding(
       padding: margin,
@@ -99,18 +102,49 @@ class EditorDock extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
+            duration: expandDuration,
+            curve: expandCurve,
             alignment: Alignment.bottomCenter,
-            child: tool == null || body == null
-                ? EditorToolRow(tools: tools, onToolSelected: onToolSelected)
-                : _ActiveTool(
-                    tools: tools,
-                    activeTool: tool,
-                    onToolSelected: onToolSelected,
-                    onClose: onClose,
-                    panel: body,
-                  ),
+            child: AnimatedSwitcher(
+              duration: expandDuration,
+              switchInCurve: expandCurve,
+              switchOutCurve: Curves.easeInCubic,
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    ...previousChildren,
+                    ?currentChild,
+                  ],
+                );
+              },
+              transitionBuilder: (child, animation) {
+                final slide = Tween<Offset>(
+                  begin: const Offset(0, 0.08),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: open
+                  ? KeyedSubtree(
+                      key: ValueKey('dock-open-${tool.id}'),
+                      child: _ActiveTool(
+                        activeTool: tool,
+                        onClose: onClose,
+                        panel: body,
+                      ),
+                    )
+                  : KeyedSubtree(
+                      key: const ValueKey('dock-collapsed'),
+                      child: EditorToolRow(
+                        tools: tools,
+                        onToolSelected: onToolSelected,
+                      ),
+                    ),
+            ),
           ),
         ),
       ),
@@ -153,16 +187,12 @@ class EditorToolRow extends StatelessWidget {
 
 class _ActiveTool extends StatelessWidget {
   const _ActiveTool({
-    required this.tools,
     required this.activeTool,
-    required this.onToolSelected,
     required this.onClose,
     required this.panel,
   });
 
-  final List<EditorToolDefinition> tools;
   final EditorToolDefinition activeTool;
-  final ValueChanged<EditorToolDefinition> onToolSelected;
   final VoidCallback? onClose;
   final Widget panel;
 
@@ -178,12 +208,7 @@ class _ActiveTool extends StatelessWidget {
             height: 34,
             child: Row(
               children: [
-                for (final tool in tools)
-                  _ToolSwitchIcon(
-                    tool: tool,
-                    selected: tool.id == activeTool.id,
-                    onTap: () => onToolSelected(tool),
-                  ),
+                Icon(activeTool.icon, size: 18, color: AppTheme.matcha),
                 const SizedBox(width: EditorChrome.spaceSm),
                 Expanded(
                   child: Text(
@@ -249,51 +274,6 @@ class _ToolTile extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Icon-only tool switcher shown in the open dock header, so switching tools
-/// never needs a trip back to the collapsed row.
-class _ToolSwitchIcon extends StatelessWidget {
-  const _ToolSwitchIcon({
-    required this.tool,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final EditorToolDefinition tool;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tool.label,
-      child: Material(
-        color: selected
-            ? AppTheme.matcha.withValues(alpha: 0.14)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(9),
-        child: InkWell(
-          onTap: selected
-              ? null
-              : () {
-                  AppFeedback.selection();
-                  onTap();
-                },
-          borderRadius: BorderRadius.circular(9),
-          child: SizedBox(
-            width: 34,
-            height: 34,
-            child: Icon(
-              tool.icon,
-              size: 18,
-              color: selected ? AppTheme.ink : AppTheme.muted,
-            ),
-          ),
-        ),
       ),
     );
   }

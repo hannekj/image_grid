@@ -2543,8 +2543,8 @@ class _CarouselPageState extends State<CarouselPage> {
                 ),
               ),
               AnimatedSize(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
+                duration: EditorDock.expandDuration,
+                curve: EditorDock.expandCurve,
                 alignment: Alignment.topCenter,
                 child: _previewing
                     ? const SizedBox(width: double.infinity)
