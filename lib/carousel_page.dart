@@ -1865,7 +1865,7 @@ class _CarouselPageState extends State<CarouselPage> {
         color: _kind == FrameKind.stroke
             ? _color.color
             : defaultFilmStripColor,
-        slots: [for (var i = 0; i < filmStripSlotCount; i++) slot(i)],
+        slots: [for (var i = 0; i < layout.slotCount; i++) slot(i)],
       );
     }
 
@@ -1875,7 +1875,7 @@ class _CarouselPageState extends State<CarouselPage> {
         color: _kind == FrameKind.stroke
             ? _color.color
             : defaultFilmStripColor,
-        slots: [for (var i = 0; i < filmStripSlotCount; i++) slot(i)],
+        slots: [for (var i = 0; i < layout.slotCount; i++) slot(i)],
       );
     }
 

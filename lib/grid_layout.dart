@@ -60,9 +60,9 @@ class GridLayout {
 
   bool get isStrawberryGrid => id == 'strawberry-grid';
 
-  bool get isFilmHorizontal => id == 'film-h';
+  bool get isFilmHorizontal => id == 'film-h' || id == 'film-h-3';
 
-  bool get isFilmVertical => id == 'film-v';
+  bool get isFilmVertical => id == 'film-v' || id == 'film-v-3';
 
   bool get isFilmStrip => isFilmHorizontal || isFilmVertical;
 
@@ -404,16 +404,30 @@ const gridLayouts = [
   ),
   GridLayout(
     id: 'film-h',
-    label: 'Film',
+    label: 'Film 4',
     rows: [
       LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
     ],
   ),
   GridLayout(
+    id: 'film-h-3',
+    label: 'Film 3',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
     id: 'film-v',
-    label: 'Film stående',
+    label: 'Film 4 stående',
     rows: [
       LayoutRow(flex: 1, cells: [1, 1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'film-v-3',
+    label: 'Film 3 stående',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
     ],
   ),
   GridLayout(

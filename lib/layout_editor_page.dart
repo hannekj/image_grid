@@ -921,7 +921,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     return FilmStrip(
       axis: axis,
       color: stripColor,
-      slots: [for (var i = 0; i < filmStripSlotCount; i++) _slot(i)],
+      slots: [for (var i = 0; i < _layout.slotCount; i++) _slot(i)],
     );
   }
 

@@ -4,85 +4,95 @@ import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
 
-/// Number of photo frames in a film strip layout.
-const int filmStripSlotCount = 4;
-
 enum FilmStripAxis { horizontal, vertical }
 
-/// Default body color for film strip layouts (warm light gray).
-const Color defaultFilmStripColor = Color(0xFFE8E4DC);
+/// Default body color for film strip layouts: a warm dark gray that reads as
+/// film base without going all the way to black.
+const Color defaultFilmStripColor = Color(0xFF5C574F);
 
-const _defaultFilmColor = defaultFilmStripColor;
+/// Proportions of a 35mm strip, as fractions of the strip's short side, so a
+/// strip reads the same at any size and any frame count.
+class FilmStripMetrics {
+  FilmStripMetrics._();
 
-/// Classic 35mm-style film strip with sprocket holes and photo frames.
+  /// Perforation row centre, measured in from the strip edge.
+  static const perfCenter = 0.105;
+
+  /// Perforation size along and across the strip.
+  static const perfLength = 0.088;
+  static const perfWidth = 0.062;
+  static const perfRadius = 0.018;
+
+  /// Centre-to-centre spacing of the perforations.
+  static const perfPitch = 0.132;
+
+  /// Strip edge to photo window.
+  static const frameInset = 0.185;
+  static const endMargin = 0.055;
+  static const gutter = 0.035;
+  static const frameRadius = 0.05;
+  static const bodyRadius = 0.03;
+
+  /// Windows are slightly landscape, like a real 35mm frame.
+  static const frameAspect = 1.2;
+
+  static double get frameWidth => (1 - frameInset * 2) * frameAspect;
+
+  /// Strip length relative to its short side, for [frames] windows.
+  static double lengthFor(int frames) =>
+      endMargin * 2 + frames * frameWidth + (frames - 1) * gutter;
+}
+
+/// Classic 35mm-style film strip with punched sprocket holes.
 class FilmStrip extends StatelessWidget {
   const FilmStrip({
     super.key,
     required this.slots,
     required this.axis,
-    this.color = _defaultFilmColor,
+    this.color = defaultFilmStripColor,
   });
 
   final List<Widget> slots;
   final FilmStripAxis axis;
 
-  /// Body color of the film strip (Look → Ramme → Farge).
+  /// Body color of the film strip (Stil → Ramme → Farge).
   final Color color;
 
   bool get _horizontal => axis == FilmStripAxis.horizontal;
 
   @override
   Widget build(BuildContext context) {
-    assert(slots.length == filmStripSlotCount);
-    final body = color;
-    final band = _darken(body, 0.35);
-    final holes = _contrastingHoleColor(body);
+    assert(slots.isNotEmpty);
+    final ratio = FilmStripMetrics.lengthFor(slots.length);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = _stripSize(constraints.biggest);
+        final size = _stripSize(constraints.biggest, ratio);
+        final short = _horizontal ? size.height : size.width;
+        final gutter = short * FilmStripMetrics.gutter;
+
         return Center(
           child: Transform.rotate(
-            angle: _horizontal ? -0.03 : 0.035,
+            angle: _horizontal ? -0.022 : 0.026,
             child: SizedBox(
               width: size.width,
               height: size.height,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: body,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.28),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: CustomPaint(
-                  painter: _SprocketPainter(
-                    horizontal: _horizontal,
-                    bandColor: band,
-                    holeColor: holes,
-                  ),
-                  child: Padding(
-                    padding: _contentPadding(size),
-                    child: _horizontal
-                        ? Row(
-                            children: [
-                              for (var i = 0; i < slots.length; i++) ...[
-                                if (i > 0) SizedBox(width: size.height * 0.045),
-                                Expanded(child: _frame(slots[i])),
-                              ],
-                            ],
-                          )
-                        : Column(
-                            children: [
-                              for (var i = 0; i < slots.length; i++) ...[
-                                if (i > 0) SizedBox(height: size.width * 0.045),
-                                Expanded(child: _frame(slots[i])),
-                              ],
-                            ],
+              child: CustomPaint(
+                painter: FilmStripPainter(horizontal: _horizontal, color: color),
+                child: Padding(
+                  padding: _framePadding(short),
+                  child: Flex(
+                    direction: _horizontal ? Axis.horizontal : Axis.vertical,
+                    children: [
+                      for (var i = 0; i < slots.length; i++) ...[
+                        if (i > 0)
+                          SizedBox(
+                            width: _horizontal ? gutter : null,
+                            height: _horizontal ? null : gutter,
                           ),
+                        Expanded(child: _window(slots[i], short)),
+                      ],
+                    ],
                   ),
                 ),
               ),
@@ -93,155 +103,159 @@ class FilmStrip extends StatelessWidget {
     );
   }
 
-  Size _stripSize(Size available) {
+  Size _stripSize(Size available, double ratio) {
     if (_horizontal) {
-      final maxWidth = available.width * 0.92;
-      final maxHeight = available.height * 0.42;
-      // Rough 35mm strip: ~4 frames wide, aspect ~3.4:1
-      final height = math.min(maxHeight, maxWidth / 3.35);
-      final width = height * 3.35;
-      return Size(width, height);
+      final short = math.min(
+        available.height * 0.52,
+        available.width * 0.94 / ratio,
+      );
+      return Size(short * ratio, short);
     }
-
-    final maxWidth = available.width * 0.42;
-    final maxHeight = available.height * 0.92;
-    final width = math.min(maxWidth, maxHeight / 3.35);
-    final height = width * 3.35;
-    return Size(width, height);
+    final short = math.min(
+      available.width * 0.52,
+      available.height * 0.94 / ratio,
+    );
+    return Size(short, short * ratio);
   }
 
-  EdgeInsets _contentPadding(Size size) {
-    if (_horizontal) {
-      final sprocket = size.height * 0.16;
-      final end = size.height * 0.08;
-      return EdgeInsets.fromLTRB(end, sprocket, end, sprocket);
-    }
-    final sprocket = size.width * 0.16;
-    final end = size.width * 0.08;
-    return EdgeInsets.fromLTRB(sprocket, end, sprocket, end);
+  EdgeInsets _framePadding(double short) {
+    final across = short * FilmStripMetrics.frameInset;
+    final along = short * FilmStripMetrics.endMargin;
+    return _horizontal
+        ? EdgeInsets.fromLTRB(along, across, along, across)
+        : EdgeInsets.fromLTRB(across, along, across, along);
   }
 
-  Widget _frame(Widget child) {
-    return ColoredBox(
-      color: AppTheme.mist,
-      child: child,
+  Widget _window(Widget child, double short) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(
+        short * FilmStripMetrics.frameRadius,
+      ),
+      child: SizedBox.expand(
+        child: ColoredBox(color: AppTheme.mist, child: child),
+      ),
     );
   }
 }
 
-Color _darken(Color color, double amount) {
-  final h = HSLColor.fromColor(color);
-  return h
-      .withLightness((h.lightness * (1.0 - amount)).clamp(0.0, 1.0))
-      .toColor();
-}
-
-Color _contrastingHoleColor(Color body) {
-  final luminance = body.computeLuminance();
-  return luminance > 0.45 ? const Color(0xFF1A1A1A) : const Color(0xFFE8E4DC);
-}
-
-class _SprocketPainter extends CustomPainter {
-  const _SprocketPainter({
+class FilmStripPainter extends CustomPainter {
+  const FilmStripPainter({
     required this.horizontal,
-    required this.bandColor,
-    required this.holeColor,
+    required this.color,
+    this.shadow = true,
   });
 
   final bool horizontal;
-  final Color bandColor;
-  final Color holeColor;
+  final Color color;
+  final bool shadow;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final holePaint = Paint()..color = holeColor;
-    final bandPaint = Paint()..color = bandColor;
-
-    if (horizontal) {
-      final bandH = size.height * 0.145;
-      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, bandH), bandPaint);
-      canvas.drawRect(
-        Rect.fromLTWH(0, size.height - bandH, size.width, bandH),
-        bandPaint,
-      );
-      _paintHolesAlong(
-        canvas,
-        holePaint,
-        along: size.width,
-        centerA: bandH / 2,
-        centerB: size.height - bandH / 2,
-        holeW: size.height * 0.055,
-        holeH: size.height * 0.075,
-        count: 18,
-        horizontalTrack: true,
-      );
-    } else {
-      final bandW = size.width * 0.145;
-      canvas.drawRect(Rect.fromLTWH(0, 0, bandW, size.height), bandPaint);
-      canvas.drawRect(
-        Rect.fromLTWH(size.width - bandW, 0, bandW, size.height),
-        bandPaint,
-      );
-      _paintHolesAlong(
-        canvas,
-        holePaint,
-        along: size.height,
-        centerA: bandW / 2,
-        centerB: size.width - bandW / 2,
-        holeW: size.width * 0.075,
-        holeH: size.width * 0.055,
-        count: 18,
-        horizontalTrack: false,
-      );
-    }
-  }
-
-  void _paintHolesAlong(
-    Canvas canvas,
-    Paint paint, {
-    required double along,
-    required double centerA,
-    required double centerB,
-    required double holeW,
-    required double holeH,
-    required int count,
-    required bool horizontalTrack,
-  }) {
-    final spacing = along / (count + 1);
-    final radius = Radius.circular(math.min(holeW, holeH) * 0.28);
-
-    for (var i = 1; i <= count; i++) {
-      final t = spacing * i;
-      final rectA = horizontalTrack
-          ? Rect.fromCenter(
-              center: Offset(t, centerA),
-              width: holeW,
-              height: holeH,
-            )
-          : Rect.fromCenter(
-              center: Offset(centerA, t),
-              width: holeW,
-              height: holeH,
-            );
-      final rectB = horizontalTrack
-          ? Rect.fromCenter(
-              center: Offset(t, centerB),
-              width: holeW,
-              height: holeH,
-            )
-          : Rect.fromCenter(
-              center: Offset(centerB, t),
-              width: holeW,
-              height: holeH,
-            );
-      canvas.drawRRect(RRect.fromRectAndRadius(rectA, radius), paint);
-      canvas.drawRRect(RRect.fromRectAndRadius(rectB, radius), paint);
-    }
+    paintFilmStripBody(
+      canvas,
+      Offset.zero & size,
+      horizontal: horizontal,
+      color: color,
+      shadow: shadow,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _SprocketPainter oldDelegate) =>
+  bool shouldRepaint(covariant FilmStripPainter oldDelegate) =>
       oldDelegate.horizontal != horizontal ||
-      oldDelegate.bandColor != bandColor ||
-      oldDelegate.holeColor != holeColor;
+      oldDelegate.color != color ||
+      oldDelegate.shadow != shadow;
+}
+
+/// Paints the film base into [rect]. The perforations are cut out of the path
+/// rather than drawn in a contrasting colour, so whatever sits behind the
+/// strip shows through them.
+void paintFilmStripBody(
+  Canvas canvas,
+  Rect rect, {
+  required bool horizontal,
+  required Color color,
+  bool shadow = true,
+}) {
+  final short = horizontal ? rect.height : rect.width;
+  if (short <= 0 || rect.isEmpty) return;
+
+  final body = _bodyPath(rect, horizontal);
+
+  if (shadow) {
+    canvas.drawPath(
+      body.shift(Offset(0, short * 0.055)),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.2)
+        ..maskFilter = MaskFilter.blur(
+          BlurStyle.normal,
+          math.max(0.6, short * 0.08),
+        ),
+    );
+  }
+
+  canvas.drawPath(body, Paint()..color = color);
+
+  // Slight sheen across the base so it reads as film stock, not flat paper.
+  canvas.drawPath(
+    body,
+    Paint()
+      ..shader = LinearGradient(
+        begin: horizontal ? Alignment.topCenter : Alignment.centerLeft,
+        end: horizontal ? Alignment.bottomCenter : Alignment.centerRight,
+        colors: [
+          Colors.white.withValues(alpha: 0.12),
+          Colors.transparent,
+          Colors.black.withValues(alpha: 0.12),
+        ],
+        stops: const [0.0, 0.45, 1.0],
+      ).createShader(rect),
+  );
+}
+
+Path _bodyPath(Rect rect, bool horizontal) {
+  final short = horizontal ? rect.height : rect.width;
+  final long = horizontal ? rect.width : rect.height;
+
+  final path = Path()..fillType = PathFillType.evenOdd;
+  path.addRRect(
+    RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(short * FilmStripMetrics.bodyRadius),
+    ),
+  );
+
+  final pitch = short * FilmStripMetrics.perfPitch;
+  if (pitch <= 0) return path;
+
+  final count = math.max(2, (long / pitch).floor());
+  final span = pitch * (count - 1);
+  final origin = (horizontal ? rect.left : rect.top) + (long - span) / 2;
+
+  final perfLong = short * FilmStripMetrics.perfLength;
+  final perfShort = short * FilmStripMetrics.perfWidth;
+  final radius = Radius.circular(short * FilmStripMetrics.perfRadius);
+  final near = short * FilmStripMetrics.perfCenter;
+  final rows = [near, short - near];
+
+  for (var i = 0; i < count; i++) {
+    final along = origin + pitch * i;
+    for (final row in rows) {
+      final center = horizontal
+          ? Offset(along, rect.top + row)
+          : Offset(rect.left + row, along);
+      path.addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: center,
+            width: horizontal ? perfLong : perfShort,
+            height: horizontal ? perfShort : perfLong,
+          ),
+          radius,
+        ),
+      );
+    }
+  }
+
+  return path;
 }
