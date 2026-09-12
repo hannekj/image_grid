@@ -238,30 +238,33 @@ class FilterLookControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chips = <Widget>[
-      for (final option in PhotoFilter.values)
-        LookToggleChip(
-          label: option.label,
-          selected: filter == option,
-          expand: false,
-          onTap: () => onFilterChanged(option),
-        ),
-      LookToggleChip(
-        label: 'Korn',
-        selected: grain,
-        expand: false,
-        onTap: () => onGrainChanged(!grain),
-      ),
-    ];
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          for (var i = 0; i < chips.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
-            chips[i],
+          for (final option in PhotoFilter.values) ...[
+            if (option != PhotoFilter.values.first) const SizedBox(width: 8),
+            LookToggleChip(
+              label: option.label,
+              selected: filter == option,
+              expand: false,
+              onTap: () => onFilterChanged(option),
+            ),
           ],
+          // Grain stacks on top of any filter, so it is kept apart from the
+          // filters themselves, which are a single choice.
+          Container(
+            width: 1,
+            height: 20,
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            color: const Color(0xFFE5E3DC),
+          ),
+          LookToggleChip(
+            label: 'Korn',
+            selected: grain,
+            expand: false,
+            onTap: () => onGrainChanged(!grain),
+          ),
         ],
       ),
     );

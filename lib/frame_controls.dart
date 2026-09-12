@@ -4,37 +4,50 @@ import 'color_scrub_strip.dart';
 import 'editor_chrome.dart';
 import 'frame_style.dart';
 
-class FrameKindControls extends StatelessWidget {
-  const FrameKindControls({
+/// Turning the frame on and choosing its width is one decision for the user,
+/// so it is one row of options with "Ingen" as the off state.
+class FrameWeightControls extends StatelessWidget {
+  const FrameWeightControls({
     super.key,
     required this.kind,
+    required this.thickness,
     required this.onKindChanged,
+    required this.onThicknessChanged,
   });
 
   final FrameKind kind;
+  final StrokeThickness thickness;
   final ValueChanged<FrameKind> onKindChanged;
+  final ValueChanged<StrokeThickness> onThicknessChanged;
 
   @override
   Widget build(BuildContext context) {
+    final hasFrame = kind == FrameKind.stroke;
+
     return Row(
       children: [
         Expanded(
           child: EditorChoiceTile(
-            label: 'Ingen ramme',
-            selected: kind == FrameKind.none,
+            label: 'Ingen',
+            selected: !hasFrame,
             compact: true,
             onTap: () => onKindChanged(FrameKind.none),
           ),
         ),
-        const SizedBox(width: EditorChrome.spaceSm),
-        Expanded(
-          child: EditorChoiceTile(
-            label: 'Ramme',
-            selected: kind == FrameKind.stroke,
-            compact: true,
-            onTap: () => onKindChanged(FrameKind.stroke),
+        for (final option in strokeThicknesses) ...[
+          const SizedBox(width: EditorChrome.spaceSm),
+          Expanded(
+            child: EditorChoiceTile(
+              label: option.label,
+              selected: hasFrame && option.width == thickness.width,
+              compact: true,
+              onTap: () {
+                onThicknessChanged(option);
+                if (!hasFrame) onKindChanged(FrameKind.stroke);
+              },
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -67,33 +80,3 @@ class FrameColorControls extends StatelessWidget {
   }
 }
 
-class FrameThicknessControls extends StatelessWidget {
-  const FrameThicknessControls({
-    super.key,
-    required this.thickness,
-    required this.onThicknessChanged,
-  });
-
-  final StrokeThickness thickness;
-  final ValueChanged<StrokeThickness> onThicknessChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (final option in strokeThicknesses) ...[
-          if (option != strokeThicknesses.first)
-            const SizedBox(width: EditorChrome.spaceSm),
-          Expanded(
-            child: EditorChoiceTile(
-              label: option.label,
-              selected: option.width == thickness.width,
-              compact: true,
-              onTap: () => onThicknessChanged(option),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}

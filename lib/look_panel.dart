@@ -6,7 +6,10 @@ import 'film_look.dart';
 import 'frame_controls.dart';
 import 'frame_style.dart';
 
-enum _LookSection { type, color, thickness, filter }
+/// The panel covers two separate things: the frame drawn around the photos and
+/// the look applied to the photos themselves. Keeping them as the only two tabs
+/// makes it obvious which controls belong to which.
+enum _LookSection { filter, frame }
 
 class LookPanel extends StatefulWidget {
   const LookPanel({
@@ -43,95 +46,49 @@ class LookPanel extends StatefulWidget {
 }
 
 class _LookPanelState extends State<LookPanel> {
-  final _tabsController = ScrollController();
-  _LookSection _section = _LookSection.type;
-
-  bool get _hasFrame => widget.kind == FrameKind.stroke;
-
-  List<_LookSection> get _sections => [
-        _LookSection.type,
-        if (_hasFrame) _LookSection.color,
-        if (_hasFrame) _LookSection.thickness,
-        _LookSection.filter,
-      ];
-
-  @override
-  void dispose() {
-    _tabsController.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(covariant LookPanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_sections.contains(_section)) {
-      _section = _LookSection.type;
-    }
-  }
-
-  void _onKindChanged(FrameKind kind) {
-    widget.onKindChanged(kind);
-    if (kind == FrameKind.stroke) {
-      setState(() => _section = _LookSection.color);
-    } else if (_section == _LookSection.color ||
-        _section == _LookSection.thickness) {
-      setState(() => _section = _LookSection.type);
-    }
-  }
+  _LookSection _section = _LookSection.filter;
 
   @override
   Widget build(BuildContext context) {
-    final sections = _sections;
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
           height: EditorChrome.tabRowHeight,
-          width: double.infinity,
-          child: ListView.separated(
-            key: const PageStorageKey<String>('look-panel-tabs'),
-            controller: _tabsController,
-            scrollDirection: Axis.horizontal,
-            itemCount: sections.length,
-            separatorBuilder: (context, index) =>
-                const SizedBox(width: EditorChrome.spaceSm),
-            itemBuilder: (context, index) {
-              final section = sections[index];
-              return EditorSegmentTab(
-                label: switch (section) {
-                  _LookSection.type => 'Type',
-                  _LookSection.color => 'Farge',
-                  _LookSection.thickness => 'Tykkelse',
-                  _LookSection.filter => 'Filter',
-                },
-                selected: _section == section,
-                onTap: () => setState(() => _section = section),
-              );
-            },
+          child: Row(
+            children: [
+              for (final section in _LookSection.values) ...[
+                if (section != _LookSection.filter)
+                  const SizedBox(width: EditorChrome.spaceSm),
+                EditorSegmentTab(
+                  label: switch (section) {
+                    _LookSection.filter => 'Filter',
+                    _LookSection.frame => 'Ramme',
+                  },
+                  selected: _section == section,
+                  onTap: () => setState(() => _section = section),
+                ),
+              ],
+            ],
           ),
         ),
         const SizedBox(height: EditorChrome.spaceSm),
         switch (_section) {
-          _LookSection.type => FrameKindControls(
-              kind: widget.kind,
-              onKindChanged: _onKindChanged,
-            ),
-          _LookSection.color => FrameColorControls(
-              color: widget.color,
-              onColorChanged: widget.onColorChanged,
-            ),
-          _LookSection.thickness => FrameThicknessControls(
-              thickness: widget.thickness,
-              onThicknessChanged: widget.onThicknessChanged,
-            ),
           _LookSection.filter => FilterLookControls(
-              filter: widget.filter,
-              grain: widget.grain,
-              onFilterChanged: widget.onFilterChanged,
-              onGrainChanged: widget.onGrainChanged,
-            ),
+            filter: widget.filter,
+            grain: widget.grain,
+            onFilterChanged: widget.onFilterChanged,
+            onGrainChanged: widget.onGrainChanged,
+          ),
+          _LookSection.frame => _FrameSection(
+            kind: widget.kind,
+            color: widget.color,
+            thickness: widget.thickness,
+            onKindChanged: widget.onKindChanged,
+            onColorChanged: widget.onColorChanged,
+            onThicknessChanged: widget.onThicknessChanged,
+          ),
         },
         if (widget.onApplyToAll != null)
           Align(
@@ -145,6 +102,46 @@ class _LookPanelState extends State<LookPanel> {
               child: Text(widget.applyToAllLabel ?? 'Bruk stil på alle sider'),
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// Width first, then colour — the colour row only appears once there is a
+/// frame to colour.
+class _FrameSection extends StatelessWidget {
+  const _FrameSection({
+    required this.kind,
+    required this.color,
+    required this.thickness,
+    required this.onKindChanged,
+    required this.onColorChanged,
+    required this.onThicknessChanged,
+  });
+
+  final FrameKind kind;
+  final StrokeColor color;
+  final StrokeThickness thickness;
+  final ValueChanged<FrameKind> onKindChanged;
+  final ValueChanged<StrokeColor> onColorChanged;
+  final ValueChanged<StrokeThickness> onThicknessChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FrameWeightControls(
+          kind: kind,
+          thickness: thickness,
+          onKindChanged: onKindChanged,
+          onThicknessChanged: onThicknessChanged,
+        ),
+        if (kind == FrameKind.stroke) ...[
+          const SizedBox(height: EditorChrome.spaceSm),
+          FrameColorControls(color: color, onColorChanged: onColorChanged),
+        ],
       ],
     );
   }

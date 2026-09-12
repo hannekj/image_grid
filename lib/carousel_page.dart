@@ -962,8 +962,9 @@ class _CarouselPageState extends State<CarouselPage> {
         final spreadId = slide.spreadId!;
         if (seenGroups.contains(spreadId)) continue;
         seenGroups.add(spreadId);
-        final group = _slides.where((item) => item.spreadId == spreadId).toList()
-          ..sort((a, b) => a.spreadIndex.compareTo(b.spreadIndex));
+        final group =
+            _slides.where((item) => item.spreadId == spreadId).toList()
+              ..sort((a, b) => a.spreadIndex.compareTo(b.spreadIndex));
         units.add(_ReorderUnit(key: spreadId, slides: group));
       } else {
         units.add(_ReorderUnit(key: slide.id, slides: [slide]));
@@ -1329,7 +1330,8 @@ class _CarouselPageState extends State<CarouselPage> {
           for (final step in template.steps)
             if (step == null)
               CarouselSlide(id: _nextSlideId())
-            else if (isCarouselSpreadStep(step)) ...CarouselSlide.spreadPair(
+            else if (isCarouselSpreadStep(step))
+              ...CarouselSlide.spreadPair(
                 spreadId: _nextSpreadId(),
                 layout: carouselSpreadLayout(step),
                 leftId: _nextSlideId(),
@@ -1862,9 +1864,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isFilmHorizontal) {
       return FilmStrip(
         axis: FilmStripAxis.horizontal,
-        color: _kind == FrameKind.stroke
-            ? _color.color
-            : defaultFilmStripColor,
+        color: _kind == FrameKind.stroke ? _color.color : defaultFilmStripColor,
         slots: [for (var i = 0; i < layout.slotCount; i++) slot(i)],
       );
     }
@@ -1872,9 +1872,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isFilmVertical) {
       return FilmStrip(
         axis: FilmStripAxis.vertical,
-        color: _kind == FrameKind.stroke
-            ? _color.color
-            : defaultFilmStripColor,
+        color: _kind == FrameKind.stroke ? _color.color : defaultFilmStripColor,
         slots: [for (var i = 0; i < layout.slotCount; i++) slot(i)],
       );
     }
@@ -1929,9 +1927,7 @@ class _CarouselPageState extends State<CarouselPage> {
     }
 
     if (layout.isReactionCircle) {
-      return ReactionCircleFrame(
-        slots: [slot(0), slot(1)],
-      );
+      return ReactionCircleFrame(slots: [slot(0), slot(1)]);
     }
 
     if (layout.isPostcard) {
@@ -1944,9 +1940,7 @@ class _CarouselPageState extends State<CarouselPage> {
 
     if (layout.isTimeline) {
       return TimelineFrame(
-        slots: [
-          for (var i = 0; i < TimelineLayout.slotCount; i++) slot(i),
-        ],
+        slots: [for (var i = 0; i < TimelineLayout.slotCount; i++) slot(i)],
         labels: List<String>.from(TimelineLayout.defaultLabels),
         showChrome: showChrome,
       );
@@ -2072,19 +2066,17 @@ class _CarouselPageState extends State<CarouselPage> {
     final layout = slide.spreadLayout!;
     final gap = math.max(_strokeWidth, 2.0);
     final spanSelected =
-        imageSelected && showChrome && slideIndex == _index && _selectedSlotIndex == null;
+        imageSelected &&
+        showChrome &&
+        slideIndex == _index &&
+        _selectedSlotIndex == null;
 
     if (layout.hasSpanImage) {
       return SpreadSpanFrame(
         pageIndex: slide.spreadIndex,
         gap: gap,
-        smallSlotBuilder: (slotIndex) => _gridSlot(
-          slideIndex,
-          slide,
-          slotIndex,
-          showChrome,
-          imageSelected,
-        ),
+        smallSlotBuilder: (slotIndex) =>
+            _gridSlot(slideIndex, slide, slotIndex, showChrome, imageSelected),
         spanBuilder: (panelWidth, panelHeight) {
           final bytes = slide.imageBytes;
           if (bytes == null) {

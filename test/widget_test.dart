@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:image_grid/color_scrub_strip.dart';
+import 'package:image_grid/frame_style.dart';
 import 'package:image_grid/main.dart';
 
 Future<void> _openEditor(WidgetTester tester) async {
@@ -74,22 +76,25 @@ void main() {
     await tester.tap(find.text('Stil'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Type'), findsOneWidget);
     expect(find.text('Filter'), findsOneWidget);
-    expect(find.text('Ingen ramme'), findsOneWidget);
     expect(find.text('Ramme'), findsOneWidget);
-
-    await tester.tap(find.text('Ramme'));
-    await tester.pumpAndSettle();
-    expect(find.text('Farge'), findsOneWidget);
-    expect(find.text('Tykkelse'), findsOneWidget);
-
-    await tester.tap(find.text('Filter'));
-    await tester.pumpAndSettle();
     expect(find.text('Korn'), findsOneWidget);
     expect(find.text('Golden'), findsOneWidget);
     expect(find.text('Flash'), findsOneWidget);
     expect(find.text('G7X'), findsOneWidget);
+
+    await tester.tap(find.text('Ramme'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ingen'), findsOneWidget);
+    for (final option in strokeThicknesses) {
+      expect(find.text(option.label), findsOneWidget);
+    }
+
+    // Picking a width turns the frame on and reveals the colour row.
+    expect(find.byType(ColorScrubStrip), findsNothing);
+    await tester.tap(find.text('Medium'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ColorScrubStrip), findsOneWidget);
   });
 
   testWidgets('editor adds and edits text overlays', (

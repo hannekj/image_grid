@@ -89,7 +89,8 @@ void main() {
           onGrainChanged: (_) {},
         ),
       ),
-      lessThan(180),
+      // Tallest state: frame on, so width and colour are both on screen.
+      lessThan(190),
     );
 
     expect(
