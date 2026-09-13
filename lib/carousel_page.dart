@@ -119,6 +119,7 @@ class _CarouselPageState extends State<CarouselPage> {
   int _spreadSeq = 0;
   int _slideSeq = 0;
   int? _selectedOverlayIndex;
+  int? _editingOverlayIndex;
   int? _selectedSlotIndex;
   _CarouselTool? _tool;
   late final List<CarouselSlide> _slides = [
@@ -760,6 +761,9 @@ class _CarouselPageState extends State<CarouselPage> {
       _selectedOverlayIndex = index;
       _imageFocused = false;
       _selectedSlotIndex = null;
+      if (_editingOverlayIndex != index) {
+        _editingOverlayIndex = null;
+      }
       _tool = _CarouselTool.text;
     });
   }
@@ -769,6 +773,7 @@ class _CarouselPageState extends State<CarouselPage> {
       _imageFocused = true;
       _selectedOverlayIndex = null;
       _selectedSlotIndex = null;
+      _editingOverlayIndex = null;
     });
   }
 
@@ -777,19 +782,22 @@ class _CarouselPageState extends State<CarouselPage> {
       _selectedSlotIndex = slotIndex;
       _imageFocused = true;
       _selectedOverlayIndex = null;
+      _editingOverlayIndex = null;
     });
   }
 
   void _clearFocus() {
     if (!_imageFocused &&
         _selectedOverlayIndex == null &&
-        _selectedSlotIndex == null) {
+        _selectedSlotIndex == null &&
+        _editingOverlayIndex == null) {
       return;
     }
     setState(() {
       _imageFocused = false;
       _selectedOverlayIndex = null;
       _selectedSlotIndex = null;
+      _editingOverlayIndex = null;
     });
   }
 
@@ -798,18 +806,64 @@ class _CarouselPageState extends State<CarouselPage> {
     if (index == null || index >= _current.overlays.length) return;
     final next = List<OverlayText>.from(_current.overlays);
     next[index] = overlay;
+    if (overlay.usesBeadLetters) {
+      setState(() => _editingOverlayIndex = null);
+    }
     _setCurrentOverlays(next, selected: index);
   }
 
   void _removeSelectedOverlay() {
     final index = _selectedOverlayIndex;
     if (index == null || index >= _current.overlays.length) return;
+    _removeOverlayAt(index);
+  }
+
+  void _removeOverlayAt(int index) {
+    if (index < 0 || index >= _current.overlays.length) return;
     _pushUndo();
     final next = List<OverlayText>.from(_current.overlays)..removeAt(index);
+    setState(() {
+      if (_editingOverlayIndex == index) {
+        _editingOverlayIndex = null;
+      } else if (_editingOverlayIndex != null &&
+          _editingOverlayIndex! > index) {
+        _editingOverlayIndex = _editingOverlayIndex! - 1;
+      }
+    });
     _setCurrentOverlays(
       next,
       selected: next.isEmpty ? null : index.clamp(0, next.length - 1),
     );
+  }
+
+  void _duplicateOverlay(int index) {
+    if (index < 0 || index >= _current.overlays.length) return;
+    _pushUndo();
+    final source = _current.overlays[index];
+    final copy = source.copyWith(
+      alignment: Alignment(
+        (source.alignment.x + 0.08).clamp(-1.0, 1.0),
+        (source.alignment.y + 0.08).clamp(-1.0, 1.0),
+      ),
+    );
+    final next = List<OverlayText>.from(_current.overlays)
+      ..insert(index + 1, copy);
+    setState(() {
+      _editingOverlayIndex = null;
+      _tool = _CarouselTool.text;
+    });
+    _setCurrentOverlays(next, selected: index + 1);
+  }
+
+  void _setOverlayValue(int index, String value) {
+    if (index < 0 || index >= _current.overlays.length) return;
+    final nextValue = value.trim().isEmpty
+        ? overlayDefaultValue(OverlayKind.text)
+        : value;
+    final next = List<OverlayText>.from(_current.overlays);
+    next[index] = next[index].copyWith(value: nextValue);
+    setState(() => _editingOverlayIndex = null);
+    _setCurrentOverlays(next, selected: index);
   }
 
   Future<void> _addPathText() async {
@@ -870,6 +924,10 @@ class _CarouselPageState extends State<CarouselPage> {
       _showMessage('Legg inn bilde først.');
       return;
     }
+    if (kind == OverlayKind.text) {
+      _placePlainTextOverlay();
+      return;
+    }
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -895,8 +953,35 @@ class _CarouselPageState extends State<CarouselPage> {
         styleFrom: styleFrom,
       ),
     );
+    setState(() {
+      _editingOverlayIndex = null;
+      _tool = _CarouselTool.text;
+    });
     _setCurrentOverlays(overlays, selected: overlays.length - 1);
-    setState(() => _tool = _CarouselTool.text);
+  }
+
+  void _placePlainTextOverlay() {
+    _pushUndo();
+    final overlays = List<OverlayText>.from(_current.overlays);
+    final styleFrom = _selectedOverlayIndex != null
+        ? overlays[_selectedOverlayIndex!]
+        : (overlays.isNotEmpty ? overlays.last : null);
+    overlays.add(
+      OverlayText.create(
+        value: overlayDefaultValue(OverlayKind.text),
+        index: overlays.length,
+        kind: OverlayKind.text,
+        styleFrom: styleFrom,
+      ),
+    );
+    final selected = overlays.length - 1;
+    setState(() {
+      _editingOverlayIndex = selected;
+      _imageFocused = false;
+      _selectedSlotIndex = null;
+      _tool = _CarouselTool.text;
+    });
+    _setCurrentOverlays(overlays, selected: selected);
   }
 
   Future<void> _addEditorial() async {
@@ -917,6 +1002,16 @@ class _CarouselPageState extends State<CarouselPage> {
     final overlays = _current.overlays;
     if (index < 0 || index >= overlays.length) return;
     final existing = overlays[index];
+    if (existing.kind == OverlayKind.text) {
+      setState(() {
+        _selectedOverlayIndex = index;
+        _editingOverlayIndex = index;
+        _imageFocused = false;
+        _selectedSlotIndex = null;
+        _tool = _CarouselTool.text;
+      });
+      return;
+    }
     if (_selectedOverlayIndex != index) {
       setState(() => _selectedOverlayIndex = index);
     }
@@ -1775,9 +1870,17 @@ class _CarouselPageState extends State<CarouselPage> {
         OverlayTextsLayer(
           overlays: slide.overlays,
           selectedIndex: index == _index ? _selectedOverlayIndex : null,
+          editingIndex: index == _index ? _editingOverlayIndex : null,
           exporting: _cleanView,
           onSelect: _selectOverlay,
           onEdit: _editOverlay,
+          onDuplicate: _duplicateOverlay,
+          onRemove: _removeOverlayAt,
+          onValueChanged: _setOverlayValue,
+          onEditingEnded: () {
+            if (_editingOverlayIndex == null) return;
+            setState(() => _editingOverlayIndex = null);
+          },
           onAlignmentChanged: (overlayIndex, alignment) {
             if (index != _index) return;
             final next = List<OverlayText>.from(slide.overlays);
@@ -2507,7 +2610,9 @@ class _CarouselPageState extends State<CarouselPage> {
                             onTap: _goTo,
                           ),
                         ),
-                      if (!_hasAnyImage && !_previewing)
+                      if (!_hasAnyImage &&
+                          !_previewing &&
+                          _current.overlays.isEmpty)
                         Center(
                           child: Padding(
                             padding: _workZonePadding,

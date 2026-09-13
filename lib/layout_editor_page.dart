@@ -120,6 +120,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   StrokeThickness _thickness = strokeThicknesses[1];
   final List<OverlayText> _overlayTexts = [];
   int? _selectedOverlayIndex;
+  int? _editingOverlayIndex;
   int? _selectedSlotIndex;
   bool _grain = false;
   PhotoFilter _filter = PhotoFilter.original;
@@ -515,6 +516,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     setState(() {
       _selectedOverlayIndex = index;
       _selectedSlotIndex = null;
+      if (_editingOverlayIndex != index) {
+        _editingOverlayIndex = null;
+      }
     });
   }
 
@@ -522,6 +526,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     setState(() {
       _selectedSlotIndex = index;
       _selectedOverlayIndex = null;
+      _editingOverlayIndex = null;
     });
   }
 
@@ -542,10 +547,15 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   void _clearFocus() {
-    if (_selectedOverlayIndex == null && _selectedSlotIndex == null) return;
+    if (_selectedOverlayIndex == null &&
+        _selectedSlotIndex == null &&
+        _editingOverlayIndex == null) {
+      return;
+    }
     setState(() {
       _selectedOverlayIndex = null;
       _selectedSlotIndex = null;
+      _editingOverlayIndex = null;
     });
   }
 
@@ -555,21 +565,18 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     setState(() {
       _overlayTexts[index] = overlay;
       _selectedOverlayIndex = index;
+      // Bead letters are drawn as widgets, not a TextField — leave edit mode
+      // so the canvas switches to the bead renderer immediately.
+      if (overlay.usesBeadLetters) {
+        _editingOverlayIndex = null;
+      }
     });
   }
 
   void _removeSelectedOverlay() {
     final index = _selectedOverlayIndex;
     if (index == null || index >= _overlayTexts.length) return;
-    _pushUndo();
-    setState(() {
-      _overlayTexts.removeAt(index);
-      if (_overlayTexts.isEmpty) {
-        _selectedOverlayIndex = null;
-      } else {
-        _selectedOverlayIndex = index.clamp(0, _overlayTexts.length - 1);
-      }
-    });
+    _removeOverlayAt(index);
   }
 
   Future<void> _addOverlayText() => _addOverlay(OverlayKind.text);
@@ -640,6 +647,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   Future<void> _addOverlay(OverlayKind kind) async {
+    if (kind == OverlayKind.text) {
+      _placePlainTextOverlay();
+      return;
+    }
+
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -667,7 +679,79 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         ),
       );
       _selectedOverlayIndex = _overlayTexts.length - 1;
+      _editingOverlayIndex = null;
       _tool = EditorTool.text;
+    });
+  }
+
+  void _placePlainTextOverlay() {
+    _pushUndo();
+    setState(() {
+      final styleFrom = _selectedOverlayIndex != null
+          ? _overlayTexts[_selectedOverlayIndex!]
+          : (_overlayTexts.isNotEmpty ? _overlayTexts.last : null);
+      _overlayTexts.add(
+        OverlayText.create(
+          value: overlayDefaultValue(OverlayKind.text),
+          index: _overlayTexts.length,
+          kind: OverlayKind.text,
+          styleFrom: styleFrom,
+        ),
+      );
+      _selectedOverlayIndex = _overlayTexts.length - 1;
+      _selectedSlotIndex = null;
+      _editingOverlayIndex = _selectedOverlayIndex;
+      _tool = EditorTool.text;
+    });
+  }
+
+  void _duplicateOverlay(int index) {
+    if (index < 0 || index >= _overlayTexts.length) return;
+    _pushUndo();
+    setState(() {
+      final source = _overlayTexts[index];
+      final copy = source.copyWith(
+        alignment: Alignment(
+          (source.alignment.x + 0.08).clamp(-1.0, 1.0),
+          (source.alignment.y + 0.08).clamp(-1.0, 1.0),
+        ),
+      );
+      _overlayTexts.insert(index + 1, copy);
+      _selectedOverlayIndex = index + 1;
+      _selectedSlotIndex = null;
+      _editingOverlayIndex = null;
+      _tool = EditorTool.text;
+    });
+  }
+
+  void _removeOverlayAt(int index) {
+    if (index < 0 || index >= _overlayTexts.length) return;
+    _pushUndo();
+    setState(() {
+      _overlayTexts.removeAt(index);
+      if (_editingOverlayIndex == index) {
+        _editingOverlayIndex = null;
+      } else if (_editingOverlayIndex != null &&
+          _editingOverlayIndex! > index) {
+        _editingOverlayIndex = _editingOverlayIndex! - 1;
+      }
+      if (_overlayTexts.isEmpty) {
+        _selectedOverlayIndex = null;
+      } else {
+        _selectedOverlayIndex = index.clamp(0, _overlayTexts.length - 1);
+      }
+    });
+  }
+
+  void _setOverlayValue(int index, String value) {
+    if (index < 0 || index >= _overlayTexts.length) return;
+    final next = value.trim().isEmpty
+        ? overlayDefaultValue(OverlayKind.text)
+        : value;
+    setState(() {
+      _overlayTexts[index] = _overlayTexts[index].copyWith(value: next);
+      _editingOverlayIndex = null;
+      _selectedOverlayIndex = index;
     });
   }
 
@@ -687,6 +771,15 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   Future<void> _editOverlayText(int index) async {
     if (index < 0 || index >= _overlayTexts.length) return;
     final existing = _overlayTexts[index];
+    if (existing.kind == OverlayKind.text) {
+      setState(() {
+        _selectedOverlayIndex = index;
+        _selectedSlotIndex = null;
+        _editingOverlayIndex = index;
+        _tool = EditorTool.text;
+      });
+      return;
+    }
     if (_selectedOverlayIndex != index) {
       setState(() => _selectedOverlayIndex = index);
     }
@@ -1371,9 +1464,21 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                     OverlayTextsLayer(
                                       overlays: _overlayTexts,
                                       selectedIndex: _selectedOverlayIndex,
+                                      editingIndex: _editingOverlayIndex,
                                       exporting: _cleanView,
                                       onSelect: _selectOverlayText,
                                       onEdit: _editOverlayText,
+                                      onDuplicate: _duplicateOverlay,
+                                      onRemove: _removeOverlayAt,
+                                      onValueChanged: _setOverlayValue,
+                                      onEditingEnded: () {
+                                        if (_editingOverlayIndex == null) {
+                                          return;
+                                        }
+                                        setState(
+                                          () => _editingOverlayIndex = null,
+                                        );
+                                      },
                                       onAlignmentChanged: (index, alignment) {
                                         setState(() {
                                           _overlayTexts[index] =
@@ -1442,7 +1547,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                           ),
                         ),
                       ),
-                      if (!_hasAnyImage && !_previewing)
+                      if (!_hasAnyImage &&
+                          !_previewing &&
+                          _overlayTexts.isEmpty)
                         Center(
                           child: AspectRatio(
                             aspectRatio: _format.aspectRatio,

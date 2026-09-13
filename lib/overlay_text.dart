@@ -40,6 +40,8 @@ class OverlayFont {
       'klipp' => GoogleFonts.londrinaSketch(fontWeight: FontWeight.w400),
       'roff' => GoogleFonts.rubikDirt(fontWeight: FontWeight.w400),
       'skisse' => GoogleFonts.cabinSketch(fontWeight: FontWeight.w400),
+      // Custom bead renderer — style is only a fallback for plain Text spots.
+      'perler' => GoogleFonts.dmSans(fontWeight: FontWeight.w700),
       _ => GoogleFonts.dmSans(fontWeight: FontWeight.w600),
     };
 
@@ -89,6 +91,7 @@ const overlayFonts = [
   OverlayFont(id: 'hand', label: 'Hånd'),
   OverlayFont(id: 'vibes', label: 'Vibes'),
   OverlayFont(id: 'beanie', label: 'Beanie'),
+  OverlayFont(id: 'perler', label: 'Perler'),
   OverlayFont(id: 'klipp', label: 'Klipp'),
   OverlayFont(id: 'roff', label: 'Røff'),
   OverlayFont(id: 'skisse', label: 'Skisse'),
@@ -329,7 +332,8 @@ String overlayDefaultValue(OverlayKind kind) {
     OverlayKind.coordinates => overlayCoordinatesLabel(),
     OverlayKind.location => '',
     OverlayKind.message => '',
-    OverlayKind.text || OverlayKind.pathText => '',
+    OverlayKind.pathText => '',
+    OverlayKind.text => 'Tekst',
   };
 }
 
@@ -376,8 +380,8 @@ Alignment overlayWidgetDefaultAlignment(OverlayKind kind) {
 
 Alignment overlayTextDefaultAlignment(int index) {
   const presets = [
+    Alignment(0, -0.28),
     Alignment(0, 0.72),
-    Alignment(0, -0.55),
     Alignment(0, 0.12),
     Alignment(-0.55, 0.35),
     Alignment(0.55, 0.35),
@@ -394,7 +398,7 @@ class OverlayText {
   OverlayText({
     required this.value,
     this.kind = OverlayKind.text,
-    this.color = Colors.white,
+    this.color = const Color(0xFF1E302A),
     this.fontSize = 24,
     this.fontId = 'sans',
     this.alignment = const Alignment(0, 0.72),
@@ -402,10 +406,7 @@ class OverlayText {
     this.rotation = 0,
     this.letterSpacing = 0,
     this.effect = OverlayTextEffect.none,
-    this.plateStyle = const OverlayPlateStyle(
-      tone: OverlayPlateTone.dark,
-      opacity: 0.55,
-    ),
+    this.plateStyle = const OverlayPlateStyle(tone: OverlayPlateTone.none),
     this.bubbleColor,
     this.bubbleOpacity,
     this.tailSide = BubbleTailSide.right,
@@ -553,17 +554,15 @@ class OverlayText {
     return OverlayText(
       value: value,
       kind: OverlayKind.text,
-      color: base?.color ?? Colors.white,
-      fontSize: base?.fontSize ?? 24,
+      color: base?.color ?? const Color(0xFF1E302A),
+      fontSize: base?.fontSize ?? 28,
       fontId: base?.fontId ?? 'sans',
       alignment: overlayTextDefaultAlignment(index),
       textAlign: base?.textAlign ?? TextAlign.center,
       effect: base?.effect ?? OverlayTextEffect.none,
-      plateStyle: base?.plateStyle ??
-          const OverlayPlateStyle(
-            tone: OverlayPlateTone.dark,
-            opacity: 0.55,
-          ),
+      plateStyle:
+          base?.plateStyle ??
+          const OverlayPlateStyle(tone: OverlayPlateTone.none),
     );
   }
 
@@ -602,6 +601,8 @@ class OverlayText {
   bool get isPathText => kind == OverlayKind.pathText;
 
   bool get isPlainText => kind == OverlayKind.text || isPathText;
+
+  bool get usesBeadLetters => fontId == 'perler' && kind == OverlayKind.text;
 
   bool get isPill =>
       isLocation ||

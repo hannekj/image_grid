@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_feedback.dart';
+import 'bead_text.dart';
 import 'chat_bubble.dart';
 import 'flip_clock.dart';
 import 'overlay_text.dart';
@@ -17,15 +18,25 @@ class OverlayTextsLayer extends StatelessWidget {
     required this.onAlignmentChanged,
     required this.onFontSizeChanged,
     required this.onRotationChanged,
+    this.editingIndex,
+    this.onDuplicate,
+    this.onRemove,
+    this.onValueChanged,
+    this.onEditingEnded,
     this.onPathChanged,
     this.onInteractionChanged,
   });
 
   final List<OverlayText> overlays;
   final int? selectedIndex;
+  final int? editingIndex;
   final bool exporting;
   final ValueChanged<int> onSelect;
   final ValueChanged<int> onEdit;
+  final ValueChanged<int>? onDuplicate;
+  final ValueChanged<int>? onRemove;
+  final void Function(int index, String value)? onValueChanged;
+  final VoidCallback? onEditingEnded;
   final void Function(int index, Alignment alignment) onAlignmentChanged;
   final void Function(int index, double fontSize) onFontSizeChanged;
   final void Function(int index, double rotation) onRotationChanged;
@@ -63,8 +74,15 @@ class OverlayTextsLayer extends StatelessWidget {
               key: ValueKey('overlay-text-$i'),
               overlay: overlays[i],
               interactive: !exporting && selected == i,
+              editing: !exporting && editingIndex == i,
               onSelect: () => onSelect(i),
               onEdit: () => onEdit(i),
+              onDuplicate: onDuplicate == null ? null : () => onDuplicate!(i),
+              onRemove: onRemove == null ? null : () => onRemove!(i),
+              onValueChanged: onValueChanged == null
+                  ? null
+                  : (value) => onValueChanged!(i, value),
+              onEditingEnded: onEditingEnded,
               onAlignmentChanged: (alignment) =>
                   onAlignmentChanged(i, alignment),
               onFontSizeChanged: (fontSize) => onFontSizeChanged(i, fontSize),
@@ -86,6 +104,11 @@ class OverlayTextLayer extends StatefulWidget {
     required this.onEdit,
     required this.onSelect,
     this.interactive = true,
+    this.editing = false,
+    this.onDuplicate,
+    this.onRemove,
+    this.onValueChanged,
+    this.onEditingEnded,
     this.onInteractionChanged,
   });
 
@@ -96,6 +119,11 @@ class OverlayTextLayer extends StatefulWidget {
   final VoidCallback onEdit;
   final VoidCallback onSelect;
   final bool interactive;
+  final bool editing;
+  final VoidCallback? onDuplicate;
+  final VoidCallback? onRemove;
+  final ValueChanged<String>? onValueChanged;
+  final VoidCallback? onEditingEnded;
   final ValueChanged<bool>? onInteractionChanged;
 
   static const _handleSize = 16.0;
@@ -109,6 +137,8 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
   bool _dragging = false;
   bool _snapX = false;
   bool _snapY = false;
+  late final TextEditingController _editController;
+  late final FocusNode _editFocus;
 
   Alignment _snap(Alignment raw) {
     final willSnapX = raw.x.abs() < OverlayTextLayer._snapThreshold;
@@ -138,16 +168,76 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _editController = TextEditingController(text: widget.overlay.value);
+    _editFocus = FocusNode();
+    if (widget.editing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _editFocus.requestFocus();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant OverlayTextLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.editing && !oldWidget.editing) {
+      _editController.text = widget.overlay.value;
+      _editController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _editController.text.length,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _editFocus.requestFocus();
+      });
+    }
+    if (!widget.editing && oldWidget.editing) {
+      _editFocus.unfocus();
+    }
+    if (!widget.editing &&
+        widget.overlay.value != oldWidget.overlay.value &&
+        widget.overlay.value != _editController.text) {
+      _editController.text = widget.overlay.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _editController.dispose();
+    _editFocus.dispose();
+    super.dispose();
+  }
+
+  void _commitEdit() {
+    widget.onValueChanged?.call(_editController.text);
+    widget.onEditingEnded?.call();
+  }
+
+  void _requestEdit() {
+    if (widget.overlay.kind == OverlayKind.text) {
+      widget.onEdit();
+    } else {
+      widget.onEdit();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final overlay = widget.overlay;
     final interactive = widget.interactive;
+    final editing = widget.editing &&
+        overlay.kind == OverlayKind.text &&
+        !overlay.usesBeadLetters;
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final contentMaxWidth = constraints.maxWidth *
+            (overlay.isBubble ? 0.75 : 0.86);
         final content = ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: constraints.maxWidth *
-                (overlay.isBubble ? 0.75 : 0.86),
+            minWidth: overlay.isBubble ? 0 : 48,
+            maxWidth: contentMaxWidth,
           ),
           child: overlay.isBubble
               ? _ChatBubbleContent(
@@ -164,7 +254,18 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                       horizontal: overlay.plateStyle.hasPlate ? 12 : 4,
                       vertical: overlay.plateStyle.hasPlate ? 8 : 2,
                     ),
-                    child: _OverlayLabel(overlay: overlay),
+                    child: editing
+                        ? _InlineTextEditor(
+                            controller: _editController,
+                            focusNode: _editFocus,
+                            overlay: overlay,
+                            onSubmit: _commitEdit,
+                          )
+                        : _OverlayLabel(
+                            overlay: overlay,
+                            maxWidth: contentMaxWidth -
+                                (overlay.plateStyle.hasPlate ? 24 : 8),
+                          ),
                   ),
                 ),
         );
@@ -174,11 +275,15 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
             : overlay.isPill
                 ? 18.0
                 : 4.0;
-        // Flip clock is a wide row of flaps — a pill ring draws semicircles
-        // on the sides. Corner handles already show selection.
         final showSelectionRing = interactive &&
             !overlay.isTime &&
             (overlay.isBubble || overlay.plateStyle.hasPlate);
+        final showChrome = interactive && !editing;
+        final showActionPill = showChrome &&
+            !overlay.isBubble &&
+            (widget.onRemove != null ||
+                widget.onDuplicate != null ||
+                overlay.kind == OverlayKind.text);
 
         return Stack(
           fit: StackFit.expand,
@@ -202,15 +307,19 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                   clipBehavior: Clip.none,
                   children: [
                     GestureDetector(
-                      onTap: interactive ? null : widget.onSelect,
-                      onDoubleTap: widget.onEdit,
-                      onPanStart: interactive
+                      onTap: interactive
+                          ? null
+                          : widget.onSelect,
+                      onDoubleTap: interactive || editing
+                          ? _requestEdit
+                          : null,
+                      onPanStart: interactive && !editing
                           ? (_) {
                               _startInteraction();
                               setState(() => _dragging = true);
                             }
                           : null,
-                      onPanUpdate: interactive
+                      onPanUpdate: interactive && !editing
                           ? (details) {
                               final next = _snap(
                                 Alignment(
@@ -228,8 +337,11 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                               widget.onAlignmentChanged(next);
                             }
                           : null,
-                      onPanEnd: interactive ? (_) => _endDrag() : null,
-                      onPanCancel: interactive ? _endDrag : null,
+                      onPanEnd: interactive && !editing
+                          ? (_) => _endDrag()
+                          : null,
+                      onPanCancel:
+                          interactive && !editing ? _endDrag : null,
                       child: content,
                     ),
                     if (showSelectionRing)
@@ -247,15 +359,40 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                           ),
                         ),
                       ),
-                    if (interactive && !overlay.isBubble)
+                    if (showActionPill)
                       Positioned(
-                        top: -28,
+                        top: -40,
                         left: 0,
                         right: 0,
-                        child: Center(
+                        height: 40,
+                        // Pill is wider than short/empty text; allow it to
+                        // hang outside the selection without a RenderFlex
+                        // overflow stripe.
+                        child: OverflowBox(
+                          maxWidth: double.infinity,
+                          alignment: Alignment.center,
+                          child: _OverlayActionPill(
+                            onDelete: widget.onRemove,
+                            onDuplicate: widget.onDuplicate,
+                            onEdit: overlay.kind == OverlayKind.text
+                                ? _requestEdit
+                                : null,
+                          ),
+                        ),
+                      ),
+                    if (showChrome && !overlay.isBubble)
+                      Positioned(
+                        bottom: -36,
+                        left: 0,
+                        right: 0,
+                        height: 36,
+                        child: OverflowBox(
+                          maxWidth: double.infinity,
+                          alignment: Alignment.center,
                           child: _RotateHandle(
                             onPanStart: _startInteraction,
-                            onPanEnd: () => widget.onInteractionChanged?.call(false),
+                            onPanEnd: () =>
+                                widget.onInteractionChanged?.call(false),
                             onUpdate: (delta) {
                               widget.onRotationChanged(
                                 overlay.rotation + delta * 0.015,
@@ -264,7 +401,7 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                           ),
                         ),
                       ),
-                    if (interactive)
+                    if (showChrome)
                       ..._Corner.values.map((corner) {
                         return Positioned(
                           left: corner.isLeft
@@ -281,7 +418,8 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                               : -OverlayTextLayer._handleSize / 2,
                           child: _ResizeHandle(
                             onPanStart: _startInteraction,
-                            onPanEnd: () => widget.onInteractionChanged?.call(false),
+                            onPanEnd: () =>
+                                widget.onInteractionChanged?.call(false),
                             onUpdate: (delta) {
                               final next = (overlay.fontSize +
                                       _sizeDelta(delta, corner))
@@ -315,13 +453,145 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
   }
 }
 
-class _OverlayLabel extends StatelessWidget {
-  const _OverlayLabel({required this.overlay});
+class _InlineTextEditor extends StatelessWidget {
+  const _InlineTextEditor({
+    required this.controller,
+    required this.focusNode,
+    required this.overlay,
+    required this.onSubmit,
+  });
 
+  final TextEditingController controller;
+  final FocusNode focusNode;
   final OverlayText overlay;
+  final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
+    // Beads can't edit as TextField glyphs — use a plain field while typing.
+    final style = overlayFontById(
+      overlay.usesBeadLetters ? 'sans' : overlay.fontId,
+    ).style(
+      color: overlay.color,
+      fontSize: overlay.fontSize,
+      height: 1.25,
+    );
+
+    return IntrinsicWidth(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 48),
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          autofocus: true,
+          maxLines: null,
+          textAlign: overlay.textAlign,
+          style: style,
+          cursorColor: overlay.color,
+          showCursor: true,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+          ),
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => onSubmit(),
+        ),
+      ),
+    );
+  }
+}
+
+class _OverlayActionPill extends StatelessWidget {
+  const _OverlayActionPill({
+    this.onDelete,
+    this.onDuplicate,
+    this.onEdit,
+  });
+
+  final VoidCallback? onDelete;
+  final VoidCallback? onDuplicate;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 3,
+      shadowColor: Colors.black26,
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (onDelete != null)
+              _OverlayActionIcon(
+                icon: Icons.delete_outline,
+                tooltip: 'Slett',
+                onTap: onDelete!,
+              ),
+            if (onDuplicate != null)
+              _OverlayActionIcon(
+                icon: Icons.control_point_duplicate,
+                tooltip: 'Dupliser',
+                onTap: onDuplicate!,
+              ),
+            if (onEdit != null)
+              _OverlayActionIcon(
+                icon: Icons.edit_outlined,
+                tooltip: 'Rediger',
+                onTap: onEdit!,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OverlayActionIcon extends StatelessWidget {
+  const _OverlayActionIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onTap,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+      icon: Icon(icon, size: 18, color: const Color(0xFF2C3028)),
+    );
+  }
+}
+
+class _OverlayLabel extends StatelessWidget {
+  const _OverlayLabel({required this.overlay, this.maxWidth});
+
+  final OverlayText overlay;
+  final double? maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    if (overlay.usesBeadLetters) {
+      return BeadText(
+        text: overlay.value,
+        color: overlay.color,
+        fontSize: overlay.fontSize,
+        textAlign: overlay.textAlign,
+        maxWidth: maxWidth,
+      );
+    }
+
     final fill = Text(
       overlay.value,
       textAlign: overlay.textAlign,

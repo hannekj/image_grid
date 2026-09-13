@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
+import 'bead_text.dart';
 import 'color_scrub_strip.dart';
 import 'editor_chrome.dart';
 import 'overlay_text.dart';
@@ -391,13 +392,34 @@ class _FontChoice extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Text(
-            font.label,
-            style: font.style(
-              fontSize: 13,
-              color: selected ? AppTheme.ink : AppTheme.muted,
-            ),
-          ),
+          child: font.id == 'perler'
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    BeadText(
+                      text: 'A',
+                      color: selected ? AppTheme.ink : AppTheme.muted,
+                      fontSize: 10,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      font.label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w500,
+                        color: selected ? AppTheme.ink : AppTheme.muted,
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  font.label,
+                  style: font.style(
+                    fontSize: 13,
+                    color: selected ? AppTheme.ink : AppTheme.muted,
+                  ),
+                ),
         ),
       ),
     );

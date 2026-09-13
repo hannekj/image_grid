@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
+import 'bead_text.dart';
 import 'overlay_text.dart';
 
 class PlateScrubStrip extends StatefulWidget {
@@ -153,14 +154,20 @@ class _PlatePreview extends StatelessWidget {
                     horizontal: style.hasPlate ? 6 : 2,
                     vertical: style.hasPlate ? 3 : 1,
                   ),
-                  child: Text(
-                    'Aa',
-                    style: overlayFontById(fontId).style(
-                      color: textColor,
-                      fontSize: 12,
-                      height: 1,
-                    ),
-                  ),
+                  child: fontId == 'perler'
+                      ? BeadText(
+                          text: 'Aa',
+                          color: textColor,
+                          fontSize: 10,
+                        )
+                      : Text(
+                          'Aa',
+                          style: overlayFontById(fontId).style(
+                            color: textColor,
+                            fontSize: 12,
+                            height: 1,
+                          ),
+                        ),
                 ),
               ),
             ),
