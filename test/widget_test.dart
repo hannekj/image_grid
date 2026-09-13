@@ -50,6 +50,7 @@ void main() {
     expect(find.text('Format'), findsOneWidget);
     expect(find.text('Stil'), findsOneWidget);
     expect(find.text('Tekst'), findsOneWidget);
+    expect(find.text('Mer'), findsOneWidget);
     expect(find.byTooltip('Del'), findsOneWidget);
     expect(find.byTooltip('Angre'), findsOneWidget);
     expect(find.byTooltip('Gjør om'), findsOneWidget);

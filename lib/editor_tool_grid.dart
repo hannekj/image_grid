@@ -30,6 +30,11 @@ const gridToolDefinitions = [
     label: 'Stil',
   ),
   EditorToolDefinition(id: 'text', icon: Icons.title, label: 'Tekst'),
+  EditorToolDefinition(
+    id: 'more',
+    icon: Icons.more_horiz_rounded,
+    label: 'Mer',
+  ),
 ];
 
 /// Carousel editor tools.
@@ -50,6 +55,11 @@ const carouselToolDefinitions = [
     label: 'Stil',
   ),
   EditorToolDefinition(id: 'text', icon: Icons.title, label: 'Tekst'),
+  EditorToolDefinition(
+    id: 'more',
+    icon: Icons.more_horiz_rounded,
+    label: 'Mer',
+  ),
 ];
 
 /// Floating dock at the bottom of an editor.

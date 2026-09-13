@@ -23,7 +23,6 @@ class OverlayComposePanel extends StatefulWidget {
     required this.onAddTime,
     required this.onAddWeather,
     this.onAddPageNumber,
-    this.onAddPathText,
     required this.onAddTemplate,
     required this.onChanged,
     required this.onRemove,
@@ -42,7 +41,6 @@ class OverlayComposePanel extends StatefulWidget {
   final VoidCallback onAddTime;
   final VoidCallback onAddWeather;
   final VoidCallback? onAddPageNumber;
-  final VoidCallback? onAddPathText;
   final VoidCallback onAddTemplate;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
@@ -109,7 +107,6 @@ class _OverlayComposePanelState extends State<OverlayComposePanel> {
               selectedIndex: widget.selectedIndex,
               onSelect: widget.onSelect,
               onAddText: widget.onAddText,
-              onAddPathText: widget.onAddPathText,
               onChanged: widget.onChanged,
               onRemove: widget.onRemove,
               onEdit: widget.onEdit,

@@ -20,14 +20,12 @@ class OverlayTextControls extends StatefulWidget {
     required this.onChanged,
     required this.onRemove,
     required this.onEdit,
-    this.onAddPathText,
   });
 
   final List<OverlayText> overlays;
   final int? selectedIndex;
   final ValueChanged<int> onSelect;
   final VoidCallback onAddText;
-  final VoidCallback? onAddPathText;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
   final ValueChanged<int> onEdit;
@@ -107,12 +105,6 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
               ),
             ),
           ),
-          if (widget.onAddPathText != null)
-            TextButton.icon(
-              onPressed: widget.onAddPathText,
-              icon: const Icon(Icons.gesture, size: 18),
-              label: const Text('Tegn'),
-            ),
         ],
       );
     }
@@ -132,12 +124,6 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
             onPressed: widget.onAddText,
             icon: const Icon(Icons.add),
           ),
-          if (widget.onAddPathText != null)
-            IconButton(
-              tooltip: 'Tegn tekst',
-              onPressed: widget.onAddPathText,
-              icon: const Icon(Icons.gesture),
-            ),
         ],
       );
     }
@@ -183,12 +169,6 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
               icon: Icons.add,
               onPressed: widget.onAddText,
             ),
-            if (widget.onAddPathText != null)
-              _ActionIcon(
-                tooltip: 'Tegn tekst',
-                icon: Icons.gesture,
-                onPressed: widget.onAddPathText!,
-              ),
             if (!current.isPathText)
               _ActionIcon(
                 tooltip: 'Roter tekst',

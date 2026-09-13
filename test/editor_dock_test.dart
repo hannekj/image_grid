@@ -8,6 +8,7 @@ import 'package:image_grid/frame_style.dart';
 import 'package:image_grid/grid_layout.dart';
 import 'package:image_grid/layout_strip.dart';
 import 'package:image_grid/look_panel.dart';
+import 'package:image_grid/more_panel.dart';
 import 'package:image_grid/overlay_compose_panel.dart';
 
 Widget _harness({required String toolId, required Widget? panel}) {
@@ -101,7 +102,6 @@ void main() {
           selectedIndex: null,
           onSelect: (_) {},
           onAddText: () {},
-          onAddPathText: () {},
           onAddMessage: () {},
           onAddLocation: () {},
           onAddCoordinates: () {},
@@ -112,6 +112,18 @@ void main() {
           onChanged: (_) {},
           onRemove: () {},
           onEdit: (_) {},
+        ),
+      ),
+      lessThan(180),
+    );
+    expect(
+      await measure(
+        'more',
+        MorePanel(
+          enabled: true,
+          onSaveDraft: () {},
+          onSaveToPhotos: () {},
+          onAddPathText: () {},
         ),
       ),
       lessThan(180),

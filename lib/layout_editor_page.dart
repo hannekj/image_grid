@@ -33,6 +33,7 @@ import 'image_slot.dart';
 import 'instagram_preview_chrome.dart';
 import 'layout_strip.dart';
 import 'look_panel.dart';
+import 'more_panel.dart';
 import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_dialog.dart';
@@ -1600,6 +1601,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       EditorTool.format => 'format',
       EditorTool.look => 'look',
       EditorTool.text => 'text',
+      EditorTool.more => 'more',
       null => null,
     };
   }
@@ -1619,6 +1621,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             _selectedOverlayIndex = _overlayTexts.length - 1;
           }
         });
+      case 'more':
+        setState(() => _tool = EditorTool.more);
     }
   }
 
@@ -1676,7 +1680,6 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlayText,
           onAddText: _addOverlayText,
-          onAddPathText: _addPathText,
           onAddMessage: _addOverlayMessage,
           onAddLocation: _addOverlayLocation,
           onAddCoordinates: _addOverlayCoordinates,
@@ -1693,6 +1696,20 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                   _overlayTexts[_selectedOverlayIndex!].isWidgetOverlay)
               ? OverlayComposeTab.sticker
               : OverlayComposeTab.text,
+        );
+      case EditorTool.more:
+        return MorePanel(
+          enabled: !_exporting && !_previewing && _hasAnyImage,
+          onSaveDraft: () async {
+            await _saveDraft();
+            await AppFeedback.success();
+            if (mounted) _showMessage(AppCopy.draftSaved);
+          },
+          onSaveToPhotos: _downloadFrame,
+          onAddPathText: () {
+            setState(() => _tool = null);
+            _addPathText();
+          },
         );
       case null:
         return const SizedBox.shrink();

@@ -360,7 +360,7 @@ String overlayKindLabel(OverlayKind kind) {
     OverlayKind.time => 'Klokke',
     OverlayKind.weather => 'Vær',
     OverlayKind.pageNumber => 'Side',
-    OverlayKind.pathText => 'Tegn tekst',
+    OverlayKind.pathText => 'Tegnet tekst',
     OverlayKind.text => 'Tekst',
   };
 }

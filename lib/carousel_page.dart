@@ -40,6 +40,7 @@ import 'layout_grid_body.dart';
 import 'layout_strip.dart';
 import 'layout_slot_pool.dart';
 import 'look_panel.dart';
+import 'more_panel.dart';
 import 'overlay_compose_panel.dart';
 import 'overlay_text.dart';
 import 'overlay_text_dialog.dart';
@@ -55,7 +56,7 @@ import 'strawberry_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
 
-enum _CarouselTool { slides, format, look, text }
+enum _CarouselTool { slides, format, look, text, more }
 
 class _CarouselSnapshot {
   const _CarouselSnapshot({
@@ -2284,6 +2285,7 @@ class _CarouselPageState extends State<CarouselPage> {
       _CarouselTool.format => 'format',
       _CarouselTool.look => 'look',
       _CarouselTool.text => 'text',
+      _CarouselTool.more => 'more',
       null => null,
     };
   }
@@ -2312,6 +2314,12 @@ class _CarouselPageState extends State<CarouselPage> {
           if (_current.overlays.isNotEmpty && _selectedOverlayIndex == null) {
             _selectedOverlayIndex = _current.overlays.length - 1;
           }
+        });
+      case 'more':
+        setState(() {
+          _tool = _CarouselTool.more;
+          _pickingTemplate = false;
+          _pickingGridLayout = false;
         });
     }
   }
@@ -2513,7 +2521,6 @@ class _CarouselPageState extends State<CarouselPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlay,
           onAddText: () => _addOverlay(OverlayKind.text),
-          onAddPathText: _addPathText,
           onAddMessage: () => _addOverlay(OverlayKind.message),
           onAddLocation: () => _addOverlay(OverlayKind.location),
           onAddCoordinates: () => _addOverlay(OverlayKind.coordinates),
@@ -2531,6 +2538,20 @@ class _CarouselPageState extends State<CarouselPage> {
                   _current.overlays[_selectedOverlayIndex!].isWidgetOverlay)
               ? OverlayComposeTab.sticker
               : OverlayComposeTab.text,
+        );
+      case _CarouselTool.more:
+        return MorePanel(
+          enabled: !_exporting && !_previewing && _hasAnyImage,
+          onSaveDraft: () async {
+            await _saveDraft();
+            await AppFeedback.success();
+            if (mounted) _showMessage(AppCopy.draftSaved);
+          },
+          onSaveToPhotos: _downloadAll,
+          onAddPathText: () {
+            setState(() => _tool = null);
+            _addPathText();
+          },
         );
       case null:
         return const SizedBox.shrink();
