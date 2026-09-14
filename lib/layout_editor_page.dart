@@ -1618,12 +1618,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       case 'look':
         setState(() => _tool = EditorTool.look);
       case 'text':
-        setState(() {
-          _tool = EditorTool.text;
-          if (_overlayTexts.isNotEmpty && _selectedOverlayIndex == null) {
-            _selectedOverlayIndex = _overlayTexts.length - 1;
-          }
-        });
+        _placePlainTextOverlay();
       case 'more':
         setState(() => _tool = EditorTool.more);
     }
@@ -1683,10 +1678,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlayText,
           onAddText: _addOverlayText,
-          onAddTemplate: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
-          onEdit: _editOverlayText,
         );
       case EditorTool.more:
         return MorePanel(
@@ -1700,6 +1693,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           onAddPathText: () {
             setState(() => _tool = null);
             _addPathText();
+          },
+          onAddTemplate: () {
+            setState(() => _tool = null);
+            _addEditorial();
           },
           overlays: _overlayTexts,
           selectedIndex: _selectedOverlayIndex,

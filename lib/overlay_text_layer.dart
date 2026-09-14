@@ -600,17 +600,32 @@ class _OverlayLabel extends StatelessWidget {
 
     if (overlay.effect != OverlayTextEffect.outline) return fill;
 
+    final alignment = switch (overlay.textAlign) {
+      TextAlign.left || TextAlign.start => Alignment.centerLeft,
+      TextAlign.right || TextAlign.end => Alignment.centerRight,
+      _ => Alignment.center,
+    };
+
+    // Dual stroke (dark + light) so the edge stays readable on both
+    // cream canvas and busy photos.
     return Stack(
-      alignment: switch (overlay.textAlign) {
-        TextAlign.left || TextAlign.start => Alignment.centerLeft,
-        TextAlign.right || TextAlign.end => Alignment.centerRight,
-        _ => Alignment.center,
-      },
+      alignment: alignment,
       children: [
         Text(
           overlay.value,
           textAlign: overlay.textAlign,
-          style: overlay.outlineStrokeStyle(),
+          style: overlay.outlineStrokeStyle(
+            strokeColor: const Color(0xFF111111),
+            widthScale: 1.35,
+          ),
+        ),
+        Text(
+          overlay.value,
+          textAlign: overlay.textAlign,
+          style: overlay.outlineStrokeStyle(
+            strokeColor: Colors.white,
+            widthScale: 1.0,
+          ),
         ),
         fill,
       ],

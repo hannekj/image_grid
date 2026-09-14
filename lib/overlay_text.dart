@@ -649,13 +649,13 @@ class OverlayText {
       OverlayTextEffect.shadow => base.copyWith(
           shadows: const [
             Shadow(
-              color: Color(0x99000000),
-              blurRadius: 10,
-              offset: Offset(0, 2),
+              color: Color(0xCC000000),
+              blurRadius: 14,
+              offset: Offset(0, 3),
             ),
             Shadow(
-              color: Color(0x66000000),
-              blurRadius: 2,
+              color: Color(0x99000000),
+              blurRadius: 4,
               offset: Offset(0, 1),
             ),
           ],
@@ -664,8 +664,8 @@ class OverlayText {
     };
   }
 
-  TextStyle outlineStrokeStyle() {
-    final strokeWidth = (fontSize * 0.09).clamp(1.5, 5.0);
+  TextStyle outlineStrokeStyle({required Color strokeColor, required double widthScale}) {
+    final strokeWidth = (fontSize * 0.11 * widthScale).clamp(2.0, 7.0);
     return overlayFontById(fontId).style(
       fontSize: fontSize,
       height: 1.25,
@@ -675,7 +675,7 @@ class OverlayText {
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
         ..strokeJoin = StrokeJoin.round
-        ..color = overlayContrastColor(color),
+        ..color = strokeColor,
     );
   }
 

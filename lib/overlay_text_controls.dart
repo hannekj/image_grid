@@ -19,7 +19,6 @@ class OverlayTextControls extends StatefulWidget {
     required this.onAddText,
     required this.onChanged,
     required this.onRemove,
-    required this.onEdit,
   });
 
   final List<OverlayText> overlays;
@@ -28,7 +27,6 @@ class OverlayTextControls extends StatefulWidget {
   final VoidCallback onAddText;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
-  final ValueChanged<int> onEdit;
 
   @override
   State<OverlayTextControls> createState() => _OverlayTextControlsState();
@@ -36,11 +34,6 @@ class OverlayTextControls extends StatefulWidget {
 
 class _OverlayTextControlsState extends State<OverlayTextControls> {
   _TextSection _section = _TextSection.color;
-
-  List<int> get _textIndexes => [
-        for (var i = 0; i < widget.overlays.length; i++)
-          if (widget.overlays[i].isPlainText) i,
-      ];
 
   OverlayText? get _current {
     final index = widget.selectedIndex;
@@ -85,42 +78,21 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
 
   @override
   Widget build(BuildContext context) {
-    if (_textIndexes.isEmpty) {
-      return Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: widget.onAddText,
-              child: const Row(
-                children: [
-                  Icon(Icons.title, size: 20, color: AppTheme.muted),
-                  SizedBox(width: EditorChrome.spaceSm),
-                  Expanded(
-                    child: Text(
-                      'Legg til tekst',
-                      style: TextStyle(fontSize: 13, color: AppTheme.muted),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
     final current = _current;
     if (current == null) {
+      // Text is auto-placed when opening the tool; this is only a brief
+      // fallback while selection catches up, or when a non-text overlay
+      // is selected.
       return Row(
         children: [
           const Expanded(
             child: Text(
-              'Velg tekst på bildet',
+              'Juster tekst på bildet',
               style: TextStyle(fontSize: 13, color: AppTheme.muted),
             ),
           ),
           IconButton(
-            tooltip: 'Legg til tekst',
+            tooltip: 'Ny tekst',
             onPressed: widget.onAddText,
             icon: const Icon(Icons.add),
           ),
@@ -160,21 +132,10 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
               ),
             ),
             _ActionIcon(
-              tooltip: 'Rediger tekst',
-              icon: Icons.edit_outlined,
-              onPressed: () => widget.onEdit(widget.selectedIndex!),
-            ),
-            _ActionIcon(
-              tooltip: 'Legg til tekst',
+              tooltip: 'Ny tekst',
               icon: Icons.add,
               onPressed: widget.onAddText,
             ),
-            if (!current.isPathText)
-              _ActionIcon(
-                tooltip: 'Roter tekst',
-                icon: Icons.rotate_right,
-                onPressed: _rotateSelected,
-              ),
             _ActionIcon(
               tooltip: 'Fjern',
               icon: Icons.close,
@@ -225,8 +186,12 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                 onChanged: (size) =>
                     widget.onChanged(current.copyWith(fontSize: size)),
               ),
-            _TextSection.style => Row(
-                children: [
+            _TextSection.style => SizedBox(
+                height: EditorActionChip.height,
+                width: double.infinity,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
                     _IconToggle(
                       tooltip: 'Venstre',
                       icon: Icons.format_align_left,
@@ -251,33 +216,45 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                         current.withTextAlign(TextAlign.right),
                       ),
                     ),
-                    const SizedBox(width: EditorChrome.spaceMd),
-                    _IconToggle(
-                      tooltip: 'Ingen effekt',
-                      icon: Icons.title,
-                      selected: current.effect == OverlayTextEffect.none,
-                      onTap: () => widget.onChanged(
-                        current.copyWith(effect: OverlayTextEffect.none),
+                    if (!current.usesBeadLetters) ...[
+                      const SizedBox(width: EditorChrome.spaceMd),
+                      _IconToggle(
+                        tooltip: 'Ingen effekt',
+                        icon: Icons.title,
+                        selected: current.effect == OverlayTextEffect.none,
+                        onTap: () => widget.onChanged(
+                          current.copyWith(effect: OverlayTextEffect.none),
+                        ),
                       ),
-                    ),
-                    _IconToggle(
-                      tooltip: 'Skygge',
-                      icon: Icons.blur_on,
-                      selected: current.effect == OverlayTextEffect.shadow,
-                      onTap: () => widget.onChanged(
-                        current.copyWith(effect: OverlayTextEffect.shadow),
+                      _IconToggle(
+                        tooltip: 'Skygge',
+                        icon: Icons.blur_on,
+                        selected: current.effect == OverlayTextEffect.shadow,
+                        onTap: () => widget.onChanged(
+                          current.copyWith(effect: OverlayTextEffect.shadow),
+                        ),
                       ),
-                    ),
-                    _IconToggle(
-                      tooltip: 'Kant',
-                      icon: Icons.border_style,
-                      selected: current.effect == OverlayTextEffect.outline,
-                      onTap: () => widget.onChanged(
-                        current.copyWith(effect: OverlayTextEffect.outline),
+                      _IconToggle(
+                        tooltip: 'Kant',
+                        icon: Icons.border_style,
+                        selected: current.effect == OverlayTextEffect.outline,
+                        onTap: () => widget.onChanged(
+                          current.copyWith(effect: OverlayTextEffect.outline),
+                        ),
                       ),
-                    ),
+                    ],
+                    if (!current.isPathText) ...[
+                      const SizedBox(width: EditorChrome.spaceMd),
+                      _IconToggle(
+                        tooltip: 'Roter',
+                        icon: Icons.rotate_right,
+                        selected: false,
+                        onTap: _rotateSelected,
+                      ),
+                    ],
                   ],
                 ),
+              ),
           },
         ),
       ],

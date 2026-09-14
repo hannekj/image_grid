@@ -13,6 +13,7 @@ class MorePanel extends StatefulWidget {
     required this.onSaveDraft,
     required this.onSaveToPhotos,
     required this.onAddPathText,
+    required this.onAddTemplate,
     required this.overlays,
     required this.selectedIndex,
     required this.onSelect,
@@ -33,6 +34,7 @@ class MorePanel extends StatefulWidget {
   final VoidCallback onSaveDraft;
   final VoidCallback onSaveToPhotos;
   final VoidCallback onAddPathText;
+  final VoidCallback onAddTemplate;
   final List<OverlayText> overlays;
   final int? selectedIndex;
   final ValueChanged<int> onSelect;
@@ -106,7 +108,7 @@ class _MorePanelState extends State<MorePanel> {
       height: 68,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: 4,
+        itemCount: 5,
         separatorBuilder: (context, index) => const SizedBox(width: 14),
         itemBuilder: (context, index) {
           return switch (index) {
@@ -121,6 +123,11 @@ class _MorePanelState extends State<MorePanel> {
                 onTap: widget.onAddPathText,
               ),
             2 => _MoreTile(
+                icon: Icons.auto_awesome_outlined,
+                label: 'Mal',
+                onTap: widget.onAddTemplate,
+              ),
+            3 => _MoreTile(
                 icon: Icons.bookmark_add_outlined,
                 label: AppCopy.saveDraft,
                 onTap: widget.enabled ? widget.onSaveDraft : null,

@@ -2312,14 +2312,9 @@ class _CarouselPageState extends State<CarouselPage> {
           _pickingGridLayout = false;
         });
       case 'text':
-        setState(() {
-          _tool = _CarouselTool.text;
-          _pickingTemplate = false;
-          _pickingGridLayout = false;
-          if (_current.overlays.isNotEmpty && _selectedOverlayIndex == null) {
-            _selectedOverlayIndex = _current.overlays.length - 1;
-          }
-        });
+        _pickingTemplate = false;
+        _pickingGridLayout = false;
+        _placePlainTextOverlay();
       case 'more':
         setState(() {
           _tool = _CarouselTool.more;
@@ -2526,10 +2521,8 @@ class _CarouselPageState extends State<CarouselPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlay,
           onAddText: () => _addOverlay(OverlayKind.text),
-          onAddTemplate: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
-          onEdit: _editOverlay,
         );
       case _CarouselTool.more:
         return MorePanel(
@@ -2543,6 +2536,10 @@ class _CarouselPageState extends State<CarouselPage> {
           onAddPathText: () {
             setState(() => _tool = null);
             _addPathText();
+          },
+          onAddTemplate: () {
+            setState(() => _tool = null);
+            _addEditorial();
           },
           overlays: _current.overlays,
           selectedIndex: _selectedOverlayIndex,

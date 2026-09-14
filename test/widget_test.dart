@@ -104,10 +104,8 @@ void main() {
 
     await tester.tap(find.text('Tekst'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Legg til tekst'));
-    await tester.pumpAndSettle();
 
-    // Plain text is placed on the canvas immediately (no dialog).
+    // Plain text is placed on the canvas immediately.
     expect(find.text('Tekst'), findsWidgets);
     expect(find.byType(TextField), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Lofoten');
@@ -119,8 +117,8 @@ void main() {
     expect(find.text('Plate'), findsOneWidget);
     expect(find.text('Font'), findsOneWidget);
     expect(find.text('Stil'), findsWidgets);
-    expect(find.byTooltip('Legg til tekst'), findsOneWidget);
-    expect(find.byTooltip('Rediger'), findsWidgets);
+    expect(find.byTooltip('Ny tekst'), findsOneWidget);
+    expect(find.byTooltip('Fjern'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Lukk'));
     await tester.pumpAndSettle();
