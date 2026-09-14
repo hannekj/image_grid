@@ -765,7 +765,9 @@ class _CarouselPageState extends State<CarouselPage> {
       if (_editingOverlayIndex != index) {
         _editingOverlayIndex = null;
       }
-      _tool = _CarouselTool.text;
+      _tool = _current.overlays[index].isWidgetOverlay
+          ? _CarouselTool.more
+          : _CarouselTool.text;
     });
   }
 
@@ -956,7 +958,10 @@ class _CarouselPageState extends State<CarouselPage> {
     );
     setState(() {
       _editingOverlayIndex = null;
-      _tool = _CarouselTool.text;
+      _tool = switch (kind) {
+        OverlayKind.text || OverlayKind.pathText => _CarouselTool.text,
+        _ => _CarouselTool.more,
+      };
     });
     _setCurrentOverlays(overlays, selected: overlays.length - 1);
   }
@@ -2521,23 +2526,10 @@ class _CarouselPageState extends State<CarouselPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlay,
           onAddText: () => _addOverlay(OverlayKind.text),
-          onAddMessage: () => _addOverlay(OverlayKind.message),
-          onAddLocation: () => _addOverlay(OverlayKind.location),
-          onAddCoordinates: () => _addOverlay(OverlayKind.coordinates),
-          onAddDate: () => _addOverlay(OverlayKind.date),
-          onAddTime: () => _addOverlay(OverlayKind.time),
-          onAddWeather: () => _addOverlay(OverlayKind.weather),
-          onAddPageNumber: _addPageNumber,
           onAddTemplate: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
           onEdit: _editOverlay,
-          initialTab:
-              (_selectedOverlayIndex != null &&
-                  _selectedOverlayIndex! < _current.overlays.length &&
-                  _current.overlays[_selectedOverlayIndex!].isWidgetOverlay)
-              ? OverlayComposeTab.sticker
-              : OverlayComposeTab.text,
         );
       case _CarouselTool.more:
         return MorePanel(
@@ -2552,6 +2544,22 @@ class _CarouselPageState extends State<CarouselPage> {
             setState(() => _tool = null);
             _addPathText();
           },
+          overlays: _current.overlays,
+          selectedIndex: _selectedOverlayIndex,
+          onSelect: _selectOverlay,
+          onAddMessage: () => _addOverlay(OverlayKind.message),
+          onAddLocation: () => _addOverlay(OverlayKind.location),
+          onAddCoordinates: () => _addOverlay(OverlayKind.coordinates),
+          onAddDate: () => _addOverlay(OverlayKind.date),
+          onAddTime: () => _addOverlay(OverlayKind.time),
+          onAddWeather: () => _addOverlay(OverlayKind.weather),
+          onAddPageNumber: _addPageNumber,
+          onChanged: _updateSelectedOverlay,
+          onRemove: _removeSelectedOverlay,
+          onEdit: _editOverlay,
+          openStickers: _selectedOverlayIndex != null &&
+              _selectedOverlayIndex! < _current.overlays.length &&
+              _current.overlays[_selectedOverlayIndex!].isWidgetOverlay,
         );
       case null:
         return const SizedBox.shrink();
@@ -2617,43 +2625,34 @@ class _CarouselPageState extends State<CarouselPage> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Stack(
+                  child: Column(
                     children: [
-                      Positioned.fill(child: _buildCanvasArea()),
-                      if (!_previewing && _slides.length > 1)
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: CarouselPageDots(
-                            count: _slides.length,
-                            currentIndex: _index,
-                            onTap: _goTo,
-                          ),
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(child: _buildCanvasArea()),
+                            if (!_previewing && _slides.length > 1)
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: CarouselPageDots(
+                                  count: _slides.length,
+                                  currentIndex: _index,
+                                  onTap: _goTo,
+                                ),
+                              ),
+                          ],
                         ),
+                      ),
                       if (!_hasAnyImage &&
                           !_previewing &&
                           _current.overlays.isEmpty)
-                        Center(
-                          child: Padding(
-                            padding: _workZonePadding,
-                            child: AspectRatio(
-                              aspectRatio: _format.aspectRatio,
-                              child: Align(
-                                alignment: Alignment.bottomCenter,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: EmptyCanvasHint(
-                                    title: AppCopy.emptyCarouselTitle,
-                                    actionLabel: AppCopy.emptyCarouselAction,
-                                    onAction: _pickImages,
-                                    secondaryLabel:
-                                        AppCopy.emptyCarouselTemplate,
-                                    onSecondary: _toggleTemplatePicker,
-                                  ),
-                                ),
-                              ),
-                            ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 14),
+                          child: EmptyCanvasHint(
+                            actionLabel: AppCopy.emptyCarouselAction,
+                            onAction: _pickImages,
                           ),
                         ),
                     ],

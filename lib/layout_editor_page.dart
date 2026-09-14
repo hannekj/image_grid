@@ -520,6 +520,9 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       if (_editingOverlayIndex != index) {
         _editingOverlayIndex = null;
       }
+      _tool = _overlayTexts[index].isWidgetOverlay
+          ? EditorTool.more
+          : EditorTool.text;
     });
   }
 
@@ -681,7 +684,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       );
       _selectedOverlayIndex = _overlayTexts.length - 1;
       _editingOverlayIndex = null;
-      _tool = EditorTool.text;
+      _tool = switch (kind) {
+        OverlayKind.text || OverlayKind.pathText => EditorTool.text,
+        _ => EditorTool.more,
+      };
     });
   }
 
@@ -1399,172 +1405,169 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Stack(
-                    fit: StackFit.expand,
+                  child: Column(
                     children: [
-                      Positioned.fill(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            if (_previewing) {
-                              _exitPreview();
-                            } else {
-                              _clearFocus();
-                            }
-                          },
-                          child: const ColoredBox(color: Colors.transparent),
-                        ),
-                      ),
-                      Center(
-                        child: AspectRatio(
-                          aspectRatio: _format.aspectRatio,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              boxShadow: _previewing
-                                  ? const []
-                                  : [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.12,
-                                        ),
-                                        blurRadius: 24,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Positioned.fill(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  if (_previewing) {
+                                    _exitPreview();
+                                  } else {
+                                    _clearFocus();
+                                  }
+                                },
+                                child: const ColoredBox(color: Colors.transparent),
+                              ),
                             ),
-                            child: InstagramPreviewChrome(
-                              enabled: _previewing,
-                              slideCount: 1,
-                              currentIndex: 0,
-                              child: RepaintBoundary(
-                                key: _frameKey,
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: () {
-                                        if (_previewing) {
-                                          _exitPreview();
-                                        } else {
-                                          _clearFocus();
-                                        }
-                                      },
-                                      child: ColoredBox(color: canvasColor),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(
-                                        _layout.isEdgeToEdgeCanvas
-                                            ? 0
-                                            : _layout.usesCreamCanvas
-                                            ? 12
-                                            : strokeWidth,
-                                      ),
-                                      child: _buildBody(strokeWidth),
-                                    ),
-                                    OverlayTextsLayer(
-                                      overlays: _overlayTexts,
-                                      selectedIndex: _selectedOverlayIndex,
-                                      editingIndex: _editingOverlayIndex,
-                                      exporting: _cleanView,
-                                      onSelect: _selectOverlayText,
-                                      onEdit: _editOverlayText,
-                                      onDuplicate: _duplicateOverlay,
-                                      onRemove: _removeOverlayAt,
-                                      onValueChanged: _setOverlayValue,
-                                      onEditingEnded: () {
-                                        if (_editingOverlayIndex == null) {
-                                          return;
-                                        }
-                                        setState(
-                                          () => _editingOverlayIndex = null,
-                                        );
-                                      },
-                                      onAlignmentChanged: (index, alignment) {
-                                        setState(() {
-                                          _overlayTexts[index] =
-                                              _overlayTexts[index].copyWith(
-                                                alignment: alignment,
-                                              );
-                                          _selectedOverlayIndex = index;
-                                          _selectedSlotIndex = null;
-                                        });
-                                      },
-                                      onFontSizeChanged: (index, fontSize) {
-                                        setState(() {
-                                          _overlayTexts[index] =
-                                              _overlayTexts[index].copyWith(
-                                                fontSize: fontSize,
-                                              );
-                                          _selectedOverlayIndex = index;
-                                          _selectedSlotIndex = null;
-                                        });
-                                      },
-                                      onRotationChanged: (index, rotation) {
-                                        setState(() {
-                                          _overlayTexts[index] =
-                                              _overlayTexts[index].copyWith(
-                                                rotation: rotation,
-                                              );
-                                          _selectedOverlayIndex = index;
-                                          _selectedSlotIndex = null;
-                                        });
-                                      },
-                                      onPathChanged: (index, path) {
-                                        setState(() {
-                                          _overlayTexts[index] =
-                                              _overlayTexts[index].copyWith(
-                                                pathPoints: path,
-                                              );
-                                          _selectedOverlayIndex = index;
-                                          _selectedSlotIndex = null;
-                                        });
-                                      },
-                                      onInteractionChanged:
-                                          _onOverlayInteractionChanged,
-                                    ),
-                                    if (_drawingPathText)
-                                      PathTextDrawLayer(
-                                        text: _pathTextDraft,
-                                        style: PathTextPaint.styleFor(
-                                          OverlayText.create(
-                                            value: _pathTextDraft,
-                                            index: 0,
-                                            kind: OverlayKind.pathText,
+                            Center(
+                              child: AspectRatio(
+                                aspectRatio: _format.aspectRatio,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    boxShadow: _previewing
+                                        ? const []
+                                        : [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              blurRadius: 24,
+                                              offset: const Offset(0, 8),
+                                            ),
+                                          ],
+                                  ),
+                                  child: InstagramPreviewChrome(
+                                    enabled: _previewing,
+                                    slideCount: 1,
+                                    currentIndex: 0,
+                                    child: RepaintBoundary(
+                                      key: _frameKey,
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: () {
+                                              if (_previewing) {
+                                                _exitPreview();
+                                              } else {
+                                                _clearFocus();
+                                              }
+                                            },
+                                            child: ColoredBox(color: canvasColor),
                                           ),
-                                        ),
-                                        letterSpacing: 2,
-                                        onComplete: _completePathTextDraw,
-                                        onCancel: _cancelPathTextDraw,
+                                          Padding(
+                                            padding: EdgeInsets.all(
+                                              _layout.isEdgeToEdgeCanvas
+                                                  ? 0
+                                                  : _layout.usesCreamCanvas
+                                                  ? 12
+                                                  : strokeWidth,
+                                            ),
+                                            child: _buildBody(strokeWidth),
+                                          ),
+                                          OverlayTextsLayer(
+                                            overlays: _overlayTexts,
+                                            selectedIndex: _selectedOverlayIndex,
+                                            editingIndex: _editingOverlayIndex,
+                                            exporting: _cleanView,
+                                            onSelect: _selectOverlayText,
+                                            onEdit: _editOverlayText,
+                                            onDuplicate: _duplicateOverlay,
+                                            onRemove: _removeOverlayAt,
+                                            onValueChanged: _setOverlayValue,
+                                            onEditingEnded: () {
+                                              if (_editingOverlayIndex == null) {
+                                                return;
+                                              }
+                                              setState(
+                                                () => _editingOverlayIndex = null,
+                                              );
+                                            },
+                                            onAlignmentChanged: (index, alignment) {
+                                              setState(() {
+                                                _overlayTexts[index] =
+                                                    _overlayTexts[index].copyWith(
+                                                      alignment: alignment,
+                                                    );
+                                                _selectedOverlayIndex = index;
+                                                _selectedSlotIndex = null;
+                                              });
+                                            },
+                                            onFontSizeChanged: (index, fontSize) {
+                                              setState(() {
+                                                _overlayTexts[index] =
+                                                    _overlayTexts[index].copyWith(
+                                                      fontSize: fontSize,
+                                                    );
+                                                _selectedOverlayIndex = index;
+                                                _selectedSlotIndex = null;
+                                              });
+                                            },
+                                            onRotationChanged: (index, rotation) {
+                                              setState(() {
+                                                _overlayTexts[index] =
+                                                    _overlayTexts[index].copyWith(
+                                                      rotation: rotation,
+                                                    );
+                                                _selectedOverlayIndex = index;
+                                                _selectedSlotIndex = null;
+                                              });
+                                            },
+                                            onPathChanged: (index, path) {
+                                              setState(() {
+                                                _overlayTexts[index] =
+                                                    _overlayTexts[index].copyWith(
+                                                      pathPoints: path,
+                                                    );
+                                                _selectedOverlayIndex = index;
+                                                _selectedSlotIndex = null;
+                                              });
+                                            },
+                                            onInteractionChanged:
+                                                _onOverlayInteractionChanged,
+                                          ),
+                                          if (_drawingPathText)
+                                            PathTextDrawLayer(
+                                              text: _pathTextDraft,
+                                              style: PathTextPaint.styleFor(
+                                                OverlayText.create(
+                                                  value: _pathTextDraft,
+                                                  index: 0,
+                                                  kind: OverlayKind.pathText,
+                                                ),
+                                              ),
+                                              letterSpacing: 2,
+                                              onComplete: _completePathTextDraw,
+                                              onCancel: _cancelPathTextDraw,
+                                            ),
+                                          FilmLookLayer(
+                                            grain: _grain,
+                                            dateStamp: false,
+                                          ),
+                                        ],
                                       ),
-                                    FilmLookLayer(
-                                      grain: _grain,
-                                      dateStamp: false,
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                       if (!_hasAnyImage &&
                           !_previewing &&
                           _overlayTexts.isEmpty)
-                        Center(
-                          child: AspectRatio(
-                            aspectRatio: _format.aspectRatio,
-                            child: Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: EmptyCanvasHint(
-                                  title: AppCopy.emptyLayoutTitle,
-                                  actionLabel: AppCopy.emptyLayoutAction,
-                                  onAction: _pickStarterImages,
-                                ),
-                              ),
-                            ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 14),
+                          child: EmptyCanvasHint(
+                            actionLabel: AppCopy.emptyLayoutAction,
+                            onAction: _pickStarterImages,
                           ),
                         ),
                     ],
@@ -1680,22 +1683,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           selectedIndex: _selectedOverlayIndex,
           onSelect: _selectOverlayText,
           onAddText: _addOverlayText,
-          onAddMessage: _addOverlayMessage,
-          onAddLocation: _addOverlayLocation,
-          onAddCoordinates: _addOverlayCoordinates,
-          onAddDate: _addOverlayDate,
-          onAddTime: _addOverlayTime,
-          onAddWeather: _addOverlayWeather,
           onAddTemplate: _addEditorial,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
           onEdit: _editOverlayText,
-          initialTab:
-              (_selectedOverlayIndex != null &&
-                  _selectedOverlayIndex! < _overlayTexts.length &&
-                  _overlayTexts[_selectedOverlayIndex!].isWidgetOverlay)
-              ? OverlayComposeTab.sticker
-              : OverlayComposeTab.text,
         );
       case EditorTool.more:
         return MorePanel(
@@ -1710,6 +1701,21 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             setState(() => _tool = null);
             _addPathText();
           },
+          overlays: _overlayTexts,
+          selectedIndex: _selectedOverlayIndex,
+          onSelect: _selectOverlayText,
+          onAddMessage: _addOverlayMessage,
+          onAddLocation: _addOverlayLocation,
+          onAddCoordinates: _addOverlayCoordinates,
+          onAddDate: _addOverlayDate,
+          onAddTime: _addOverlayTime,
+          onAddWeather: _addOverlayWeather,
+          onChanged: _updateSelectedOverlay,
+          onRemove: _removeSelectedOverlay,
+          onEdit: _editOverlayText,
+          openStickers: _selectedOverlayIndex != null &&
+              _selectedOverlayIndex! < _overlayTexts.length &&
+              _overlayTexts[_selectedOverlayIndex!].isWidgetOverlay,
         );
       case null:
         return const SizedBox.shrink();

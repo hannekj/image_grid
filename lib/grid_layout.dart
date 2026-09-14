@@ -287,6 +287,14 @@ const gridLayouts = [
     ],
   ),
   GridLayout(
+    id: 'mosaic-bottom-full',
+    label: 'Hel topp + stort',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 2, cells: [1]),
+    ],
+  ),
+  GridLayout(
     id: 'mosaic-13',
     label: '1 + 3',
     rows: [

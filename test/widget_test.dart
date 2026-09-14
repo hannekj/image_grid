@@ -55,7 +55,6 @@ void main() {
     expect(find.byTooltip('Angre'), findsOneWidget);
     expect(find.byTooltip('Gjør om'), findsOneWidget);
     expect(find.byTooltip('Mer'), findsOneWidget);
-    expect(find.text('Velg bilder til rammen'), findsOneWidget);
     expect(find.text('Velg bilder'), findsOneWidget);
 
     await _openLayoutPanel(tester);
@@ -123,7 +122,11 @@ void main() {
     expect(find.byTooltip('Legg til tekst'), findsOneWidget);
     expect(find.byTooltip('Rediger'), findsWidgets);
 
-    await tester.tap(find.text('Sticker'));
+    await tester.tap(find.byTooltip('Lukk'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Stickers'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sted'));
     await tester.pumpAndSettle();
@@ -174,7 +177,7 @@ void main() {
     await _tapLayout(tester, group: 'Film', layout: 'Dump');
 
     expect(find.bySemanticsLabel('Dump'), findsOneWidget);
-    expect(find.text('Velg bilder til rammen'), findsOneWidget);
+    expect(find.text('Velg bilder'), findsOneWidget);
   });
 
   testWidgets('booth layout opens photobooth strip', (WidgetTester tester) async {
@@ -182,7 +185,7 @@ void main() {
     await _tapLayout(tester, group: 'Film', layout: 'Booth');
 
     expect(find.bySemanticsLabel('Booth'), findsOneWidget);
-    expect(find.text('Velg bilder til rammen'), findsOneWidget);
+    expect(find.text('Velg bilder'), findsOneWidget);
   });
 
   testWidgets('reaction layout opens overlay editor', (WidgetTester tester) async {
@@ -190,7 +193,7 @@ void main() {
     await _tapLayout(tester, group: 'Spesial', layout: 'Reaksjon');
 
     expect(find.bySemanticsLabel('Reaksjon'), findsOneWidget);
-    expect(find.text('Velg bilder til rammen'), findsOneWidget);
+    expect(find.text('Velg bilder'), findsOneWidget);
   });
 
   testWidgets('asymmetric mosaics are selectable', (WidgetTester tester) async {
