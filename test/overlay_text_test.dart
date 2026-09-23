@@ -132,10 +132,4 @@ void main() {
       isFalse,
     );
   });
-
-  test('font list exposes groups', () {
-    final groups = overlayFonts.map((f) => f.group).toSet();
-    expect(groups, containsAll(['Enkle', 'Serif', 'Display', 'Leken']));
-    expect(overlayFontsWithGroups.first.$1, isNotNull);
-  });
 }

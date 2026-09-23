@@ -10,12 +10,10 @@ class OverlayFont {
   const OverlayFont({
     required this.id,
     required this.label,
-    this.group = 'Enkle',
   });
 
   final String id;
   final String label;
-  final String group;
 
   TextStyle style({Color? color, double? fontSize, double? height, double? letterSpacing}) {
     final base = switch (id) {
@@ -82,37 +80,22 @@ List<String> get overlayBubbleColorLabels => [
     ];
 
 const overlayFonts = [
-  OverlayFont(id: 'sans', label: 'Sans', group: 'Enkle'),
-  OverlayFont(id: 'nunito', label: 'Nunito', group: 'Enkle'),
-  OverlayFont(id: 'smal', label: 'Smal', group: 'Enkle'),
-  OverlayFont(id: 'serif', label: 'Serif', group: 'Serif'),
-  OverlayFont(id: 'cormorant', label: 'Cormorant', group: 'Serif'),
-  OverlayFont(id: 'lora', label: 'Lora', group: 'Serif'),
-  OverlayFont(id: 'cinzel', label: 'Cinzel', group: 'Serif'),
-  OverlayFont(id: 'plakat', label: 'Plakat', group: 'Display'),
-  OverlayFont(id: 'klipp', label: 'Klipp', group: 'Display'),
-  OverlayFont(id: 'roff', label: 'Røff', group: 'Display'),
-  OverlayFont(id: 'hand', label: 'Hånd', group: 'Leken'),
-  OverlayFont(id: 'vibes', label: 'Vibes', group: 'Leken'),
-  OverlayFont(id: 'beanie', label: 'Beanie', group: 'Leken'),
-  OverlayFont(id: 'skisse', label: 'Skisse', group: 'Leken'),
-  OverlayFont(id: 'perler', label: 'Perler', group: 'Leken'),
+  OverlayFont(id: 'sans', label: 'Sans'),
+  OverlayFont(id: 'nunito', label: 'Nunito'),
+  OverlayFont(id: 'smal', label: 'Smal'),
+  OverlayFont(id: 'serif', label: 'Serif'),
+  OverlayFont(id: 'cormorant', label: 'Cormorant'),
+  OverlayFont(id: 'lora', label: 'Lora'),
+  OverlayFont(id: 'cinzel', label: 'Cinzel'),
+  OverlayFont(id: 'plakat', label: 'Plakat'),
+  OverlayFont(id: 'klipp', label: 'Klipp'),
+  OverlayFont(id: 'roff', label: 'Røff'),
+  OverlayFont(id: 'hand', label: 'Hånd'),
+  OverlayFont(id: 'vibes', label: 'Vibes'),
+  OverlayFont(id: 'beanie', label: 'Beanie'),
+  OverlayFont(id: 'skisse', label: 'Skisse'),
+  OverlayFont(id: 'perler', label: 'Perler'),
 ];
-
-/// Fonts in display order with a group header before each new group.
-List<(String? groupLabel, OverlayFont font)> get overlayFontsWithGroups {
-  final items = <(String?, OverlayFont)>[];
-  String? previous;
-  for (final font in overlayFonts) {
-    if (font.group != previous) {
-      items.add((font.group, font));
-      previous = font.group;
-    } else {
-      items.add((null, font));
-    }
-  }
-  return items;
-}
 
 OverlayFont overlayFontById(String id) {
   return overlayFonts.firstWhere(

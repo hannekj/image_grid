@@ -167,36 +167,18 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                 width: double.infinity,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: overlayFontsWithGroups.length,
+                  itemCount: overlayFonts.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(width: EditorChrome.spaceSm),
                   itemBuilder: (context, index) {
-                    final (groupLabel, font) = overlayFontsWithGroups[index];
+                    final font = overlayFonts[index];
                     final selected = current.fontId == font.id;
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (groupLabel != null) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Text(
-                              groupLabel,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.muted,
-                              ),
-                            ),
-                          ),
-                        ],
-                        _FontChoice(
-                          font: font,
-                          selected: selected,
-                          onTap: () => widget.onChanged(
-                            current.copyWith(fontId: font.id),
-                          ),
-                        ),
-                      ],
+                    return _FontChoice(
+                      font: font,
+                      selected: selected,
+                      onTap: () => widget.onChanged(
+                        current.copyWith(fontId: font.id),
+                      ),
                     );
                   },
                 ),
