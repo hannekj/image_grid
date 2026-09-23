@@ -44,6 +44,8 @@ class GridLayout {
 
   bool get isAlbumGrid => id == 'album-grid';
 
+  bool get isAlbumMonth => id == 'album-month';
+
   bool get isStripGrid => id == 'strip-grid';
 
   bool get isStaggerGrid => id == 'stagger-grid';
@@ -71,7 +73,8 @@ class GridLayout {
       isStripGrid ||
       isHeartGrid ||
       isHeartColumns ||
-      isStrawberryGrid;
+      isStrawberryGrid ||
+      isAlbumMonth;
 
   bool get usesCreamCanvas => isDump || isBooth || isFilmStrip || isAlbumGrid;
 
@@ -86,7 +89,8 @@ class GridLayout {
         isStrawberryGrid ||
         isPostcard ||
         isTimeline ||
-        isReactionCircle) {
+        isReactionCircle ||
+        isAlbumMonth) {
       return LayoutGroup.special;
     }
     return LayoutGroup.classic;
@@ -245,6 +249,15 @@ const gridLayouts = [
     rows: [
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'album-month',
+    label: 'Album måned',
+    rows: [
+      LayoutRow(flex: 2, cells: [1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
     ],

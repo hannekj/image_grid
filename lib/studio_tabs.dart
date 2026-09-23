@@ -127,6 +127,7 @@ class LayoutsTab extends StatelessWidget {
         builder: (_) => LayoutEditorPage(
           layout: layout,
           format: canvasFormats.first,
+          offerDraftRestore: false,
         ),
       ),
     );

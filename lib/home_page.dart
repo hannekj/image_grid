@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'app_theme.dart';
 import 'canvas_format.dart';
@@ -52,6 +51,8 @@ class _HomePageState extends State<HomePage> {
         builder: (_) => LayoutEditorPage(
           layout: layout ?? defaultGridLayout,
           format: canvasFormats.first,
+          // Shelf picks a concrete layout; don't hijack it with an old draft.
+          offerDraftRestore: layout == null,
         ),
       ),
     );
@@ -183,12 +184,13 @@ class _HomeWordmark extends StatelessWidget {
         children: [
           Text(
             'LØV',
-            style: GoogleFonts.libreBaskerville(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w500,
               letterSpacing: 1.6,
               height: 1,
               color: AppTheme.ink,
+              fontFamily: 'Georgia',
             ),
           ),
           const SizedBox(height: 6),
@@ -232,11 +234,12 @@ class _HeroCard extends StatelessWidget {
               children: [
                 Text(
                   'Sett sammen bildene\ndine med omhu',
-                  style: GoogleFonts.libreBaskerville(
+                  style: TextStyle(
                     fontSize: 21,
                     height: 1.35,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.cream,
+                    fontFamily: 'Georgia',
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -646,40 +649,46 @@ class _LayoutThumb extends StatelessWidget {
       button: true,
       child: SizedBox(
         width: width,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Material(
-              color: Colors.white,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                side: const BorderSide(color: AppTheme.line),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: InkWell(
-                onTap: onTap,
-                child: SizedBox(
-                  height: _height,
-                  child: CustomPaint(
-                    painter: LayoutOutlinePainter(layout: layout),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(9),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: AppTheme.line),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      height: _height,
+                      child: CustomPaint(
+                        painter: LayoutOutlinePainter(layout: layout),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 7),
+                Text(
+                  layout.label,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    height: 1.25,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.muted,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 7),
-            Text(
-              layout.label,
-              maxLines: 2,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10,
-                height: 1.25,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.muted,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

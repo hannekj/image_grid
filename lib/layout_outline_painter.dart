@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'album_month_layout.dart';
 import 'app_theme.dart';
 import 'checker_grid_layout.dart';
 import 'film_strip.dart';
@@ -63,6 +64,11 @@ class LayoutOutlinePainter extends CustomPainter {
 
     if (layout.isPostcard) {
       _paintPostcard(canvas, size);
+      return;
+    }
+
+    if (layout.isAlbumMonth) {
+      _paintAlbumMonth(canvas, size);
       return;
     }
 
@@ -349,6 +355,39 @@ class LayoutOutlinePainter extends CustomPainter {
       ),
       Paint()..color = gapColor,
     );
+  }
+
+  void _paintAlbumMonth(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+    final cellPaint = Paint()..color = cellColor;
+    final m = AlbumMonthLayout.metrics(size.width, size.height);
+
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, m.heroHeight),
+      cellPaint,
+    );
+
+    var y = m.heroHeight + m.gap;
+    for (var row = 0; row < AlbumMonthLayout.gridRows; row++) {
+      var x = 0.0;
+      for (var col = 0; col < AlbumMonthLayout.gridColumns; col++) {
+        canvas.drawRect(
+          Rect.fromLTWH(x, y, m.cellWidth, m.cellHeight),
+          cellPaint,
+        );
+        final gridIndex = row * AlbumMonthLayout.gridColumns + col;
+        if (AlbumMonthLayout.showHeart(gridIndex)) {
+          final heart = math.min(m.cellWidth, m.cellHeight) * 0.18;
+          HeartGridLayout.paintHeart(
+            canvas,
+            Offset(x + heart * 0.7, y + m.cellHeight - heart * 0.7),
+            heart,
+          );
+        }
+        x += m.cellWidth + m.gap;
+      }
+      y += m.cellHeight + m.gap;
+    }
   }
 
   void _paintTimeline(Canvas canvas, Size size) {

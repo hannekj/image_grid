@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'album_grid_layout.dart';
+import 'album_month_layout.dart';
 import 'app_theme.dart';
 import 'app_copy.dart';
 import 'app_feedback.dart';
@@ -63,6 +64,7 @@ class _LayoutSnapshot {
     required this.grain,
     required this.checkerLabels,
     required this.postcardCaption,
+    required this.albumMonthTitle,
     required this.timelineLabels,
     required this.spareImages,
   });
@@ -80,6 +82,7 @@ class _LayoutSnapshot {
   final bool grain;
   final List<String> checkerLabels;
   final String postcardCaption;
+  final String albumMonthTitle;
   final List<String> timelineLabels;
 }
 
@@ -88,10 +91,15 @@ class LayoutEditorPage extends StatefulWidget {
     super.key,
     required this.layout,
     required this.format,
+    this.offerDraftRestore = true,
   });
 
   final GridLayout layout;
   final CanvasFormat format;
+
+  /// When false (e.g. user picked a layout from a shelf), skip the
+  /// "continue draft?" dialog so the chosen layout opens immediately.
+  final bool offerDraftRestore;
 
   @override
   State<LayoutEditorPage> createState() => _LayoutEditorPageState();
@@ -134,10 +142,15 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
 
   bool _swapHintShown = false;
   bool _autoSaveDraftOnDispose = true;
+  Timer? _draftRestoreTimer;
   late List<String> _checkerLabels = List<String>.from(
     CheckerGridLayout.defaultLabels,
   );
   late String _postcardCaption = PostcardLayout.defaultCaption;
+  late String _albumMonthTitle = AlbumMonthLayout.defaultTitle;
+  bool _editingAlbumMonthTitle = false;
+  final _albumMonthTitleController = TextEditingController();
+  final _albumMonthTitleFocus = FocusNode();
   late List<String> _timelineLabels = List<String>.from(
     TimelineLayout.defaultLabels,
   );
@@ -152,11 +165,20 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _offerDraftRestore());
+    if (widget.offerDraftRestore) {
+      // Wait until the push route has settled so the dialog Overlay does
+      // not fight inherited widgets still deactivating on the page below.
+      _draftRestoreTimer = Timer(const Duration(milliseconds: 350), () {
+        if (mounted) _offerDraftRestore();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _draftRestoreTimer?.cancel();
+    _albumMonthTitleController.dispose();
+    _albumMonthTitleFocus.dispose();
     if (_autoSaveDraftOnDispose && _hasAnyImage) {
       unawaited(_saveDraft());
     }
@@ -196,6 +218,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       grain: _grain,
       checkerLabels: List<String>.from(_checkerLabels),
       postcardCaption: _postcardCaption,
+      albumMonthTitle: _albumMonthTitle,
       timelineLabels: List<String>.from(_timelineLabels),
       spareImages: List<Uint8List>.from(_spareImages),
     );
@@ -217,6 +240,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     _grain = snapshot.grain;
     _checkerLabels = List<String>.from(snapshot.checkerLabels);
     _postcardCaption = snapshot.postcardCaption;
+    _albumMonthTitle = snapshot.albumMonthTitle;
     _timelineLabels = List<String>.from(snapshot.timelineLabels);
     _selectedOverlayIndex = null;
     _selectedSlotIndex = null;
@@ -259,6 +283,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             ? List<String>.from(_checkerLabels)
             : null,
         postcardCaption: _layout.isPostcard ? _postcardCaption : null,
+        albumMonthTitle: _layout.isAlbumMonth ? _albumMonthTitle : null,
         timelineLabels: _layout.isTimeline
             ? List<String>.from(_timelineLabels)
             : null,
@@ -280,6 +305,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           ? List<String>.from(CheckerGridLayout.defaultLabels)
           : List<String>.from(draft.checkerLabels!);
       _postcardCaption = draft.postcardCaption ?? PostcardLayout.defaultCaption;
+      _albumMonthTitle =
+          draft.albumMonthTitle ?? AlbumMonthLayout.defaultTitle;
       _timelineLabels = draft.timelineLabels == null
           ? List<String>.from(TimelineLayout.defaultLabels)
           : List<String>.from(draft.timelineLabels!);
@@ -409,6 +436,10 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       }
       if (next.isPostcard) {
         _postcardCaption = PostcardLayout.defaultCaption;
+      }
+      if (next.isAlbumMonth) {
+        _albumMonthTitle = AlbumMonthLayout.defaultTitle;
+        _editingAlbumMonthTitle = false;
       }
       if (next.isTimeline) {
         _timelineLabels = List<String>.from(TimelineLayout.defaultLabels);
@@ -1199,6 +1230,44 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     });
   }
 
+  Widget _buildAlbumMonth() {
+    final filled = _slots.where((bytes) => bytes != null).length;
+    return AlbumMonthFrame(
+      slots: [for (var i = 0; i < AlbumMonthLayout.slotCount; i++) _slot(i)],
+      title: _albumMonthTitle,
+      itemCount: filled,
+      editingTitle: _editingAlbumMonthTitle && !_cleanView,
+      titleController: _albumMonthTitleController,
+      titleFocusNode: _albumMonthTitleFocus,
+      showChrome: !_cleanView,
+      onStartEditTitle: _cleanView ? null : _startAlbumMonthTitleEdit,
+      onTitleSubmitted: _commitAlbumMonthTitle,
+    );
+  }
+
+  void _startAlbumMonthTitleEdit() {
+    _albumMonthTitleController.text = _albumMonthTitle;
+    _albumMonthTitleController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _albumMonthTitleController.text.length,
+    );
+    setState(() => _editingAlbumMonthTitle = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _albumMonthTitleFocus.requestFocus();
+    });
+  }
+
+  void _commitAlbumMonthTitle(String value) {
+    if (!_editingAlbumMonthTitle) return;
+    final trimmed = value.trim();
+    final next = trimmed.isEmpty ? AlbumMonthLayout.defaultTitle : trimmed;
+    _albumMonthTitleFocus.unfocus();
+    setState(() => _editingAlbumMonthTitle = false);
+    if (next == _albumMonthTitle) return;
+    _pushUndo();
+    setState(() => _albumMonthTitle = next);
+  }
+
   Widget _buildTimeline() {
     return TimelineFrame(
       slots: [for (var i = 0; i < TimelineLayout.slotCount; i++) _slot(i)],
@@ -1364,6 +1433,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (_layout.isReaction) return _buildReaction();
     if (_layout.isReactionCircle) return _buildReactionCircle();
     if (_layout.isPostcard) return _buildPostcard();
+    if (_layout.isAlbumMonth) return _buildAlbumMonth();
     if (_layout.isTimeline) return _buildTimeline();
     if (_layout.isOverlayFrame) return _buildOverlayFrame();
     if (_layout.isAlbumGrid) return _buildAlbumGrid();

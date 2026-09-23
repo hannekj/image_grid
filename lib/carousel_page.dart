@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'album_grid_layout.dart';
+import 'album_month_layout.dart';
 import 'app_theme.dart';
 import 'app_copy.dart';
 import 'app_feedback.dart';
@@ -154,6 +155,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isStrawberryGrid) return Colors.white;
     if (layout.isHeartColumns) return Colors.white;
     if (layout.isPostcard) return Colors.white;
+    if (layout.isAlbumMonth) return Colors.white;
     if (layout.isTimeline) return Colors.white;
     if (layout.isFilmStrip) return AppTheme.cream;
     if (layout.usesCreamCanvas) {
@@ -172,6 +174,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (slide.layout?.isStrawberryGrid == true) return 0;
     if (slide.layout?.isHeartColumns == true) return 0;
     if (slide.layout?.isPostcard == true) return 0;
+    if (slide.layout?.isAlbumMonth == true) return 0;
     if (slide.layout?.isTimeline == true) return 0;
     return _strokeWidth;
   }
@@ -2077,6 +2080,15 @@ class _CarouselPageState extends State<CarouselPage> {
       return PostcardFrame(
         slots: [slot(0)],
         caption: PostcardLayout.defaultCaption,
+        showChrome: showChrome,
+      );
+    }
+
+    if (layout.isAlbumMonth) {
+      return AlbumMonthFrame(
+        slots: [for (var i = 0; i < AlbumMonthLayout.slotCount; i++) slot(i)],
+        title: AlbumMonthLayout.defaultTitle,
+        itemCount: 0,
         showChrome: showChrome,
       );
     }

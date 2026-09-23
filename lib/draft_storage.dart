@@ -298,6 +298,7 @@ class DraftStorage {
       'overlays': data.overlays.map(_overlayToJson).toList(),
       'checkerLabels': ?data.checkerLabels,
       'postcardCaption': ?data.postcardCaption,
+      'albumMonthTitle': ?data.albumMonthTitle,
       'timelineLabels': ?data.timelineLabels,
     };
 
@@ -374,6 +375,7 @@ class DraftStorage {
         ?.map((label) => label as String)
         .toList();
     final postcardCaption = map['postcardCaption'] as String?;
+    final albumMonthTitle = map['albumMonthTitle'] as String?;
     final timelineLabels = (map['timelineLabels'] as List<dynamic>?)
         ?.map((label) => label as String)
         .toList();
@@ -392,6 +394,7 @@ class DraftStorage {
       overlays: overlays,
       checkerLabels: checkerLabels,
       postcardCaption: postcardCaption,
+      albumMonthTitle: albumMonthTitle,
       timelineLabels: timelineLabels,
     );
   }
@@ -671,6 +674,7 @@ class LayoutDraftData {
     required this.overlays,
     this.checkerLabels,
     this.postcardCaption,
+    this.albumMonthTitle,
     this.timelineLabels,
     this.spareImages = const [],
   });
@@ -687,6 +691,7 @@ class LayoutDraftData {
   final List<OverlayText> overlays;
   final List<String>? checkerLabels;
   final String? postcardCaption;
+  final String? albumMonthTitle;
   final List<String>? timelineLabels;
   final List<Uint8List> spareImages;
 }
