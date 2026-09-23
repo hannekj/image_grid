@@ -56,6 +56,7 @@ class OverlayTextsLayer extends StatelessWidget {
 
     return Stack(
       fit: StackFit.expand,
+      clipBehavior: Clip.none,
       children: [
         for (final i in order)
           if (overlays[i].isPathText)
@@ -75,6 +76,7 @@ class OverlayTextsLayer extends StatelessWidget {
               overlay: overlays[i],
               interactive: !exporting && selected == i,
               editing: !exporting && editingIndex == i,
+              actionsEnabled: !exporting,
               onSelect: () => onSelect(i),
               onEdit: () => onEdit(i),
               onDuplicate: onDuplicate == null ? null : () => onDuplicate!(i),
@@ -105,6 +107,7 @@ class OverlayTextLayer extends StatefulWidget {
     required this.onSelect,
     this.interactive = true,
     this.editing = false,
+    this.actionsEnabled = true,
     this.onDuplicate,
     this.onRemove,
     this.onValueChanged,
@@ -120,6 +123,8 @@ class OverlayTextLayer extends StatefulWidget {
   final VoidCallback onSelect;
   final bool interactive;
   final bool editing;
+  /// False while exporting / previewing so taps cannot mutate state.
+  final bool actionsEnabled;
   final VoidCallback? onDuplicate;
   final VoidCallback? onRemove;
   final ValueChanged<String>? onValueChanged;
@@ -278,8 +283,10 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
         final showSelectionRing = interactive &&
             !overlay.isTime &&
             (overlay.isBubble || overlay.plateStyle.hasPlate);
+        // Resize/rotate only when not typing; action pill stays visible so
+        // Rediger/Slett/Dupliser are findable even right after placing text.
         final showChrome = interactive && !editing;
-        final showActionPill = showChrome &&
+        final showActionPill = interactive &&
             !overlay.isBubble &&
             (widget.onRemove != null ||
                 widget.onDuplicate != null ||
@@ -287,6 +294,7 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
 
         return Stack(
           fit: StackFit.expand,
+          clipBehavior: Clip.none,
           children: [
             if (interactive && _dragging)
               Positioned.fill(
@@ -310,9 +318,13 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                       onTap: interactive
                           ? null
                           : widget.onSelect,
-                      onDoubleTap: interactive || editing
-                          ? _requestEdit
-                          : null,
+                      onDoubleTap: !widget.actionsEnabled
+                          ? null
+                          : () {
+                              // Select → style dock; double-tap → write.
+                              if (!interactive) widget.onSelect();
+                              _requestEdit();
+                            },
                       onPanStart: interactive && !editing
                           ? (_) {
                               _startInteraction();
@@ -372,11 +384,11 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                           maxWidth: double.infinity,
                           alignment: Alignment.center,
                           child: _OverlayActionPill(
-                            onDelete: widget.onRemove,
-                            onDuplicate: widget.onDuplicate,
                             onEdit: overlay.kind == OverlayKind.text
                                 ? _requestEdit
                                 : null,
+                            onDelete: widget.onRemove,
+                            onDuplicate: widget.onDuplicate,
                           ),
                         ),
                       ),
@@ -504,14 +516,14 @@ class _InlineTextEditor extends StatelessWidget {
 
 class _OverlayActionPill extends StatelessWidget {
   const _OverlayActionPill({
+    this.onEdit,
     this.onDelete,
     this.onDuplicate,
-    this.onEdit,
   });
 
+  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onDuplicate;
-  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -525,6 +537,12 @@ class _OverlayActionPill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (onEdit != null)
+              _OverlayActionIcon(
+                icon: Icons.edit,
+                tooltip: 'Rediger',
+                onTap: onEdit!,
+              ),
             if (onDelete != null)
               _OverlayActionIcon(
                 icon: Icons.delete_outline,
@@ -536,12 +554,6 @@ class _OverlayActionPill extends StatelessWidget {
                 icon: Icons.control_point_duplicate,
                 tooltip: 'Dupliser',
                 onTap: onDuplicate!,
-              ),
-            if (onEdit != null)
-              _OverlayActionIcon(
-                icon: Icons.edit_outlined,
-                tooltip: 'Rediger',
-                onTap: onEdit!,
               ),
           ],
         ),

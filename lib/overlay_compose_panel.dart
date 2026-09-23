@@ -16,6 +16,7 @@ class OverlayComposePanel extends StatelessWidget {
     required this.onAddText,
     required this.onChanged,
     required this.onRemove,
+    required this.onEdit,
   });
 
   final List<OverlayText> overlays;
@@ -24,6 +25,7 @@ class OverlayComposePanel extends StatelessWidget {
   final VoidCallback onAddText;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
+  final ValueChanged<int> onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +36,7 @@ class OverlayComposePanel extends StatelessWidget {
       onAddText: onAddText,
       onChanged: onChanged,
       onRemove: onRemove,
+      onEdit: onEdit,
     );
   }
 }

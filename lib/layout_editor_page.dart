@@ -755,6 +755,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     final next = value.trim().isEmpty
         ? overlayDefaultValue(OverlayKind.text)
         : value;
+    if (_overlayTexts[index].value == next) {
+      setState(() {
+        _editingOverlayIndex = null;
+        _selectedOverlayIndex = index;
+      });
+      return;
+    }
+    _pushUndo();
     setState(() {
       _overlayTexts[index] = _overlayTexts[index].copyWith(value: next);
       _editingOverlayIndex = null;
@@ -778,7 +786,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   Future<void> _editOverlayText(int index) async {
     if (index < 0 || index >= _overlayTexts.length) return;
     final existing = _overlayTexts[index];
-    if (existing.kind == OverlayKind.text) {
+    if (existing.kind == OverlayKind.text && !existing.usesBeadLetters) {
+      // Regular text: inline edit on canvas. Select opens style dock.
       setState(() {
         _selectedOverlayIndex = index;
         _selectedSlotIndex = null;
@@ -787,8 +796,14 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
       });
       return;
     }
+    // Stickers, path text, and bead letters use a dialog so the canvas
+    // renderer (beads / path) stays intact while typing.
     if (_selectedOverlayIndex != index) {
-      setState(() => _selectedOverlayIndex = index);
+      setState(() {
+        _selectedOverlayIndex = index;
+        _selectedSlotIndex = null;
+        _tool = existing.isWidgetOverlay ? EditorTool.more : EditorTool.text;
+      });
     }
     final result = await showDialog<String>(
       context: context,
@@ -802,20 +817,35 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
     if (!mounted || result == null) return;
 
+    _pushUndo();
     setState(() {
-      if (result.isEmpty && !existing.isPathText) {
-        _overlayTexts.removeAt(index);
-        if (_overlayTexts.isEmpty) {
-          _selectedOverlayIndex = null;
+      final trimmed = result.trim();
+      if (trimmed.isEmpty) {
+        if (existing.isPathText) {
+          _overlayTexts[index] = existing.copyWith(value: '•');
+          _selectedOverlayIndex = index;
+        } else if (existing.kind == OverlayKind.text) {
+          _overlayTexts[index] = existing.copyWith(
+            value: overlayDefaultValue(OverlayKind.text),
+          );
+          _selectedOverlayIndex = index;
+          _tool = EditorTool.text;
         } else {
-          _selectedOverlayIndex = index.clamp(0, _overlayTexts.length - 1);
+          _overlayTexts.removeAt(index);
+          if (_overlayTexts.isEmpty) {
+            _selectedOverlayIndex = null;
+          } else {
+            _selectedOverlayIndex = index.clamp(0, _overlayTexts.length - 1);
+          }
         }
       } else {
-        _overlayTexts[index] = existing.copyWith(
-          value: result.trim().isEmpty ? '•' : result,
-        );
+        _overlayTexts[index] = existing.copyWith(value: trimmed);
         _selectedOverlayIndex = index;
+        if (existing.kind == OverlayKind.text) {
+          _tool = EditorTool.text;
+        }
       }
+      _editingOverlayIndex = null;
     });
   }
 
@@ -1449,6 +1479,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                       key: _frameKey,
                                       child: Stack(
                                         fit: StackFit.expand,
+                                        clipBehavior: Clip.none,
                                         children: [
                                           GestureDetector(
                                             behavior: HitTestBehavior.opaque,
@@ -1602,7 +1633,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     return switch (_tool) {
       EditorTool.layout => 'layout',
       EditorTool.format => 'format',
-      EditorTool.look => 'look',
+      EditorTool.frame => 'frame',
       EditorTool.text => 'text',
       EditorTool.more => 'more',
       null => null,
@@ -1615,8 +1646,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
         setState(() => _tool = EditorTool.layout);
       case 'format':
         setState(() => _tool = EditorTool.format);
-      case 'look':
-        setState(() => _tool = EditorTool.look);
+      case 'frame':
+        setState(() => _tool = EditorTool.frame);
       case 'text':
         _placePlainTextOverlay();
       case 'more':
@@ -1644,13 +1675,11 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             });
           },
         );
-      case EditorTool.look:
-        return LookPanel(
+      case EditorTool.frame:
+        return FramePanel(
           kind: _kind,
           color: _color,
           thickness: _thickness,
-          filter: _filter,
-          grain: _grain,
           onKindChanged: (kind) {
             _pushUndo();
             setState(() => _kind = kind);
@@ -1663,14 +1692,6 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
             _pushUndo();
             setState(() => _thickness = thickness);
           },
-          onFilterChanged: (filter) {
-            _pushUndo();
-            setState(() => _filter = filter);
-          },
-          onGrainChanged: (value) {
-            _pushUndo();
-            setState(() => _grain = value);
-          },
         );
       case EditorTool.text:
         return OverlayComposePanel(
@@ -1680,6 +1701,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           onAddText: _addOverlayText,
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
+          onEdit: _editOverlayText,
         );
       case EditorTool.more:
         return MorePanel(
@@ -1697,6 +1719,16 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
           onAddTemplate: () {
             setState(() => _tool = null);
             _addEditorial();
+          },
+          filter: _filter,
+          grain: _grain,
+          onFilterChanged: (filter) {
+            _pushUndo();
+            setState(() => _filter = filter);
+          },
+          onGrainChanged: (value) {
+            _pushUndo();
+            setState(() => _grain = value);
           },
           overlays: _overlayTexts,
           selectedIndex: _selectedOverlayIndex,

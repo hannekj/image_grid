@@ -25,9 +25,9 @@ const gridToolDefinitions = [
     label: 'Format',
   ),
   EditorToolDefinition(
-    id: 'look',
-    icon: Icons.auto_fix_high,
-    label: 'Stil',
+    id: 'frame',
+    icon: Icons.crop_square_rounded,
+    label: 'Ramme',
   ),
   EditorToolDefinition(id: 'text', icon: Icons.title, label: 'Tekst'),
   EditorToolDefinition(
@@ -50,9 +50,9 @@ const carouselToolDefinitions = [
     label: 'Format',
   ),
   EditorToolDefinition(
-    id: 'look',
-    icon: Icons.auto_fix_high,
-    label: 'Stil',
+    id: 'frame',
+    icon: Icons.crop_square_rounded,
+    label: 'Ramme',
   ),
   EditorToolDefinition(id: 'text', icon: Icons.title, label: 'Tekst'),
   EditorToolDefinition(

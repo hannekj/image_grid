@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'app_copy.dart';
 import 'app_theme.dart';
+import 'film_look.dart';
 import 'overlay_text.dart';
 import 'overlay_widget_controls.dart';
+
+enum _MoreSection { home, stickers, filter }
 
 /// Secondary editor actions under the dock’s Mer tool.
 class MorePanel extends StatefulWidget {
@@ -14,6 +17,10 @@ class MorePanel extends StatefulWidget {
     required this.onSaveToPhotos,
     required this.onAddPathText,
     required this.onAddTemplate,
+    required this.filter,
+    required this.grain,
+    required this.onFilterChanged,
+    required this.onGrainChanged,
     required this.overlays,
     required this.selectedIndex,
     required this.onSelect,
@@ -35,6 +42,10 @@ class MorePanel extends StatefulWidget {
   final VoidCallback onSaveToPhotos;
   final VoidCallback onAddPathText;
   final VoidCallback onAddTemplate;
+  final PhotoFilter filter;
+  final bool grain;
+  final ValueChanged<PhotoFilter> onFilterChanged;
+  final ValueChanged<bool> onGrainChanged;
   final List<OverlayText> overlays;
   final int? selectedIndex;
   final ValueChanged<int> onSelect;
@@ -55,90 +66,119 @@ class MorePanel extends StatefulWidget {
 }
 
 class _MorePanelState extends State<MorePanel> {
-  late bool _stickers = widget.openStickers;
+  late _MoreSection _section =
+      widget.openStickers ? _MoreSection.stickers : _MoreSection.home;
 
   @override
   void didUpdateWidget(covariant MorePanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.openStickers && !oldWidget.openStickers) {
-      _stickers = true;
+      _section = _MoreSection.stickers;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_stickers) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () => setState(() => _stickers = false),
-              icon: const Icon(Icons.arrow_back, size: 18),
-              label: const Text('Mer'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.muted,
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-              ),
+    return switch (_section) {
+      _MoreSection.stickers => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _BackToMore(onTap: () => setState(() => _section = _MoreSection.home)),
+            OverlayWidgetControls(
+              overlays: widget.overlays,
+              selectedIndex: widget.selectedIndex,
+              onSelect: widget.onSelect,
+              onAddMessage: widget.onAddMessage,
+              onAddLocation: widget.onAddLocation,
+              onAddCoordinates: widget.onAddCoordinates,
+              onAddDate: widget.onAddDate,
+              onAddTime: widget.onAddTime,
+              onAddWeather: widget.onAddWeather,
+              onAddPageNumber: widget.onAddPageNumber,
+              onChanged: widget.onChanged,
+              onRemove: widget.onRemove,
+              onEdit: widget.onEdit,
             ),
+          ],
+        ),
+      _MoreSection.filter => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _BackToMore(onTap: () => setState(() => _section = _MoreSection.home)),
+            FilterLookControls(
+              filter: widget.filter,
+              grain: widget.grain,
+              onFilterChanged: widget.onFilterChanged,
+              onGrainChanged: widget.onGrainChanged,
+            ),
+          ],
+        ),
+      _MoreSection.home => SizedBox(
+          height: 68,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: 6,
+            separatorBuilder: (context, index) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              return switch (index) {
+                0 => _MoreTile(
+                    icon: Icons.filter_vintage_outlined,
+                    label: 'Filter',
+                    onTap: () => setState(() => _section = _MoreSection.filter),
+                  ),
+                1 => _MoreTile(
+                    icon: Icons.sticky_note_2_outlined,
+                    label: 'Stickers',
+                    onTap: () => setState(() => _section = _MoreSection.stickers),
+                  ),
+                2 => _MoreTile(
+                    icon: Icons.gesture,
+                    label: 'Tegnet tekst',
+                    onTap: widget.onAddPathText,
+                  ),
+                3 => _MoreTile(
+                    icon: Icons.auto_awesome_outlined,
+                    label: 'Mal',
+                    onTap: widget.onAddTemplate,
+                  ),
+                4 => _MoreTile(
+                    icon: Icons.bookmark_add_outlined,
+                    label: AppCopy.saveDraft,
+                    onTap: widget.enabled ? widget.onSaveDraft : null,
+                  ),
+                _ => _MoreTile(
+                    icon: Icons.file_download_outlined,
+                    label: AppCopy.saveToPhotos,
+                    onTap: widget.enabled ? widget.onSaveToPhotos : null,
+                  ),
+              };
+            },
           ),
-          OverlayWidgetControls(
-            overlays: widget.overlays,
-            selectedIndex: widget.selectedIndex,
-            onSelect: widget.onSelect,
-            onAddMessage: widget.onAddMessage,
-            onAddLocation: widget.onAddLocation,
-            onAddCoordinates: widget.onAddCoordinates,
-            onAddDate: widget.onAddDate,
-            onAddTime: widget.onAddTime,
-            onAddWeather: widget.onAddWeather,
-            onAddPageNumber: widget.onAddPageNumber,
-            onChanged: widget.onChanged,
-            onRemove: widget.onRemove,
-            onEdit: widget.onEdit,
-          ),
-        ],
-      );
-    }
+        ),
+    };
+  }
+}
 
-    return SizedBox(
-      height: 68,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: 5,
-        separatorBuilder: (context, index) => const SizedBox(width: 14),
-        itemBuilder: (context, index) {
-          return switch (index) {
-            0 => _MoreTile(
-                icon: Icons.sticky_note_2_outlined,
-                label: 'Stickers',
-                onTap: () => setState(() => _stickers = true),
-              ),
-            1 => _MoreTile(
-                icon: Icons.gesture,
-                label: 'Tegnet tekst',
-                onTap: widget.onAddPathText,
-              ),
-            2 => _MoreTile(
-                icon: Icons.auto_awesome_outlined,
-                label: 'Mal',
-                onTap: widget.onAddTemplate,
-              ),
-            3 => _MoreTile(
-                icon: Icons.bookmark_add_outlined,
-                label: AppCopy.saveDraft,
-                onTap: widget.enabled ? widget.onSaveDraft : null,
-              ),
-            _ => _MoreTile(
-                icon: Icons.file_download_outlined,
-                label: AppCopy.saveToPhotos,
-                onTap: widget.enabled ? widget.onSaveToPhotos : null,
-              ),
-          };
-        },
+class _BackToMore extends StatelessWidget {
+  const _BackToMore({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.arrow_back, size: 18),
+        label: const Text('Mer'),
+        style: TextButton.styleFrom(
+          foregroundColor: AppTheme.muted,
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+        ),
       ),
     );
   }

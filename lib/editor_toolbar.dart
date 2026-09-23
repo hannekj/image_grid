@@ -1,2 +1,2 @@
 /// Active tool panel in the grid editor.
-enum EditorTool { layout, format, look, text, more }
+enum EditorTool { layout, format, frame, text, more }

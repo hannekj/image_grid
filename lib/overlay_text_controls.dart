@@ -19,6 +19,7 @@ class OverlayTextControls extends StatefulWidget {
     required this.onAddText,
     required this.onChanged,
     required this.onRemove,
+    required this.onEdit,
   });
 
   final List<OverlayText> overlays;
@@ -27,6 +28,7 @@ class OverlayTextControls extends StatefulWidget {
   final VoidCallback onAddText;
   final ValueChanged<OverlayText> onChanged;
   final VoidCallback onRemove;
+  final ValueChanged<int> onEdit;
 
   @override
   State<OverlayTextControls> createState() => _OverlayTextControlsState();
@@ -68,12 +70,6 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
         _section == _TextSection.plate) {
       _section = _TextSection.size;
     }
-  }
-
-  void _rotateSelected() {
-    final current = _current;
-    if (current == null) return;
-    widget.onChanged(current.withNextQuarterTurn());
   }
 
   @override
@@ -132,6 +128,11 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
               ),
             ),
             _ActionIcon(
+              tooltip: 'Rediger',
+              icon: Icons.edit_outlined,
+              onPressed: () => widget.onEdit(widget.selectedIndex!),
+            ),
+            _ActionIcon(
               tooltip: 'Ny tekst',
               icon: Icons.add,
               onPressed: widget.onAddText,
@@ -166,17 +167,36 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                 width: double.infinity,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: overlayFonts.length,
+                  itemCount: overlayFontsWithGroups.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(width: EditorChrome.spaceSm),
                   itemBuilder: (context, index) {
-                    final font = overlayFonts[index];
+                    final (groupLabel, font) = overlayFontsWithGroups[index];
                     final selected = current.fontId == font.id;
-                    return _FontChoice(
-                      font: font,
-                      selected: selected,
-                      onTap: () =>
-                          widget.onChanged(current.copyWith(fontId: font.id)),
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (groupLabel != null) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Text(
+                              groupLabel,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                        _FontChoice(
+                          font: font,
+                          selected: selected,
+                          onTap: () => widget.onChanged(
+                            current.copyWith(fontId: font.id),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -241,15 +261,6 @@ class _OverlayTextControlsState extends State<OverlayTextControls> {
                         onTap: () => widget.onChanged(
                           current.copyWith(effect: OverlayTextEffect.outline),
                         ),
-                      ),
-                    ],
-                    if (!current.isPathText) ...[
-                      const SizedBox(width: EditorChrome.spaceMd),
-                      _IconToggle(
-                        tooltip: 'Roter',
-                        icon: Icons.rotate_right,
-                        selected: false,
-                        onTap: _rotateSelected,
                       ),
                     ],
                   ],

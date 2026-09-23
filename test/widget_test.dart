@@ -48,7 +48,7 @@ void main() {
 
     expect(find.text('Oppsett'), findsOneWidget);
     expect(find.text('Format'), findsOneWidget);
-    expect(find.text('Stil'), findsOneWidget);
+    expect(find.text('Ramme'), findsOneWidget);
     expect(find.text('Tekst'), findsOneWidget);
     expect(find.text('Mer'), findsOneWidget);
     expect(find.byTooltip('Del'), findsOneWidget);
@@ -68,23 +68,14 @@ void main() {
     expect(find.bySemanticsLabel('Dump'), findsOneWidget);
   });
 
-  testWidgets('editor shows frame style controls under Stil', (
+  testWidgets('editor shows frame controls under Ramme', (
     WidgetTester tester,
   ) async {
     await _openEditor(tester);
 
-    await tester.tap(find.text('Stil'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Filter'), findsOneWidget);
-    expect(find.text('Ramme'), findsOneWidget);
-    expect(find.text('Korn'), findsOneWidget);
-    expect(find.text('Golden'), findsOneWidget);
-    expect(find.text('Flash'), findsOneWidget);
-    expect(find.text('G7X'), findsOneWidget);
-
     await tester.tap(find.text('Ramme'));
     await tester.pumpAndSettle();
+
     expect(find.text('Ingen'), findsOneWidget);
     for (final option in strokeThicknesses) {
       expect(find.text(option.label), findsOneWidget);
@@ -95,6 +86,20 @@ void main() {
     await tester.tap(find.text('Medium'));
     await tester.pumpAndSettle();
     expect(find.byType(ColorScrubStrip), findsOneWidget);
+  });
+
+  testWidgets('editor shows filters under Mer', (WidgetTester tester) async {
+    await _openEditor(tester);
+
+    await tester.tap(find.text('Mer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Filter'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Korn'), findsOneWidget);
+    expect(find.text('Golden'), findsOneWidget);
+    expect(find.text('Flash'), findsOneWidget);
+    expect(find.text('G7X'), findsOneWidget);
   });
 
   testWidgets('editor adds and edits text overlays', (

@@ -56,7 +56,7 @@ import 'strawberry_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
 
-enum _CarouselTool { slides, format, look, text, more }
+enum _CarouselTool { slides, format, frame, text, more }
 
 class _CarouselSnapshot {
   const _CarouselSnapshot({
@@ -863,6 +863,12 @@ class _CarouselPageState extends State<CarouselPage> {
     final nextValue = value.trim().isEmpty
         ? overlayDefaultValue(OverlayKind.text)
         : value;
+    if (_current.overlays[index].value == nextValue) {
+      setState(() => _editingOverlayIndex = null);
+      _setCurrentOverlays(_current.overlays, selected: index);
+      return;
+    }
+    _pushUndo();
     final next = List<OverlayText>.from(_current.overlays);
     next[index] = next[index].copyWith(value: nextValue);
     setState(() => _editingOverlayIndex = null);
@@ -1008,7 +1014,7 @@ class _CarouselPageState extends State<CarouselPage> {
     final overlays = _current.overlays;
     if (index < 0 || index >= overlays.length) return;
     final existing = overlays[index];
-    if (existing.kind == OverlayKind.text) {
+    if (existing.kind == OverlayKind.text && !existing.usesBeadLetters) {
       setState(() {
         _selectedOverlayIndex = index;
         _editingOverlayIndex = index;
@@ -1019,7 +1025,14 @@ class _CarouselPageState extends State<CarouselPage> {
       return;
     }
     if (_selectedOverlayIndex != index) {
-      setState(() => _selectedOverlayIndex = index);
+      setState(() {
+        _selectedOverlayIndex = index;
+        _imageFocused = false;
+        _selectedSlotIndex = null;
+        _tool = existing.isWidgetOverlay
+            ? _CarouselTool.more
+            : _CarouselTool.text;
+      });
     }
     final result = await showDialog<String>(
       context: context,
@@ -1033,17 +1046,38 @@ class _CarouselPageState extends State<CarouselPage> {
     );
     if (!mounted || result == null) return;
 
+    _pushUndo();
     final next = List<OverlayText>.from(overlays);
-    if (result.isEmpty && !existing.isPathText) {
-      next.removeAt(index);
-      _setCurrentOverlays(
-        next,
-        selected: next.isEmpty ? null : index.clamp(0, next.length - 1),
-      );
+    final trimmed = result.trim();
+    if (trimmed.isEmpty) {
+      if (existing.isPathText) {
+        next[index] = existing.copyWith(value: '•');
+        _setCurrentOverlays(next, selected: index);
+      } else if (existing.kind == OverlayKind.text) {
+        next[index] = existing.copyWith(
+          value: overlayDefaultValue(OverlayKind.text),
+        );
+        setState(() {
+          _editingOverlayIndex = null;
+          _tool = _CarouselTool.text;
+        });
+        _setCurrentOverlays(next, selected: index);
+      } else {
+        next.removeAt(index);
+        setState(() => _editingOverlayIndex = null);
+        _setCurrentOverlays(
+          next,
+          selected: next.isEmpty ? null : index.clamp(0, next.length - 1),
+        );
+      }
     } else {
-      next[index] = existing.copyWith(
-        value: result.trim().isEmpty ? '•' : result,
-      );
+      next[index] = existing.copyWith(value: trimmed);
+      setState(() {
+        _editingOverlayIndex = null;
+        if (existing.kind == OverlayKind.text) {
+          _tool = _CarouselTool.text;
+        }
+      });
       _setCurrentOverlays(next, selected: index);
     }
   }
@@ -2288,7 +2322,7 @@ class _CarouselPageState extends State<CarouselPage> {
     return switch (_tool) {
       _CarouselTool.slides => 'slides',
       _CarouselTool.format => 'format',
-      _CarouselTool.look => 'look',
+      _CarouselTool.frame => 'frame',
       _CarouselTool.text => 'text',
       _CarouselTool.more => 'more',
       null => null,
@@ -2305,9 +2339,9 @@ class _CarouselPageState extends State<CarouselPage> {
           _pickingTemplate = false;
           _pickingGridLayout = false;
         });
-      case 'look':
+      case 'frame':
         setState(() {
-          _tool = _CarouselTool.look;
+          _tool = _CarouselTool.frame;
           _pickingTemplate = false;
           _pickingGridLayout = false;
         });
@@ -2485,13 +2519,11 @@ class _CarouselPageState extends State<CarouselPage> {
             setState(() => _format = format);
           },
         );
-      case _CarouselTool.look:
-        return LookPanel(
+      case _CarouselTool.frame:
+        return FramePanel(
           kind: _kind,
           color: _color,
           thickness: _thickness,
-          filter: _filter,
-          grain: _grain,
           onKindChanged: (kind) {
             _pushUndo();
             setState(() => _kind = kind);
@@ -2504,14 +2536,6 @@ class _CarouselPageState extends State<CarouselPage> {
             _pushUndo();
             setState(() => _thickness = thickness);
           },
-          onFilterChanged: (filter) {
-            _pushUndo();
-            setState(() => _filter = filter);
-          },
-          onGrainChanged: (value) {
-            _pushUndo();
-            setState(() => _grain = value);
-          },
           onApplyToAll: _applyPageNumbersToAll,
           applyToAllLabel: 'Legg sidetall på alle',
         );
@@ -2523,6 +2547,7 @@ class _CarouselPageState extends State<CarouselPage> {
           onAddText: () => _addOverlay(OverlayKind.text),
           onChanged: _updateSelectedOverlay,
           onRemove: _removeSelectedOverlay,
+          onEdit: _editOverlay,
         );
       case _CarouselTool.more:
         return MorePanel(
@@ -2540,6 +2565,16 @@ class _CarouselPageState extends State<CarouselPage> {
           onAddTemplate: () {
             setState(() => _tool = null);
             _addEditorial();
+          },
+          filter: _filter,
+          grain: _grain,
+          onFilterChanged: (filter) {
+            _pushUndo();
+            setState(() => _filter = filter);
+          },
+          onGrainChanged: (value) {
+            _pushUndo();
+            setState(() => _grain = value);
           },
           overlays: _current.overlays,
           selectedIndex: _selectedOverlayIndex,

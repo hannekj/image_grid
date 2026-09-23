@@ -76,18 +76,14 @@ void main() {
 
     expect(
       await measure(
-        'look',
-        LookPanel(
+        'frame',
+        FramePanel(
           kind: FrameKind.stroke,
           color: strokeColors.first,
           thickness: strokeThicknesses.first,
-          filter: PhotoFilter.values.first,
-          grain: false,
           onKindChanged: (_) {},
           onColorChanged: (_) {},
           onThicknessChanged: (_) {},
-          onFilterChanged: (_) {},
-          onGrainChanged: (_) {},
         ),
       ),
       // Tallest state: frame on, so width and colour are both on screen.
@@ -104,6 +100,7 @@ void main() {
           onAddText: () {},
           onChanged: (_) {},
           onRemove: () {},
+          onEdit: (_) {},
         ),
       ),
       lessThan(180),
@@ -117,6 +114,10 @@ void main() {
           onSaveToPhotos: () {},
           onAddPathText: () {},
           onAddTemplate: () {},
+          filter: PhotoFilter.values.first,
+          grain: false,
+          onFilterChanged: (_) {},
+          onGrainChanged: (_) {},
           overlays: const [],
           selectedIndex: null,
           onSelect: (_) {},
