@@ -14,6 +14,7 @@ import 'special_layouts.dart';
 import 'stagger_grid_layout.dart';
 import 'strawberry_grid_layout.dart';
 import 'strip_grid_layout.dart';
+import 'torn_strips_layout.dart';
 
 class LayoutOutlinePainter extends CustomPainter {
   const LayoutOutlinePainter({
@@ -69,6 +70,11 @@ class LayoutOutlinePainter extends CustomPainter {
 
     if (layout.isAlbumMonth) {
       _paintAlbumMonth(canvas, size);
+      return;
+    }
+
+    if (layout.isTornStrips) {
+      paintTornStripsOutline(canvas, size, cellColor: cellColor);
       return;
     }
 

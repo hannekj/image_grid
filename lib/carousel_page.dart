@@ -55,6 +55,7 @@ import 'special_layouts.dart';
 import 'stagger_grid_layout.dart';
 import 'strawberry_grid_layout.dart';
 import 'strip_grid_layout.dart';
+import 'torn_strips_layout.dart';
 import 'swappable_slot.dart';
 
 enum _CarouselTool { slides, format, frame, text, more }
@@ -156,6 +157,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isHeartColumns) return Colors.white;
     if (layout.isPostcard) return Colors.white;
     if (layout.isAlbumMonth) return Colors.white;
+    if (layout.isTornStrips) return Colors.white;
     if (layout.isTimeline) return Colors.white;
     if (layout.isFilmStrip) return AppTheme.cream;
     if (layout.usesCreamCanvas) {
@@ -175,6 +177,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (slide.layout?.isHeartColumns == true) return 0;
     if (slide.layout?.isPostcard == true) return 0;
     if (slide.layout?.isAlbumMonth == true) return 0;
+    if (slide.layout?.isTornStrips == true) return 0;
     if (slide.layout?.isTimeline == true) return 0;
     return _strokeWidth;
   }
@@ -2090,6 +2093,12 @@ class _CarouselPageState extends State<CarouselPage> {
         title: AlbumMonthLayout.defaultTitle,
         itemCount: 0,
         showChrome: showChrome,
+      );
+    }
+
+    if (layout.isTornStrips) {
+      return TornStripsFrame(
+        slots: [for (var i = 0; i < TornStripsLayout.slotCount; i++) slot(i)],
       );
     }
 

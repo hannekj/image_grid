@@ -49,6 +49,7 @@ import 'stagger_grid_layout.dart';
 import 'strawberry_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'swappable_slot.dart';
+import 'torn_strips_layout.dart';
 
 class _LayoutSnapshot {
   const _LayoutSnapshot({
@@ -1331,6 +1332,12 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildTornStrips() {
+    return TornStripsFrame(
+      slots: [for (var i = 0; i < TornStripsLayout.slotCount; i++) _slot(i)],
+    );
+  }
+
   Widget _buildStaggerGrid() {
     return StaggerGridFrame(
       slots: [for (var i = 0; i < StaggerGridLayout.slotCount; i++) _slot(i)],
@@ -1434,6 +1441,7 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (_layout.isReactionCircle) return _buildReactionCircle();
     if (_layout.isPostcard) return _buildPostcard();
     if (_layout.isAlbumMonth) return _buildAlbumMonth();
+    if (_layout.isTornStrips) return _buildTornStrips();
     if (_layout.isTimeline) return _buildTimeline();
     if (_layout.isOverlayFrame) return _buildOverlayFrame();
     if (_layout.isAlbumGrid) return _buildAlbumGrid();

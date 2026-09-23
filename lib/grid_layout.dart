@@ -46,6 +46,8 @@ class GridLayout {
 
   bool get isAlbumMonth => id == 'album-month';
 
+  bool get isTornStrips => id == 'torn-strips';
+
   bool get isStripGrid => id == 'strip-grid';
 
   bool get isStaggerGrid => id == 'stagger-grid';
@@ -74,7 +76,8 @@ class GridLayout {
       isHeartGrid ||
       isHeartColumns ||
       isStrawberryGrid ||
-      isAlbumMonth;
+      isAlbumMonth ||
+      isTornStrips;
 
   bool get usesCreamCanvas => isDump || isBooth || isFilmStrip || isAlbumGrid;
 
@@ -90,7 +93,8 @@ class GridLayout {
         isPostcard ||
         isTimeline ||
         isReactionCircle ||
-        isAlbumMonth) {
+        isAlbumMonth ||
+        isTornStrips) {
       return LayoutGroup.special;
     }
     return LayoutGroup.classic;
@@ -260,6 +264,15 @@ const gridLayouts = [
       LayoutRow(flex: 2, cells: [1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'torn-strips',
+    label: 'Rivne striper',
+    rows: [
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
+      LayoutRow(flex: 1, cells: [1]),
     ],
   ),
   GridLayout(
