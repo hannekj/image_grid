@@ -174,60 +174,6 @@ class LayoutsTab extends StatelessWidget {
   }
 }
 
-class ProfileTab extends StatelessWidget {
-  const ProfileTab({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.matcha.withValues(alpha: 0.14),
-                ),
-                child: const SizedBox(
-                  width: 88,
-                  height: 88,
-                  child: Icon(
-                    Icons.person_rounded,
-                    size: 44,
-                    color: AppTheme.matcha,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Profil',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.ink,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Innstillinger og konto kommer snart.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppTheme.muted,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _EmptyTabMessage extends StatelessWidget {
   const _EmptyTabMessage({
     required this.icon,

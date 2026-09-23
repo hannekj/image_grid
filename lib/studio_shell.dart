@@ -33,11 +33,6 @@ class _StudioShellState extends State<StudioShell> {
       selectedIcon: Icons.dashboard_rounded,
       label: 'Layouts',
     ),
-    _StudioTab(
-      icon: Icons.person_outline_rounded,
-      selectedIcon: Icons.person_rounded,
-      label: 'Profil',
-    ),
   ];
 
   void _onTabSelected(int index) {
@@ -56,8 +51,7 @@ class _StudioShellState extends State<StudioShell> {
       body: switch (_index) {
         0 => HomePage(onDraftsChanged: () => _projectsKey.currentState?.reload()),
         1 => ProjectsTab(key: _projectsKey),
-        2 => const LayoutsTab(),
-        _ => const ProfileTab(),
+        _ => const LayoutsTab(),
       },
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(

@@ -377,10 +377,12 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                         left: 0,
                         right: 0,
                         height: 40,
-                        // Hug the icons and center the pill over the text;
-                        // do not stretch to the label width.
-                        child: UnconstrainedBox(
-                          constrainedAxis: Axis.vertical,
+                        // Hug icons and center over the label; may hang past
+                        // short text without a layout overflow stripe.
+                        child: OverflowBox(
+                          minWidth: 0,
+                          maxWidth: double.infinity,
+                          alignment: Alignment.center,
                           child: _OverlayActionPill(
                             onEdit: overlay.kind == OverlayKind.text
                                 ? _requestEdit
@@ -396,8 +398,10 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
                         left: 0,
                         right: 0,
                         height: 36,
-                        child: UnconstrainedBox(
-                          constrainedAxis: Axis.vertical,
+                        child: OverflowBox(
+                          minWidth: 0,
+                          maxWidth: double.infinity,
+                          alignment: Alignment.center,
                           child: _RotateHandle(
                             onPanStart: _startInteraction,
                             onPanEnd: () =>
