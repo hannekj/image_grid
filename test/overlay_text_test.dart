@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_grid/main.dart';
 import 'package:image_grid/overlay_text.dart';
 import 'package:image_grid/overlay_text_controls.dart';
+import 'package:image_grid/overlay_text_layer.dart';
 
 Future<void> _openCollageEditor(WidgetTester tester) async {
   await tester.pumpWidget(const ImageGridApp());
@@ -131,5 +132,39 @@ void main() {
       OverlayText(value: 'XO', fontId: 'sans').usesBeadLetters,
       isFalse,
     );
+  });
+
+  testWidgets('on-canvas delete pill removes overlay', (tester) async {
+    var removed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 390,
+            height: 700,
+            child: OverlayTextsLayer(
+              overlays: [
+                OverlayText.create(value: 'Hei', index: 0),
+              ],
+              selectedIndex: 0,
+              exporting: false,
+              onSelect: (_) {},
+              onEdit: (_) {},
+              onDuplicate: (_) {},
+              onRemove: (_) => removed = true,
+              onAlignmentChanged: (_, __) {},
+              onFontSizeChanged: (_, __) {},
+              onRotationChanged: (_, __) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Slett'), findsOneWidget);
+    await tester.tap(find.byTooltip('Slett'));
+    await tester.pump();
+    expect(removed, isTrue);
   });
 }

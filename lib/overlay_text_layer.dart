@@ -291,6 +291,10 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
             (widget.onRemove != null ||
                 widget.onDuplicate != null ||
                 overlay.kind == OverlayKind.text);
+        // Keep chrome in layout bounds — overflowing Positioned children paint
+        // with Clip.none but are not hit-testable outside the text box.
+        final handlePad =
+            showChrome ? OverlayTextLayer._handleSize / 2 : 0.0;
 
         return Stack(
           fit: StackFit.expand,
@@ -311,140 +315,125 @@ class _OverlayTextLayerState extends State<OverlayTextLayer> {
               alignment: overlay.alignment,
               child: Transform.rotate(
                 angle: overlay.rotation,
-                child: Stack(
-                  clipBehavior: Clip.none,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    GestureDetector(
-                      onTap: interactive
-                          ? null
-                          : widget.onSelect,
-                      onDoubleTap: !widget.actionsEnabled
-                          ? null
-                          : () {
-                              // Select → style dock; double-tap → write.
-                              if (!interactive) widget.onSelect();
-                              _requestEdit();
-                            },
-                      onPanStart: interactive && !editing
-                          ? (_) {
-                              _startInteraction();
-                              setState(() => _dragging = true);
-                            }
-                          : null,
-                      onPanUpdate: interactive && !editing
-                          ? (details) {
-                              final next = _snap(
-                                Alignment(
-                                  (overlay.alignment.x +
-                                          details.delta.dx /
-                                              (constraints.maxWidth / 2))
-                                      .clamp(-1.0, 1.0),
-                                  (overlay.alignment.y +
-                                          details.delta.dy /
-                                              (constraints.maxHeight / 2))
-                                      .clamp(-1.0, 1.0),
+                    if (showActionPill)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _OverlayActionPill(
+                          onEdit: overlay.kind == OverlayKind.text
+                              ? _requestEdit
+                              : null,
+                          onDelete: widget.onRemove,
+                          onDuplicate: widget.onDuplicate,
+                        ),
+                      ),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.all(handlePad),
+                          child: GestureDetector(
+                            onTap: interactive ? null : widget.onSelect,
+                            onDoubleTap: !widget.actionsEnabled
+                                ? null
+                                : () {
+                                    // Select → style dock; double-tap → write.
+                                    if (!interactive) widget.onSelect();
+                                    _requestEdit();
+                                  },
+                            onPanStart: interactive && !editing
+                                ? (_) {
+                                    _startInteraction();
+                                    setState(() => _dragging = true);
+                                  }
+                                : null,
+                            onPanUpdate: interactive && !editing
+                                ? (details) {
+                                    final next = _snap(
+                                      Alignment(
+                                        (overlay.alignment.x +
+                                                details.delta.dx /
+                                                    (constraints.maxWidth / 2))
+                                            .clamp(-1.0, 1.0),
+                                        (overlay.alignment.y +
+                                                details.delta.dy /
+                                                    (constraints.maxHeight /
+                                                        2))
+                                            .clamp(-1.0, 1.0),
+                                      ),
+                                    );
+                                    setState(() => _dragging = true);
+                                    widget.onAlignmentChanged(next);
+                                  }
+                                : null,
+                            onPanEnd: interactive && !editing
+                                ? (_) => _endDrag()
+                                : null,
+                            onPanCancel:
+                                interactive && !editing ? _endDrag : null,
+                            child: content,
+                          ),
+                        ),
+                        if (showSelectionRing)
+                          Positioned.fill(
+                            child: Padding(
+                              padding: EdgeInsets.all(handlePad),
+                              child: IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(
+                                      selectionRadius,
+                                    ),
+                                    border: Border.all(
+                                      color: const Color(0x66FFFFFF),
+                                      width: 1,
+                                    ),
+                                  ),
                                 ),
-                              );
-                              setState(() => _dragging = true);
-                              widget.onAlignmentChanged(next);
-                            }
-                          : null,
-                      onPanEnd: interactive && !editing
-                          ? (_) => _endDrag()
-                          : null,
-                      onPanCancel:
-                          interactive && !editing ? _endDrag : null,
-                      child: content,
-                    ),
-                    if (showSelectionRing)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              borderRadius:
-                                  BorderRadius.circular(selectionRadius),
-                              border: Border.all(
-                                color: const Color(0x66FFFFFF),
-                                width: 1,
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    if (showActionPill)
-                      Positioned(
-                        top: -40,
-                        left: 0,
-                        right: 0,
-                        height: 40,
-                        // Hug icons and center over the label; may hang past
-                        // short text without a layout overflow stripe.
-                        child: OverflowBox(
-                          minWidth: 0,
-                          maxWidth: double.infinity,
-                          alignment: Alignment.center,
-                          child: _OverlayActionPill(
-                            onEdit: overlay.kind == OverlayKind.text
-                                ? _requestEdit
-                                : null,
-                            onDelete: widget.onRemove,
-                            onDuplicate: widget.onDuplicate,
-                          ),
-                        ),
-                      ),
+                        if (showChrome)
+                          ..._Corner.values.map((corner) {
+                            return Positioned(
+                              left: corner.isLeft ? 0 : null,
+                              right: corner.isLeft ? null : 0,
+                              top: corner.isTop ? 0 : null,
+                              bottom: corner.isTop ? null : 0,
+                              child: _ResizeHandle(
+                                onPanStart: _startInteraction,
+                                onPanEnd: () =>
+                                    widget.onInteractionChanged?.call(false),
+                                onUpdate: (delta) {
+                                  final next = (overlay.fontSize +
+                                          _sizeDelta(delta, corner))
+                                      .clamp(
+                                        overlayTextMinSize,
+                                        overlayTextMaxSize,
+                                      );
+                                  widget.onFontSizeChanged(next);
+                                },
+                              ),
+                            );
+                          }),
+                      ],
+                    ),
                     if (showChrome && !overlay.isBubble)
-                      Positioned(
-                        bottom: -36,
-                        left: 0,
-                        right: 0,
-                        height: 36,
-                        child: OverflowBox(
-                          minWidth: 0,
-                          maxWidth: double.infinity,
-                          alignment: Alignment.center,
-                          child: _RotateHandle(
-                            onPanStart: _startInteraction,
-                            onPanEnd: () =>
-                                widget.onInteractionChanged?.call(false),
-                            onUpdate: (delta) {
-                              widget.onRotationChanged(
-                                overlay.rotation + delta * 0.015,
-                              );
-                            },
-                          ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: _RotateHandle(
+                          onPanStart: _startInteraction,
+                          onPanEnd: () =>
+                              widget.onInteractionChanged?.call(false),
+                          onUpdate: (delta) {
+                            widget.onRotationChanged(
+                              overlay.rotation + delta * 0.015,
+                            );
+                          },
                         ),
                       ),
-                    if (showChrome)
-                      ..._Corner.values.map((corner) {
-                        return Positioned(
-                          left: corner.isLeft
-                              ? -OverlayTextLayer._handleSize / 2
-                              : null,
-                          right: corner.isLeft
-                              ? null
-                              : -OverlayTextLayer._handleSize / 2,
-                          top: corner.isTop
-                              ? -OverlayTextLayer._handleSize / 2
-                              : null,
-                          bottom: corner.isTop
-                              ? null
-                              : -OverlayTextLayer._handleSize / 2,
-                          child: _ResizeHandle(
-                            onPanStart: _startInteraction,
-                            onPanEnd: () =>
-                                widget.onInteractionChanged?.call(false),
-                            onUpdate: (delta) {
-                              final next = (overlay.fontSize +
-                                      _sizeDelta(delta, corner))
-                                  .clamp(
-                                    overlayTextMinSize,
-                                    overlayTextMaxSize,
-                                  );
-                              widget.onFontSizeChanged(next);
-                            },
-                          ),
-                        );
-                      }),
                   ],
                 ),
               ),

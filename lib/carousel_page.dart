@@ -33,6 +33,8 @@ import 'film_look.dart';
 import 'film_strip.dart';
 import 'frame_style.dart';
 import 'grid_layout.dart';
+import 'polaroid_grid_layout.dart';
+import 'film_frames_layout.dart';
 import 'image_adjust_toolbar.dart';
 import 'image_corner_handles.dart';
 import 'image_slot.dart';
@@ -159,6 +161,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isAlbumMonth) return Colors.white;
     if (layout.isTornStrips) return Colors.white;
     if (layout.isTimeline) return Colors.white;
+    if (layout.isFilmFrames) return FilmFramesLayout.bodyColor;
     if (layout.isFilmStrip) return AppTheme.cream;
     if (layout.usesCreamCanvas) {
       return _kind == FrameKind.stroke ? _color.color : AppTheme.cream;
@@ -179,6 +182,7 @@ class _CarouselPageState extends State<CarouselPage> {
     if (slide.layout?.isAlbumMonth == true) return 0;
     if (slide.layout?.isTornStrips == true) return 0;
     if (slide.layout?.isTimeline == true) return 0;
+    if (slide.layout?.isFilmFrames == true) return 0;
     return _strokeWidth;
   }
 
@@ -2157,6 +2161,22 @@ class _CarouselPageState extends State<CarouselPage> {
     if (layout.isAlbumGrid) {
       return AlbumGridFrame(
         slots: [for (var i = 0; i < AlbumGridFrame.slotCount; i++) slot(i)],
+      );
+    }
+
+    if (layout.isPolaroidGrid) {
+      return PolaroidGridFrame(
+        slots: [
+          for (var i = 0; i < PolaroidGridLayout.slotCount; i++) slot(i),
+        ],
+      );
+    }
+
+    if (layout.isFilmFrames) {
+      return FilmFramesFrame(
+        slots: [
+          for (var i = 0; i < FilmFramesLayout.slotCount; i++) slot(i),
+        ],
       );
     }
 

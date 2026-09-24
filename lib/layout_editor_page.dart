@@ -28,6 +28,8 @@ import 'film_strip.dart';
 import 'editor_toolbar.dart';
 import 'film_look.dart';
 import 'frame_style.dart';
+import 'polaroid_grid_layout.dart';
+import 'film_frames_layout.dart';
 import 'grid_layout.dart';
 import 'layout_slot_pool.dart';
 import 'image_slot.dart';
@@ -387,12 +389,13 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
   }
 
   double get _strokeWidth {
-    if (_layout.usesCreamCanvas) return 0;
+    if (_layout.usesCreamCanvas || _layout.isFilmFrames) return 0;
     if (_kind == FrameKind.stroke) return _thickness.width;
     return 0;
   }
 
   Color get _canvasColor {
+    if (_layout.isFilmFrames) return FilmFramesLayout.bodyColor;
     if (_layout.isEdgeToEdgeCanvas) return Colors.white;
     if (_layout.isFilmStrip) return AppTheme.cream;
     if (_layout.usesCreamCanvas) {
@@ -1326,6 +1329,18 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     );
   }
 
+  Widget _buildPolaroidGrid() {
+    return PolaroidGridFrame(
+      slots: [for (var i = 0; i < PolaroidGridLayout.slotCount; i++) _slot(i)],
+    );
+  }
+
+  Widget _buildFilmFrames() {
+    return FilmFramesFrame(
+      slots: [for (var i = 0; i < FilmFramesLayout.slotCount; i++) _slot(i)],
+    );
+  }
+
   Widget _buildStripGrid() {
     return StripGridFrame(
       slots: [for (var i = 0; i < StripGridLayout.slotCount; i++) _slot(i)],
@@ -1445,6 +1460,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
     if (_layout.isTimeline) return _buildTimeline();
     if (_layout.isOverlayFrame) return _buildOverlayFrame();
     if (_layout.isAlbumGrid) return _buildAlbumGrid();
+    if (_layout.isPolaroidGrid) return _buildPolaroidGrid();
+    if (_layout.isFilmFrames) return _buildFilmFrames();
     if (_layout.isStripGrid) return _buildStripGrid();
     if (_layout.isStaggerGrid) return _buildStaggerGrid();
     if (_layout.isCheckerGrid) return _buildCheckerGrid();
@@ -1572,7 +1589,8 @@ class _LayoutEditorPageState extends State<LayoutEditorPage> {
                                           ),
                                           Padding(
                                             padding: EdgeInsets.all(
-                                              _layout.isEdgeToEdgeCanvas
+                                              _layout.isEdgeToEdgeCanvas ||
+                                                      _layout.isFilmFrames
                                                   ? 0
                                                   : _layout.usesCreamCanvas
                                                   ? 12

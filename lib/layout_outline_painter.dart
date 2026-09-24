@@ -15,6 +15,8 @@ import 'stagger_grid_layout.dart';
 import 'strawberry_grid_layout.dart';
 import 'strip_grid_layout.dart';
 import 'torn_strips_layout.dart';
+import 'polaroid_grid_layout.dart';
+import 'film_frames_layout.dart';
 
 class LayoutOutlinePainter extends CustomPainter {
   const LayoutOutlinePainter({
@@ -90,6 +92,16 @@ class LayoutOutlinePainter extends CustomPainter {
 
     if (layout.isAlbumGrid) {
       _paintAlbumGrid(canvas, size);
+      return;
+    }
+
+    if (layout.isPolaroidGrid) {
+      _paintPolaroidGrid(canvas, size);
+      return;
+    }
+
+    if (layout.isFilmFrames) {
+      _paintFilmFrames(canvas, size);
       return;
     }
 
@@ -490,6 +502,92 @@ class LayoutOutlinePainter extends CustomPainter {
           RRect.fromRectAndRadius(
             Rect.fromLTWH(left, top, cellSize, cellSize),
             const Radius.circular(1),
+          ),
+          cellPaint,
+        );
+      }
+    }
+  }
+
+  void _paintPolaroidGrid(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = AppTheme.cream);
+
+    final cellPaint = Paint()..color = cellColor;
+    final paper = Paint()..color = PolaroidGridLayout.paperColor;
+    const columns = PolaroidGridLayout.columns;
+    const rows = PolaroidGridLayout.rows;
+
+    final gap = math.min(size.width, size.height) * 0.042;
+    final padX = size.width * 0.032;
+    final padY = size.height * 0.028;
+    final availW = size.width - padX * 2;
+    final availH = size.height - padY * 2;
+
+    final byWidth = (availW - gap * (columns - 1)) / columns;
+    final byHeight =
+        (availH - gap * (rows - 1)) / rows / PolaroidGridLayout.frameAspect;
+    final frameW = math.min(byWidth, byHeight);
+    final frameH = frameW * PolaroidGridLayout.frameAspect;
+
+    final contentW = frameW * columns + gap * (columns - 1);
+    final contentH = frameH * rows + gap * (rows - 1);
+    final origin = Offset(
+      (size.width - contentW) / 2,
+      (size.height - contentH) / 2,
+    );
+
+    final edge = frameW * 0.048;
+    final bottom = frameH * 0.2;
+
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < columns; col++) {
+        final left = origin.dx + col * (frameW + gap);
+        final top = origin.dy + row * (frameH + gap);
+        final frame = Rect.fromLTWH(left, top, frameW, frameH);
+        canvas.drawRect(frame, paper);
+        canvas.drawRect(
+          Rect.fromLTRB(
+            frame.left + edge,
+            frame.top + edge,
+            frame.right - edge,
+            frame.bottom - bottom,
+          ),
+          cellPaint,
+        );
+      }
+    }
+  }
+
+  void _paintFilmFrames(Canvas canvas, Size size) {
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = FilmFramesLayout.bodyColor,
+    );
+
+    final cellPaint = Paint()..color = cellColor;
+    const columns = FilmFramesLayout.columns;
+    const rows = FilmFramesLayout.rows;
+
+    final gap = math.min(size.width, size.height) * 0.04;
+    final padX = size.width * 0.05;
+    final padY = size.height * 0.045;
+    final availW = size.width - padX * 2;
+    final availH = size.height - padY * 2;
+    final cellW = (availW - gap * (columns - 1)) / columns;
+    final cellH = (availH - gap * (rows - 1)) / rows;
+    final edge = math.max(3.0, cellW * 0.14);
+    final inset = math.max(1.0, math.min(cellW, cellH) * 0.03);
+
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < columns; col++) {
+        final left = padX + col * (cellW + gap);
+        final top = padY + row * (cellH + gap);
+        canvas.drawRect(
+          Rect.fromLTRB(
+            left + inset,
+            top + inset,
+            left + cellW - edge,
+            top + cellH - inset,
           ),
           cellPaint,
         );

@@ -44,6 +44,10 @@ class GridLayout {
 
   bool get isAlbumGrid => id == 'album-grid';
 
+  bool get isPolaroidGrid => id == 'polaroid-grid';
+
+  bool get isFilmFrames => id == 'film-frames';
+
   bool get isAlbumMonth => id == 'album-month';
 
   bool get isTornStrips => id == 'torn-strips';
@@ -79,10 +83,13 @@ class GridLayout {
       isAlbumMonth ||
       isTornStrips;
 
-  bool get usesCreamCanvas => isDump || isBooth || isFilmStrip || isAlbumGrid;
+  bool get usesCreamCanvas =>
+      isDump || isBooth || isFilmStrip || isAlbumGrid || isPolaroidGrid;
 
   LayoutGroup get group {
-    if (isDump || isBooth || isFilmStrip) return LayoutGroup.film;
+    if (isDump || isBooth || isFilmStrip || isPolaroidGrid || isFilmFrames) {
+      return LayoutGroup.film;
+    }
     if (isReaction ||
         isOverlayFrame ||
         isCheckerGrid ||
@@ -255,6 +262,24 @@ const gridLayouts = [
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
       LayoutRow(flex: 1, cells: [1, 1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'polaroid-grid',
+    label: 'Polaroid 2×3',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+    ],
+  ),
+  GridLayout(
+    id: 'film-frames',
+    label: 'Filmrammer',
+    rows: [
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
+      LayoutRow(flex: 1, cells: [1, 1]),
     ],
   ),
   GridLayout(
